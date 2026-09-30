@@ -1,0 +1,95 @@
+BUILD GEURTS PERFORMANCE PREFECT
+
+For the repository release ZIP, manifest, compatible legacy launcher and checksum,
+run scripts/Build-Release.ps1 from the repository root. The raw publish command
+below creates a development build; the packaging script is required for updates.
+
+Requires the .NET 10 SDK on Windows x64. No package download is needed: sensor
+assemblies are included under Geurts Performance Prefect\Dependencies.
+
+From the source archive's root folder, run:
+
+dotnet publish "Geurts Performance Prefect\GeurtsPerformancePrefect.csproj" -c Release --self-contained false -o output --configfile NuGet.Config
+
+The application is output\GeurtsPerformancePrefect.exe. This is a framework-dependent
+build and uses the installed .NET 10 Desktop Runtime.
+
+CHECKS
+Run the following in PowerShell and wait for completion:
+
+$report = Join-Path (Get-Location) 'verification.txt'
+Start-Process .\output\GeurtsPerformancePrefect.exe -ArgumentList '--self-test', ('"' + $report + '"') -Wait
+Get-Content $report
+
+The test also writes overlay-preview.png and settings-preview.png beside the
+report, using clearly synthetic fixture data. It does not read real temperature
+sensors and does not install or load a driver.
+
+For a local hardware report, use --diagnose followed by a quoted absolute JSON
+file path. The report stays on your computer and may include device names.
+
+DESIGN
+- HardwareSampler owns and updates LibreHardwareMonitor on one worker thread.
+- Only CPU, GPU and motherboard hardware groups are enabled.
+- CPU busy time and physical memory also use Windows APIs independently.
+- Physical drive activity uses Windows PDH PhysicalDisk % Idle Time counters:
+  activity = 100 - idle time, clamped to 0-100%. English counter paths support
+  Windows installations in other languages. The first interval and invalid
+  counters show unavailable. This is read/write busy time, not disk space used.
+  WMI inventories drives every 10 seconds on the same worker; disk numbers map
+  counters to models and volume letters. Preferences use model/serial identity
+  (PNP device identity when no serial is available), not disk numbers or letters.
+  Each drive has a saved visibility checkbox. Removed drives leave the UI while
+  their preferences remain saved. Drive counters do not require PawnIO.
+- The overlay scrolls its readings when many drives would exceed screen height.
+- Self-test covers activity calculation, invalid counters, live drive readings,
+  settings compatibility, individual drive visibility, persistence, disconnects
+  and reconnects with changed disk numbers/letters. The drive-diagnostic.json
+  report contains real local drive readings; preview PNGs use synthetic data.
+- Immutable snapshots pass to the WPF dispatcher. Polling never overlaps.
+- Missing, invalid or stale readings show unavailable, never cached as live.
+- Source selection never substitutes a GPU hotspot for core temperature or a
+  motherboard VRM temperature for System unless explicitly chosen.
+- Settings writes use a temporary file and replacement; invalid files recover.
+- On normal first launch, the bundled PawnIO installer runs only when the driver is missing. Windows requests administrator approval. Self-test and diagnosis do not install a driver.
+- Remove Core Parking uses powercfg to set the current plan's AC CPMINCORES
+  to 100 and reactivate that same plan. Battery values are untouched. Previous
+  AC values are saved per plan before applying and can be restored by unticking.
+  Administrator changes run only after a user clicks the performance setting.
+  The helper rechecks the plan and value, checks exit codes, reads back the result,
+  and attempts rollback if activation or verification fails. Tests use a fake
+  backend and never change the computer's real power settings.
+- The legacy HardwareOverlay settings folder and instance mutex are retained
+  to preserve existing preferences and prevent old/new duplicate instances.
+- Settings > Application Updates checks stable GitHub releases from
+  Geurtsy/Geurts-Performance-Prefect. Installation validates the release SHA-256,
+  each manifest file and application version, starts a separate staged helper,
+  then saves settings and exits normally. The helper verifies the old process
+  identity, waits for it to exit, backs up and replaces only allowed application
+  files, and restarts. Interrupted copying restores all touched files. Update
+  checks do not run automatically or alter the running application.
+- Updater verification covers release selection, download origins, checksums,
+  archive paths, package version/file validation, successful replacement,
+  injected copy failure, rollback and preservation of unrelated files.
+  For an isolated older packaged build, --update-smoke <absolute-report-path>
+  exercises download, install and restart against the live public release,
+  bypassing hardware, driver installation, real settings and the live overlay.
+- Minimise to tray is enabled by default. Main-window and Settings minimising
+  share one workflow; tray Restore/double-click and Settings reopen the windows.
+  Disable the setting for normal taskbar minimising. Saved coordinates use
+  RestoreBounds while minimised. Showing the overlay again never starts a
+  second sensor worker. Native WPF lifecycle checks use an isolated settings
+  file and disable the hardware worker.
+- Auto-avoid uses physical screen rectangles and SetWindowPos without changing
+  focus, z-order or size. Working-area bounds preserve taskbar space and support
+  monitors with negative origins. Hover picks a safe corner farthest from the
+  cursor; if no corner is clear, it does not bounce. Size/DPI/location changes
+  re-anchor the selected corner. Settings and both context menus share one
+  persistent toggle. Tests inject pointer coordinates, exercise the routed
+  MouseEnter event and native window placement, and click the real tray menu item;
+  they do not move the user's cursor. Physical hover and mixed-DPI multi-monitor
+  interactions have not been manually exercised.
+
+Bundled binaries are unmodified upstream dependencies, pinned and recorded in
+Third-party-notices.txt. To update them, use the official upstream distribution
+and preserve Windows-specific System.Management/System.IO.Ports assemblies.

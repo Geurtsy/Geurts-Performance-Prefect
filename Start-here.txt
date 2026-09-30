@@ -1,0 +1,88 @@
+GEURTS PERFORMANCE PREFECT 1.5.0 — WINDOWS x64
+
+Open Geurts Performance Prefect\GeurtsPerformancePrefect.exe, then click Settings.
+The existing HardwareOverlay.exe launcher also opens the updated application.
+
+APPLICATION UPDATES
+Settings > Application Updates > Check for updates checks the public repository:
+  https://github.com/Geurtsy/Geurts-Performance-Prefect
+When a newer release is available, Install update and restart downloads and
+verifies it, saves preferences, closes the app, installs and reopens Settings.
+Preferences stay in the existing HardwareOverlay settings folder. Backups and
+update results are under its Updates subfolder. A protected application folder
+may require administrator approval. Versions before 1.5.0 need a manual upgrade
+once to gain the updater. Normal monitoring continues to work offline.
+
+HARD DRIVE USAGE
+Settings > Hard Drive Usage lists each detected physical drive, including SSDs.
+Tick a drive to show its activity (%) in the overlay; untick it to hide it.
+Each choice saves between launches. New drives appear automatically.
+Activity is the percentage of time the drive is busy reading or writing.
+Drive labels include disk numbers and volume letters; details show the model.
+The first sample, disconnected drives and unavailable counters show no reading.
+Drive discovery refreshes every 10 seconds. Drive activity uses Windows counters
+and does not require the PawnIO driver. The overlay scrolls when needed.
+
+REMOVE CORE PARKING
+Settings > Performance > Remove Core Parking applies:
+  powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 100
+  powercfg /setactive SCHEME_CURRENT
+
+The app captures the active plan's GUID so both commands target the same plan.
+Approve the Windows administrator prompt when you turn the setting on or off.
+The checkbox reflects the actual AC value on the active plan. Refresh power plan
+rechecks it after another app switches plans. Opening the app or Settings does
+not change Windows power settings.
+
+Turning the setting off restores the previous AC percentage saved for that
+plan. Restoration survives application restarts. If the plan was already at
+100% before this app changed it, it shows enabled without offering an invented
+restore value. Battery power and other processor settings are unchanged.
+Keeping cores unparked may increase power consumption and heat.
+
+OVERLAY
+Auto-avoid is available in Settings > Window and in the tray's right-click menu.
+Enable it to anchor the overlay to the nearest corner of its current monitor.
+When the cursor enters it, the overlay moves to another corner clear of the
+pointer and remains anchored there. It uses top left, top right, bottom left,
+and bottom right within the monitor's working area, leaving room for the taskbar.
+Changes to overlay size/readings keep the selected corner anchored.
+The toggle and selected corner save between launches; the toggle defaults off.
+When Auto-avoid is on, use the tray for Settings or to disable it before dragging.
+
+Click the — button in the header to minimise the application.
+Settings > Window > Minimise to tray is enabled by default. It hides the overlay
+and any open Settings window in the notification area. Double-click the tray
+icon, or right-click it and choose Restore, to bring them back. The tray's
+Settings command also restores the application. Disable Minimise to tray to
+use normal taskbar minimising. The preference saves between launches.
+
+The six system readings and each drive have independent switches. Always on top, opacity, size,
+refresh interval and sensor choices apply immediately. Drag the application
+header to move the overlay. Right-click or use the tray icon for Settings/Exit.
+F2 opens Settings. For games, use windowed or borderless mode.
+
+Existing preferences are preserved in:
+  %LOCALAPPDATA%\HardwareOverlay\settings.json
+This legacy folder is retained for compatibility with the previous release.
+
+TEMPERATURE ACCESS
+CPU/motherboard temperatures may need Settings > Restart as administrator and
+the PawnIO driver. On first launch, the bundled official PawnIO installer runs when the driver is missing; approve the Windows administrator prompt.
+Unsupported sensors show unavailable. If installation is declined or fails, the app tries again next launch.
+
+REQUIREMENTS
+Windows x64 with the .NET 10 Desktop Runtime. Dependencies and licences remain
+bundled. The app works offline. See Source\Build.txt for build instructions.
+
+VALIDATION
+Release build and automated checks cover existing overlay behavior, branding,
+native minimising/restoration, tray/taskbar switching, saved minimise preference,
+settings-window restoration and window-position preservation,
+Auto-avoid menu synchronisation, native placement at all four corners, mouse-enter
+handling with simulated pointer coordinates, resizing and saved corner selection,
+per-drive activity, saved visibility, reconnection with changed disk numbers/letters,
+core-parking apply/restore, saved restoration values, permission failures,
+activation failure rollback, changed plans and mismatched readback. Performance
+tests use a simulated backend and do not modify the real power plan. Administrator
+approval and the real system-changing operation require testing via the setting.

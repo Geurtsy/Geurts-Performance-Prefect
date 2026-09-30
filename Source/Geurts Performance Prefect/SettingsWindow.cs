@@ -1,0 +1,299 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.ComponentModel;
+using System.Linq;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+
+namespace GeurtsPerformancePrefect;
+
+public sealed class SettingsWindow : Window
+{
+    readonly OverlayWindow overlay;
+    readonly ComboBox graphics = new(), board = new();
+    readonly TextBlock sensorStatus;
+    string choiceSignature = "";
+    bool updatingChoices;
+    readonly CoreParking parking;
+    readonly TextBlock parkingStatus = Note("Reading the active power plan…");
+    readonly Button parkingRefresh = new() { Content = "Refresh power plan", HorizontalAlignment = HorizontalAlignment.Left };
+    bool updatingParking, parkingBusy;
+    ParkingState? displayedParking;
+    public CheckBox CoreParkingToggle { get; } = new() { Content = "Remove Core Parking", IsEnabled = false };
+    public Dictionary<Metric, CheckBox> MetricToggles { get; } = new();
+    public Dictionary<string, CheckBox> DriveToggles { get; } = new();
+    readonly StackPanel driveToggles = new();
+    readonly TextBlock driveStatus = Note("Detecting drives…");
+    string driveSignature = "";
+    public CheckBox TopmostToggle { get; }
+    public CheckBox MinimiseToTrayToggle { get; }
+    public CheckBox AutoAvoidToggle { get; }
+    public Button CheckUpdatesButton { get; } = new() { Content = "Check for updates", HorizontalAlignment = HorizontalAlignment.Left };
+    public Button InstallUpdateButton { get; } = new() { Content = "Install update and restart", HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Collapsed, Margin = new Thickness(0,8,0,0) };
+    public TextBlock UpdateStatus { get; } = Note("Check GitHub for a newer version.");
+    readonly CancellationTokenSource updateStop = new();
+    AppRelease? availableRelease;
+    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null)
+    {
+        this.overlay = overlay;
+        this.parking = parking ?? new CoreParking();
+        Foreground = Palette.Text; Background = Palette.Background; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
+        Title = "Geurts Performance Prefect · Settings"; Width = 500; Height = 820; MinWidth = 430; MinHeight = 440;
+        MaxHeight = SystemParameters.WorkArea.Height - 32; WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        Topmost = overlay.Settings.AlwaysOnTop;
+        var dock = new DockPanel { Margin = new Thickness(24), Background = Palette.Background }; Content = dock;
+        var footer = new StackPanel { Margin = new Thickness(0,16,0,0) };
+        var footerButtons = new Grid(); footerButtons.ColumnDefinitions.Add(new()); footerButtons.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
+        var quit = new Button { Content = "Exit application", HorizontalAlignment = HorizontalAlignment.Left }; quit.Click += (_, _) => overlay.Close();
+        footerButtons.Children.Add(quit);
+        var done = new Button { Content = "Done", MinWidth = 90 }; done.Click += (_, _) => Close(); Grid.SetColumn(done, 1); footerButtons.Children.Add(done);
+        footer.Children.Add(new TextBlock { Text = "Overlay changes save automatically. Performance changes may require administrator approval.", TextWrapping = TextWrapping.Wrap, Foreground = Palette.Muted, FontSize = 11, Margin = new Thickness(0,0,0,10) });
+        footer.Children.Add(footerButtons); DockPanel.SetDock(footer, Dock.Bottom); dock.Children.Add(footer);
+        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        var stack = new StackPanel { Margin = new Thickness(0,0,12,0) }; scroll.Content = stack; dock.Children.Add(scroll);
+        stack.Children.Add(new TextBlock { Text = "Make it yours", FontSize = 26, FontWeight = FontWeights.SemiBold });
+        stack.Children.Add(Note("Choose the readings you want at a glance."));
+        stack.Children.Add(Heading("APPLICATION UPDATES"));
+        stack.Children.Add(Note("Installed version: " + AppUpdates.CurrentVersion));
+        stack.Children.Add(CheckUpdatesButton);
+        stack.Children.Add(InstallUpdateButton);
+        stack.Children.Add(UpdateStatus);
+        stack.Children.Add(Note("Updates come from the public Geurts Performance Prefect GitHub repository. Installing saves your preferences and restarts the app. Internet is needed only to check and download."));
+        var repository = new Button { Content = "Open GitHub repository", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
+        repository.Click += (_, _) =>
+        {
+            try { Process.Start(new ProcessStartInfo(AppUpdates.Repository) { UseShellExecute = true }); }
+            catch (Exception ex) { UpdateStatus.Text = "Could not open the repository: " + ex.Message; }
+        };
+        stack.Children.Add(repository);
+        var updateResult = AppUpdates.ReadResult();
+        if (updateResult != null) UpdateStatus.Text = updateResult.Message;
+        CheckUpdatesButton.Click += (_, _) => CheckUpdates();
+        InstallUpdateButton.Click += (_, _) => InstallUpdate();
+        Closed += (_, _) => updateStop.Cancel();
+        stack.Children.Add(Heading("PERFORMANCE"));
+        stack.Children.Add(CoreParkingToggle);
+        stack.Children.Add(Note("Keep cores unparked while plugged in by setting the active power plan to 100%. Turning this off restores the value saved by this app. This may increase power use and heat."));
+        stack.Children.Add(parkingStatus);
+        parkingRefresh.Margin = new Thickness(0,8,0,0); stack.Children.Add(parkingRefresh);
+        parkingRefresh.Click += (_, _) => RefreshParking();
+        CoreParkingToggle.Checked += (_, _) => ChangeParking(true);
+        CoreParkingToggle.Unchecked += (_, _) => ChangeParking(false);
+        RefreshParking();
+        Activated += (_, _) => { if (!parkingBusy) RefreshParking(); };
+        stack.Children.Add(Heading("OVERLAY READINGS"));
+        var toggles = Panel();
+        foreach (var metric in MetricInfo.All)
+        {
+            var toggle = new CheckBox { Content = MetricInfo.Label(metric), IsChecked = overlay.Settings.Visible[metric] };
+            toggle.Checked += (_, _) => { overlay.Settings.Visible[metric] = true; overlay.Changed(); };
+            toggle.Unchecked += (_, _) => { overlay.Settings.Visible[metric] = false; overlay.Changed(); };
+            MetricToggles.Add(metric, toggle); ((StackPanel)toggles.Child).Children.Add(toggle);
+        }
+        stack.Children.Add(toggles);
+        stack.Children.Add(Heading("HARD DRIVE USAGE"));
+        stack.Children.Add(Note("Show activity (%) for each physical drive, including SSDs. Choices save automatically."));
+        var drivesPanel = Panel(); drivesPanel.Child = driveToggles; stack.Children.Add(drivesPanel);
+        stack.Children.Add(driveStatus);
+        stack.Children.Add(Heading("WINDOW"));
+        AutoAvoidToggle = new CheckBox { Content = "Auto-avoid", IsChecked = overlay.Settings.AutoAvoid };
+        AutoAvoidToggle.Checked += (_, _) => overlay.SetAutoAvoid(true);
+        AutoAvoidToggle.Unchecked += (_, _) => overlay.SetAutoAvoid(false);
+        stack.Children.Add(AutoAvoidToggle);
+        stack.Children.Add(Note("Lock the overlay to a screen corner and move it to another corner when hovered. Use the tray menu to open Settings or turn Auto-avoid off; dragging is available while it is off."));
+        MinimiseToTrayToggle = new CheckBox { Content = "Minimise to tray", IsChecked = overlay.Settings.MinimiseToTray };
+        MinimiseToTrayToggle.Checked += (_, _) => { overlay.Settings.MinimiseToTray = true; overlay.Changed(); };
+        MinimiseToTrayToggle.Unchecked += (_, _) => { overlay.Settings.MinimiseToTray = false; overlay.Changed(); };
+        stack.Children.Add(MinimiseToTrayToggle);
+        stack.Children.Add(Note("Hide the application in the notification area when minimised. Double-click its tray icon or choose Restore to reopen it. Turn this off to minimise to the taskbar."));
+        TopmostToggle = new CheckBox { Content = "Always on top", IsChecked = overlay.Settings.AlwaysOnTop };
+        TopmostToggle.Checked += (_, _) => { overlay.Settings.AlwaysOnTop = true; overlay.Changed(); };
+        TopmostToggle.Unchecked += (_, _) => { overlay.Settings.AlwaysOnTop = false; overlay.Changed(); };
+        stack.Children.Add(TopmostToggle);
+        stack.Children.Add(Note("Keep the overlay above other windows. For games, use windowed or borderless mode."));
+        AddSlider(stack, "Opacity", .35, 1, overlay.Settings.Opacity, value => { overlay.Settings.Opacity = value; overlay.Changed(); }, value => $"{value:P0}");
+        AddSlider(stack, "Size", .8, 1.6, overlay.Settings.Scale, value => { overlay.Settings.Scale = value; overlay.Changed(); }, value => $"{value:P0}");
+        stack.Children.Add(Label("Update every"));
+        var refresh = new ComboBox { ItemsSource = new[] { new RefreshChoice(500, "Half a second"), new RefreshChoice(1000, "1 second"), new RefreshChoice(2000, "2 seconds"), new RefreshChoice(5000, "5 seconds") }, DisplayMemberPath = "Name", SelectedValuePath = "Milliseconds", SelectedValue = overlay.Settings.RefreshMilliseconds };
+        refresh.SelectionChanged += (_, _) => { if (refresh.SelectedItem is RefreshChoice choice) { overlay.Settings.RefreshMilliseconds = choice.Milliseconds; overlay.Changed(); } };
+        stack.Children.Add(refresh);
+        var reset = new Button { Content = "Reset overlay position", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,12,0,0) };
+        reset.Click += (_, _) => overlay.ResetPosition(); stack.Children.Add(reset);
+        stack.Children.Add(Note("Drag the application header to move the overlay. Right-click the overlay or use the tray icon for Settings and Exit."));
+        stack.Children.Add(Heading("SENSOR SOURCES"));
+        stack.Children.Add(Label("Graphics card"));
+        graphics.DisplayMemberPath = "Name"; graphics.SelectedValuePath = "Id";
+        graphics.SelectionChanged += (_, _) => { if (!updatingChoices && graphics.SelectedItem is DeviceChoice c) { overlay.Settings.GraphicsId = c.Id; overlay.Changed(); } };
+        stack.Children.Add(graphics);
+        stack.Children.Add(Label("Motherboard temperature sensor"));
+        board.DisplayMemberPath = "Name"; board.SelectedValuePath = "Id";
+        board.SelectionChanged += (_, _) => { if (!updatingChoices && board.SelectedItem is DeviceChoice c) { overlay.Settings.MotherboardSensorId = c.Id; overlay.Changed(); } };
+        stack.Children.Add(board);
+        stack.Children.Add(Note("Automatic uses a sensor named Motherboard or System. Select a source here if your board uses a different name."));
+        sensorStatus = Note("Detecting hardware…"); sensorStatus.Margin = new Thickness(0,12,0,12); stack.Children.Add(sensorStatus);
+        var admin = new Button { Content = HardwareSampler.IsAdministrator ? "Running as administrator" : "Restart as administrator", IsEnabled = !HardwareSampler.IsAdministrator, HorizontalAlignment = HorizontalAlignment.Left };
+        admin.Click += (_, _) => overlay.RestartElevated(); stack.Children.Add(admin);
+        stack.Children.Add(Note("CPU and motherboard temperatures can require administrator access and the PawnIO driver. Unsupported sensors remain unavailable."));
+        var driver = new Button { Content = "Open official PawnIO download", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
+        driver.Click += (_, _) =>
+        {
+            try { Process.Start(new ProcessStartInfo("https://pawnio.eu/") { UseShellExecute = true }); }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "Could not open browser"); }
+        };
+        stack.Children.Add(driver);
+        stack.Children.Add(Note("PawnIO is installed on first launch when missing. Windows asks for administrator approval. If you decline, the app tries again next launch. Reopen the overlay as administrator after installation."));
+        if (overlay.Store.LastError != null) stack.Children.Add(Note(overlay.Store.LastError));
+        overlay.SnapshotReceived += UpdateSensors;
+        overlay.AutoAvoidChanged += UpdateAutoAvoid;
+        if (overlay.Latest != null) UpdateSensors(overlay.Latest);
+        Closed += (_, _) => { overlay.SnapshotReceived -= UpdateSensors; overlay.AutoAvoidChanged -= UpdateAutoAvoid; overlay.SaveSettings(); };
+        StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) overlay.Minimise(); };
+    }
+    void UpdateAutoAvoid(bool enabled) { if (AutoAvoidToggle.IsChecked != enabled) AutoAvoidToggle.IsChecked = enabled; }
+    async void CheckUpdates()
+    {
+        CheckUpdatesButton.IsEnabled = false; InstallUpdateButton.Visibility = Visibility.Collapsed;
+        availableRelease = null; UpdateStatus.Text = "Checking GitHub releases…";
+        try
+        {
+            var release = await AppUpdates.CheckAsync(updateStop.Token);
+            if (release == null) UpdateStatus.Text = "No published Windows release is available yet.";
+            else if (release.Version <= AppUpdates.ParseVersion(AppUpdates.CurrentVersion)) UpdateStatus.Text = "You are up to date (" + AppUpdates.CurrentVersion + ").";
+            else
+            {
+                availableRelease = release; InstallUpdateButton.Visibility = Visibility.Visible;
+                UpdateStatus.Text = $"Version {release.Version} is available ({release.Size / 1048576d:0.0} MB).";
+            }
+        }
+        catch (OperationCanceledException) { if (!updateStop.IsCancellationRequested) UpdateStatus.Text = "The update check timed out. Try again when connected."; }
+        catch (Exception ex) { UpdateStatus.Text = "Could not check for updates. You can keep using this version. " + ex.Message; }
+        finally { CheckUpdatesButton.IsEnabled = true; }
+    }
+    async void InstallUpdate()
+    {
+        if (availableRelease == null) return;
+        if (MessageBox.Show(this, $"Download and install version {availableRelease.Version}? The application will save your preferences, close and reopen. Windows may request administrator approval if this folder is protected.",
+            "Geurts Performance Prefect · Update", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
+        CheckUpdatesButton.IsEnabled = false; InstallUpdateButton.IsEnabled = false;
+        try
+        {
+            var plan = await AppUpdates.PrepareAsync(availableRelease, new Progress<string>(message => UpdateStatus.Text = message), updateStop.Token);
+            overlay.SaveSettings();
+            if (overlay.Store.LastError != null) throw new InvalidOperationException("Save your preferences before installing. " + overlay.Store.LastError);
+            UpdateStatus.Text = "Starting the installer…";
+            await AppUpdates.LaunchInstallerAsync(plan, updateStop.Token);
+            overlay.Close();
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { UpdateStatus.Text = "Administrator approval cancelled. Your application was not changed."; }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { UpdateStatus.Text = "Could not install the update. " + ex.Message; }
+        finally { CheckUpdatesButton.IsEnabled = true; InstallUpdateButton.IsEnabled = true; }
+    }
+    void RefreshParking(string? message = null)
+    {
+        updatingParking = true;
+        try
+        {
+            var state = parking.Read();
+            displayedParking = state;
+            CoreParkingToggle.IsChecked = state.Minimum == 100;
+            var canRestore = overlay.Settings.CoreParkingPreviousValues.TryGetValue(state.Scheme, out var previous);
+            CoreParkingToggle.IsEnabled = !parkingBusy && (state.Minimum != 100 || canRestore);
+            parkingStatus.Text = $"Plugged-in minimum: {state.Minimum}%. " +
+                (state.Minimum == 100 ? "Core parking is removed for this setting." : "Core parking is permitted.") +
+                (state.Minimum == 100 && !canRestore ? " Already enabled outside this app; no previous value is available to restore." : canRestore ? $" Saved previous value: {previous}%." : "");
+            if (message != null) parkingStatus.Text += "\n" + message;
+        }
+        catch (Exception ex) { displayedParking = null; CoreParkingToggle.IsChecked = false; CoreParkingToggle.IsEnabled = false; parkingStatus.Text = "Core parking setting unavailable: " + ex.Message; }
+        finally { updatingParking = false; }
+    }
+    async void ChangeParking(bool enabled)
+    {
+        if (updatingParking || parkingBusy) return;
+        parkingBusy = true; CoreParkingToggle.IsEnabled = false; parkingRefresh.IsEnabled = false;
+        string? message = null;
+        try
+        {
+            var state = parking.Read();
+            if (state != displayedParking) throw new InvalidOperationException("The power plan or core parking value changed. The setting has been refreshed; try again.");
+            uint desired;
+            if (enabled)
+            {
+                if (state.Minimum == 100) return;
+                // Save before changing Windows, so restore survives a crash or restart.
+                overlay.Settings.CoreParkingPreviousValues[state.Scheme] = state.Minimum;
+                if (!overlay.Store.Save(overlay.Settings)) throw new InvalidOperationException(overlay.Store.LastError);
+                desired = 100;
+            }
+            else
+            {
+                if (!overlay.Settings.CoreParkingPreviousValues.TryGetValue(state.Scheme, out desired))
+                    throw new InvalidOperationException("No previous value is available for this power plan.");
+            }
+            parkingStatus.Text = "Applying core parking setting… Approve the Windows prompt if shown.";
+            await CoreParking.ChangeWithElevation(state, desired);
+            var after = parking.Read();
+            if (after.Scheme != state.Scheme || after.Minimum != desired)
+                throw new InvalidOperationException("The active plan changed or Windows did not confirm the requested value. Refresh and try again.");
+            if (!enabled) { overlay.Settings.CoreParkingPreviousValues.Remove(state.Scheme); overlay.SaveSettings(); }
+            message = enabled ? "Applied successfully." : "Previous value restored.";
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { message = "Administrator approval cancelled. No change was applied."; }
+        catch (Exception ex) { message = ex.Message; }
+        finally { parkingBusy = false; parkingRefresh.IsEnabled = true; RefreshParking(message); }
+    }
+    void UpdateSensors(Snapshot snapshot)
+    {
+        UpdateDrives(snapshot);
+        var gpuChoices = SensorSelection.Graphics(snapshot);
+        var boardChoices = SensorSelection.BoardSensors(snapshot);
+        var signature = string.Join("|", gpuChoices.Concat(boardChoices).Select(c => c.Id + c.Name));
+        if (signature != choiceSignature || graphics.ItemsSource == null)
+        {
+            choiceSignature = signature; updatingChoices = true;
+            var gpuItems = new List<DeviceChoice> { new("", "Automatic (prefer a dedicated graphics card)") }; gpuItems.AddRange(gpuChoices);
+            var boardItems = new List<DeviceChoice> { new("", "Automatic (Motherboard / System)") }; boardItems.AddRange(boardChoices);
+            if (overlay.Settings.GraphicsId != "" && !gpuItems.Any(c => c.Id == overlay.Settings.GraphicsId)) gpuItems.Add(new(overlay.Settings.GraphicsId, "Saved graphics card (unavailable)"));
+            if (overlay.Settings.MotherboardSensorId != "" && !boardItems.Any(c => c.Id == overlay.Settings.MotherboardSensorId)) boardItems.Add(new(overlay.Settings.MotherboardSensorId, "Saved sensor (unavailable)"));
+            graphics.ItemsSource = gpuItems; graphics.SelectedValue = overlay.Settings.GraphicsId;
+            board.ItemsSource = boardItems; board.SelectedValue = overlay.Settings.MotherboardSensorId;
+            updatingChoices = false;
+        }
+        var readings = SensorSelection.Select(snapshot, overlay.Settings);
+        var missing = readings.Where(p => !p.Value.Value.HasValue).Select(p => MetricInfo.Label(p.Key)).ToArray();
+        sensorStatus.Text = missing.Length == 0 ? "All six readings are available." : "Unavailable: " + string.Join(", ", missing) + ".";
+        if (snapshot.Error != null) sensorStatus.Text += "\n" + snapshot.Error;
+        sensorStatus.ToolTip = string.Join("\n", readings.Select(p => MetricInfo.Label(p.Key) + ": " + p.Value.Source));
+    }
+    void UpdateDrives(Snapshot snapshot)
+    {
+        var signature = string.Join("|", snapshot.Drives.Select(d => d.Id + d.Label + d.Model));
+        if (signature != driveSignature)
+        {
+            driveSignature = signature; driveToggles.Children.Clear(); DriveToggles.Clear();
+            foreach (var drive in snapshot.Drives.OrderBy(d => d.Index))
+            {
+                var toggle = new CheckBox { Content = new TextBlock { Text = drive.Label + " · " + drive.Model, TextWrapping = TextWrapping.Wrap }, IsChecked = overlay.Settings.IsDriveVisible(drive.Id) };
+                toggle.Checked += (_, _) => { overlay.Settings.DriveVisible[drive.Id] = true; overlay.Changed(); };
+                toggle.Unchecked += (_, _) => { overlay.Settings.DriveVisible[drive.Id] = false; overlay.Changed(); };
+                DriveToggles.Add(drive.Id, toggle); driveToggles.Children.Add(toggle);
+            }
+        }
+        driveStatus.Text = snapshot.DriveError ?? (snapshot.Drives.Count == 0 ? "No physical drives detected." :
+            snapshot.Drives.Any(d => !d.Activity.HasValue) ? "Waiting for drive activity readings. Disconnected or unsupported drives show unavailable." : "Drive activity readings are available.");
+    }
+    static TextBlock Heading(string text) => new() { Text = text, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Palette.Accent, Margin = new Thickness(0,24,0,9) };
+    static TextBlock Label(string text) => new() { Text = text, Margin = new Thickness(0,12,0,7) };
+    static TextBlock Note(string text) => new() { Text = text, Foreground = Palette.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,7,0,0), LineHeight = 18 };
+    static Border Panel() => new() { Background = Palette.Panel, CornerRadius = new CornerRadius(10), Padding = new Thickness(14,8,10,8), Child = new StackPanel() };
+    static void AddSlider(StackPanel parent, string label, double min, double max, double current, Action<double> changed, Func<double,string> format)
+    {
+        var caption = Label(label + " · " + format(current)); parent.Children.Add(caption);
+        var slider = new Slider { Minimum = min, Maximum = max, Value = current, SmallChange = .05, LargeChange = .1, TickFrequency = .05, IsSnapToTickEnabled = true };
+        slider.ValueChanged += (_, _) => { caption.Text = label + " · " + format(slider.Value); changed(slider.Value); }; parent.Children.Add(slider);
+    }
+    sealed record RefreshChoice(int Milliseconds, string Name);
+}

@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+Source/output/
+Build/
+Backups/
+Verification/
+/Geurts Performance Prefect/
+/Geurts Performance Prefect - PawnIO default/
+*.user
+*.suo
+*.log
+.vs/
