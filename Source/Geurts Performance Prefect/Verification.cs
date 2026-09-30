@@ -20,6 +20,7 @@ public static class Verification
         var log = new List<string>();
         void Check(bool condition, string name) { if (!condition) throw new InvalidOperationException("FAILED: " + name); log.Add("PASS: " + name); }
         UpdateVerification.Run(folder, Check);
+        ApplicationUsageVerification.Run(folder, Check);
         SensorValue Sensor(string id, string deviceId, HardwareType hardware, SensorType type, string name, float? value, bool board = false)
             => new(id, deviceId, deviceId, name, hardware, type, value, board);
         var sensors = new List<SensorValue>
@@ -138,10 +139,30 @@ public static class Verification
         var overlay = new OverlayWindow(store, new OverlaySettings(), verification: true, cursorPosition: () => simulatedPointer);
         overlay.Receive(snapshot);
         var panel = new SettingsWindow(overlay, parking);
+        var applicationFixture = ApplicationUsageVerification.Fixture(60, 60,
+            (UsageResource.Cpu, "Example game", 18), (UsageResource.Memory, "Example browser", 1073741824),
+            (UsageResource.Gpu("Graphics card"), "Example game", 24), (UsageResource.Gpu("Integrated graphics"), "Video player", 12),
+            (UsageResource.Drive(driveA.Id), "File copy", 2097152), (UsageResource.Drive(driveB.Id), "Backup", 1048576));
+        snapshot = snapshot with { Applications = applicationFixture };
         Check(panel.CheckUpdatesButton.IsEnabled && panel.InstallUpdateButton.Visibility == Visibility.Collapsed,
             "Settings exposes update checking and hides installation until a newer release is found");
         overlay.Receive(snapshot with { Drives = new[] { driveA, driveB } });
         Check(panel.DriveToggles.Count == 2 && overlay.DriveRows.Count == 2, "Every physical drive receives its own settings checkbox and overlay row");
+        Check(overlay.MetricRows[Metric.CpuUsage].ApplicationText.Contains("Example game") &&
+            overlay.MetricRows[Metric.MemoryUsage].ApplicationText.Contains("Example browser") &&
+            overlay.MetricRows[Metric.GpuUsage].ApplicationText.Contains("Example game") &&
+            overlay.DriveRows[driveA.Id].ApplicationText.Contains("File copy") && overlay.DriveRows[driveB.Id].ApplicationText.Contains("Backup"),
+            "CPU, GPU, RAM and each physical drive display their own averaged top application");
+        Check(string.IsNullOrEmpty(overlay.MetricRows[Metric.CpuTemperature].ApplicationText), "Temperature readings have no application attribution");
+        overlay.Settings.GraphicsId = "Integrated graphics"; overlay.Changed();
+        Check(overlay.MetricRows[Metric.GpuUsage].ApplicationText.Contains("Video player"), "Changing selected graphics card immediately switches application attribution to that card");
+        overlay.Settings.GraphicsId = ""; overlay.Changed();
+        panel.ApplicationAverageSlider.Value = 120;
+        Check(overlay.Settings.ApplicationAverageSeconds == 120 && overlay.MetricRows[Metric.CpuUsage].ApplicationText.Contains("120s avg"),
+            "Changing the averaging setting immediately recalculates the overlay without duplicating samples");
+        overlay.SaveSettings();
+        Check(store.Load().ApplicationAverageSeconds == 120, "Settings window persists its adjusted application averaging window");
+        panel.ApplicationAverageSlider.Value = 60;
         panel.DriveToggles[driveB.Id].IsChecked = false;
         Check(overlay.DriveRows[driveA.Id].Visibility == Visibility.Visible && overlay.DriveRows[driveB.Id].Visibility == Visibility.Collapsed,
             "A drive checkbox immediately hides only its own activity row");

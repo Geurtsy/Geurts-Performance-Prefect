@@ -42,6 +42,32 @@ DESIGN
   Each drive has a saved visibility checkbox. Removed drives leave the UI while
   their preferences remain saved. Drive counters do not require PawnIO.
 - The overlay scrolls its readings when many drives would exceed screen height.
+- CPU, GPU, RAM and each drive have a separate Top app line. Application averages
+  default to 60 seconds and are adjustable from 5 to 600 seconds in Settings.
+  Ten minutes of monotonic, time-weighted sample history supports immediate
+  recalculation. Partial boundary intervals are clipped; repeated UI snapshots
+  are ignored. Unavailable intervals are excluded and never shown as idle.
+  Executable names group multiple processes (including browser workers).
+- CPU uses process CPU-time deltas normalised by processor capacity, with process
+  start times protecting against PID reuse. RAM uses physical working sets,
+  including shared pages. Protected and very short-lived processes can be absent.
+- GPU attribution uses English PDH GPU Engine counters, with DXGI adapter LUIDs
+  matched to the selected hardware device. Workers combine on each engine, then
+  the busiest engine supplies application usage. Other adapters are excluded;
+  ambiguous identical cards remain unavailable instead of being guessed.
+- Per-drive attribution uses a private real-time Windows system ETW logger for
+  disk read/write initiation and completion events. IRPs retain the issuing app;
+  disk numbers map events to physical drive identities. Rankings use bytes/sec,
+  while the main drive percentage still measures active time. Administrator
+  rights are required. No ETL files are written; other trace sessions are not
+  touched. Missing privileges and lost events show an availability explanation.
+  Normal shutdown closes the owned reader and session.
+- Application self-tests cover time weighting, window boundaries, idle/exit
+  decay, missing samples, PID reuse, adapter isolation, native disk decoding and
+  issuing-process correlation, settings persistence and immediate UI changes.
+  application-diagnostic.json contains local CPU/RAM/GPU attribution and any disk
+  availability reason. Non-elevated runs verify disk permission handling; actual
+  elevated disk event collection needs an administrator validation run.
 - Self-test covers activity calculation, invalid counters, live drive readings,
   settings compatibility, individual drive visibility, persistence, disconnects
   and reconnects with changed disk numbers/letters. The drive-diagnostic.json

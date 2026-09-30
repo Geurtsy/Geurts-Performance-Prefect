@@ -1,4 +1,4 @@
-GEURTS PERFORMANCE PREFECT 1.5.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.6.0 — WINDOWS x64
 
 Open Geurts Performance Prefect\GeurtsPerformancePrefect.exe, then click Settings.
 The existing HardwareOverlay.exe launcher also opens the updated application.
@@ -12,6 +12,16 @@ Preferences stay in the existing HardwareOverlay settings folder. Backups and
 update results are under its Updates subfolder. A protected application folder
 may require administrator approval. Versions before 1.5.0 need a manual upgrade
 once to gain the updater. Normal monitoring continues to work offline.
+
+TOP APPLICATIONS
+CPU, GPU, RAM and each physical drive show the application with the highest
+average usage over the last 60 seconds. Settings > Top Applications changes the
+averaging window from 5 seconds to 10 minutes and saves your preference.
+Processes with the same executable name are combined. CPU and GPU show average
+usage, RAM shows average physical working set, and drives show average read/write
+throughput. While starting, averages use the samples collected so far.
+Per-drive application tracking needs Settings > Restart as administrator.
+GPU attribution follows your selected graphics card and needs supported counters.
 
 HARD DRIVE USAGE
 Settings > Hard Drive Usage lists each detected physical drive, including SSDs.

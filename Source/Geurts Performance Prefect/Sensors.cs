@@ -14,11 +14,15 @@ public sealed record Snapshot(DateTimeOffset Time, IReadOnlyList<SensorValue> Se
 {
     public IReadOnlyList<DriveReading> Drives { get; init; } = Array.Empty<DriveReading>();
     public string? DriveError { get; init; }
+    public ApplicationUsageSample? Applications { get; init; }
 }
 
 public static class SensorSelection
 {
     public static bool IsGpu(HardwareType type) => type is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel;
+    public static string GraphicsId(Snapshot snapshot, OverlaySettings settings) => !string.IsNullOrEmpty(settings.GraphicsId)
+        ? settings.GraphicsId : snapshot.Sensors.Where(s => IsGpu(s.HardwareType))
+            .OrderBy(s => s.HardwareType == HardwareType.GpuIntel ? 1 : 0).Select(s => s.DeviceId).FirstOrDefault() ?? "";
     public static IReadOnlyList<DeviceChoice> Graphics(Snapshot snapshot) => snapshot.Sensors.Where(s => IsGpu(s.HardwareType))
         .GroupBy(s => s.DeviceId).Select(g => new DeviceChoice(g.Key, g.First().Device)).ToArray();
     public static IReadOnlyList<DeviceChoice> BoardSensors(Snapshot snapshot) => snapshot.Sensors
@@ -40,10 +44,7 @@ public static class SensorSelection
     public static Dictionary<Metric, Reading> Select(Snapshot snapshot, OverlaySettings settings)
     {
         var cpu = snapshot.Sensors.Where(s => s.HardwareType == HardwareType.Cpu).ToArray();
-        var graphicsId = settings.GraphicsId;
-        if (string.IsNullOrEmpty(graphicsId))
-            graphicsId = snapshot.Sensors.Where(s => IsGpu(s.HardwareType))
-                .OrderBy(s => s.HardwareType == HardwareType.GpuIntel ? 1 : 0).Select(s => s.DeviceId).FirstOrDefault() ?? "";
+        var graphicsId = GraphicsId(snapshot, settings);
         var gpu = snapshot.Sensors.Where(s => IsGpu(s.HardwareType) && s.DeviceId == graphicsId).ToArray();
         var cpuTemperatures = cpu.Where(s => s.Type == SensorType.Temperature).ToArray();
         var cpuTemp = Named(cpuTemperatures, "Core (Tctl/Tdie)", "CPU Package", "Core (Tdie)", "Core Average", "CPU Cores", "Core (Tctl)");
@@ -71,6 +72,7 @@ public sealed class HardwareSampler : IDisposable
     readonly Computer computer = new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true };
     readonly WindowsMetrics windows = new();
     readonly DriveSampler drives = new();
+    readonly ApplicationUsageSampler applications = new();
     string? initialError;
     public static bool IsAdministrator
     {
@@ -91,7 +93,7 @@ public sealed class HardwareSampler : IDisposable
         var driveReadings = drives.Sample();
         return new(DateTimeOffset.Now, sensors, windows.ReadCpu(), memory.Percent, memory.Detail,
             errors.Count > 0 ? string.Join("; ", errors.Distinct()) : null)
-            { Drives = driveReadings, DriveError = drives.LastError };
+            { Drives = driveReadings, DriveError = drives.LastError, Applications = applications.Sample(sensors, driveReadings) };
     }
     static void Read(IHardware hardware, bool onBoard, List<SensorValue> values, List<string> errors)
     {
@@ -107,7 +109,7 @@ public sealed class HardwareSampler : IDisposable
         catch (Exception ex) { errors.Add(hardware.Name + ": " + ex.Message); }
         foreach (var child in hardware.SubHardware) Read(child, onBoard, values, errors);
     }
-    public void Dispose() { drives.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
+    public void Dispose() { applications.Dispose(); drives.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
 }
 
 public sealed class WindowsMetrics

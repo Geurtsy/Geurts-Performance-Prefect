@@ -4,6 +4,18 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control.
 
+CPU, GPU, RAM and each physical drive also show their **Top app**, averaged over
+the last minute. Change the window under **Settings → Top Applications** from
+5 seconds to 10 minutes. Processes with the same executable name are combined.
+CPU/GPU show average usage, RAM shows average physical working set, and drives
+show average read/write throughput on that physical drive. Startup averages use
+the samples collected so far; the overall usage percentages remain live.
+
+Per-drive application tracking requires running as administrator. GPU attribution
+uses Windows GPU Engine counters for the selected graphics card; unsupported or
+ambiguous sources show an availability explanation. RAM working sets can include
+shared pages, and protected or very short-lived processes may not be sampled.
+
 Download the ZIP from [Releases](https://github.com/Geurtsy/Geurts-Performance-Prefect/releases/latest),
 extract it into a writable folder, and open `GeurtsPerformancePrefect.exe`.
 Windows x64 and the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) are required.

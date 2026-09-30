@@ -30,6 +30,7 @@ public sealed class OverlaySettings
     public double Opacity { get; set; } = 0.94;
     public double Scale { get; set; } = 1;
     public int RefreshMilliseconds { get; set; } = 1000;
+    public int ApplicationAverageSeconds { get; set; } = 60;
     public double Left { get; set; } = 24;
     public double Top { get; set; } = 24;
     public string GraphicsId { get; set; } = "";
@@ -44,6 +45,7 @@ public sealed class OverlaySettings
         Opacity = double.IsFinite(Opacity) ? Math.Clamp(Opacity, .35, 1) : .94;
         Scale = double.IsFinite(Scale) ? Math.Clamp(Scale, .8, 1.6) : 1;
         RefreshMilliseconds = Math.Clamp(RefreshMilliseconds, 500, 5000);
+        ApplicationAverageSeconds = Math.Clamp(ApplicationAverageSeconds, 5, 600);
         if (!double.IsFinite(Left)) Left = 24;
         if (!double.IsFinite(Top)) Top = 24;
         GraphicsId ??= "";

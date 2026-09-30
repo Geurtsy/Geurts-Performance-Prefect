@@ -31,6 +31,7 @@ public sealed class SettingsWindow : Window
     public CheckBox TopmostToggle { get; }
     public CheckBox MinimiseToTrayToggle { get; }
     public CheckBox AutoAvoidToggle { get; }
+    public Slider ApplicationAverageSlider { get; }
     public Button CheckUpdatesButton { get; } = new() { Content = "Check for updates", HorizontalAlignment = HorizontalAlignment.Left };
     public Button InstallUpdateButton { get; } = new() { Content = "Install update and restart", HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Collapsed, Margin = new Thickness(0,8,0,0) };
     public TextBlock UpdateStatus { get; } = Note("Check GitHub for a newer version.");
@@ -98,6 +99,22 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(Note("Show activity (%) for each physical drive, including SSDs. Choices save automatically."));
         var drivesPanel = Panel(); drivesPanel.Child = driveToggles; stack.Children.Add(drivesPanel);
         stack.Children.Add(driveStatus);
+        stack.Children.Add(Heading("TOP APPLICATIONS"));
+        stack.Children.Add(Note("Each usage reading shows the application with the highest average over the selected window. Processes with the same executable name are combined."));
+        var averageCaption = Label($"Average over · {overlay.Settings.ApplicationAverageSeconds} seconds");
+        stack.Children.Add(averageCaption);
+        ApplicationAverageSlider = new Slider { Minimum = 5, Maximum = 600, Value = overlay.Settings.ApplicationAverageSeconds,
+            SmallChange = 5, LargeChange = 30, TickFrequency = 5, IsSnapToTickEnabled = true };
+        System.Windows.Automation.AutomationProperties.SetName(ApplicationAverageSlider, "Application averaging window in seconds");
+        ApplicationAverageSlider.ValueChanged += (_, _) =>
+        {
+            overlay.Settings.ApplicationAverageSeconds = (int)Math.Round(ApplicationAverageSlider.Value);
+            averageCaption.Text = $"Average over · {overlay.Settings.ApplicationAverageSeconds} seconds";
+            overlay.Changed();
+        };
+        stack.Children.Add(ApplicationAverageSlider);
+        stack.Children.Add(Note("Default: 60 seconds. Range: 5 seconds to 10 minutes. While starting, averages use the samples collected so far. CPU and GPU show average usage; RAM shows average physical working set; drives show average read/write throughput."));
+        stack.Children.Add(Note("Per-drive application tracking needs administrator access. Use Restart as administrator below if it is unavailable. GPU attribution follows your graphics card choice and requires supported Windows counters."));
         stack.Children.Add(Heading("WINDOW"));
         AutoAvoidToggle = new CheckBox { Content = "Auto-avoid", IsChecked = overlay.Settings.AutoAvoid };
         AutoAvoidToggle.Checked += (_, _) => overlay.SetAutoAvoid(true);

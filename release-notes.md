@@ -1,9 +1,11 @@
-Adds an in-app updater in Settings backed by this public repository's stable GitHub releases.
+Adds a Top app line to CPU, GPU, RAM and every physical drive in the overlay.
 
-- Checks the installed version against the latest published release.
-- Downloads and verifies the Windows x64 package and its file manifest.
-- Saves preferences, replaces managed application files and restarts.
-- Restores replaced files if installation fails, with backups retained locally.
-- Includes a compatible HardwareOverlay.exe launcher and all third-party notices.
+- Ranks applications by a time-weighted average over the last 60 seconds.
+- Adds Settings > Top Applications to adjust the window from 5 seconds to 10 minutes.
+- Combines processes with the same executable name, including browser workers.
+- Follows the selected graphics card and keeps physical drive attribution separate.
+- Shows average CPU/GPU usage, RAM working set and per-drive read/write throughput.
+- Explains unavailable application counters; per-drive tracking requires administrator access.
 
-Windows x64 and the .NET 10 Desktop Runtime are required. Extract the ZIP and launch GeurtsPerformancePrefect.exe. Existing users must install this version manually once to gain the updater.
+Startup averages use the samples collected so far. Settings save automatically.
+Windows x64 and the .NET 10 Desktop Runtime are required.

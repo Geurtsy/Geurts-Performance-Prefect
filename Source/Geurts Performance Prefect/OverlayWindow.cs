@@ -17,6 +17,7 @@ namespace GeurtsPerformancePrefect;
 public sealed class MetricRow : Border
 {
     readonly TextBlock value, detail;
+    readonly TextBlock application;
     readonly Border fill;
     readonly bool temperature;
     readonly TextBlock label;
@@ -26,7 +27,7 @@ public sealed class MetricRow : Border
         this.temperature = temperature;
         Background = Palette.Panel; CornerRadius = new CornerRadius(8); Padding = new Thickness(12,9,12,8); Margin = new Thickness(0,0,0,6);
         var grid = new Grid();
-        grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition());
+        grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition());
         grid.ColumnDefinitions.Add(new ColumnDefinition()); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         label = new TextBlock { Text = name, Foreground = Palette.Muted, FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         grid.Children.Add(label);
@@ -34,16 +35,19 @@ public sealed class MetricRow : Border
         Grid.SetColumn(value, 1); grid.Children.Add(value);
         detail = new TextBlock { FontSize = 10, Foreground = Palette.Muted, Text = "Waiting for sensors", Margin = new Thickness(0,0,0,5), TextTrimming = TextTrimming.CharacterEllipsis };
         Grid.SetRow(detail, 1); Grid.SetColumnSpan(detail, 2); grid.Children.Add(detail);
+        application = new TextBlock { FontSize = 10, Foreground = Palette.Accent, Margin = new Thickness(0,0,0,6), TextTrimming = TextTrimming.CharacterEllipsis, Visibility = Visibility.Collapsed };
+        Grid.SetRow(application, 2); Grid.SetColumnSpan(application, 2); grid.Children.Add(application);
         var track = new Border { Background = Palette.Track, Height = 3, CornerRadius = new CornerRadius(2), ClipToBounds = true };
         fill = new Border { Background = Palette.Accent, Width = 0, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(2) };
-        track.Child = fill; Grid.SetRow(track, 2); Grid.SetColumnSpan(track, 2); grid.Children.Add(track);
+        track.Child = fill; Grid.SetRow(track, 3); Grid.SetColumnSpan(track, 2); grid.Children.Add(track);
         track.SizeChanged += (_, _) => UpdateFill();
         Child = grid;
     }
     double fraction;
     public void SetLabel(string name) => label.Text = name;
     void UpdateFill() => fill.Width = Math.Max(0, ((FrameworkElement)fill.Parent).ActualWidth * fraction);
-    public void Update(Reading reading)
+    public string ApplicationText => application.Text;
+    public void Update(Reading reading, TopApplication? topApplication = null, int averageSeconds = 60, string? resource = null)
     {
         var valid = reading.Value.HasValue && double.IsFinite(reading.Value.Value);
         value.Text = valid ? $"{reading.Value:0}{(temperature ? " °C" : " %")}" : "—";
@@ -55,8 +59,27 @@ public sealed class MetricRow : Border
         var hot = temperature && reading.Value >= 85;
         fill.Background = hot ? Palette.Amber : Palette.Accent;
         value.Foreground = hot ? Palette.Amber : Palette.Text;
+        application.Visibility = resource == null ? Visibility.Collapsed : Visibility.Visible;
+        if (resource != null)
+        {
+            topApplication ??= new(null, 0, 0, "Waiting for application samples");
+            var amount = resource == UsageResource.Memory ? FormatBytes(topApplication.Average) :
+                resource.StartsWith("drive:", StringComparison.Ordinal) ? FormatBytes(topApplication.Average) + "/s" : $"{topApplication.Average:0.0}%";
+            application.Text = topApplication.Unavailable != null ? "Top app · " + topApplication.Unavailable :
+                topApplication.Name == null ? $"Top app · no activity ({averageSeconds}s avg)" :
+                $"Top app · {topApplication.Name} · {amount} ({averageSeconds}s avg)";
+            application.ToolTip = topApplication.Unavailable ??
+                $"{topApplication.Name ?? "No application activity"}\nAverage: {amount}\n" +
+                $"Last {Math.Min(averageSeconds, topApplication.ObservedSeconds):0.#} seconds sampled of a {averageSeconds}-second window.\n" +
+                (resource == UsageResource.Memory ? "Physical working sets, grouped by executable name; shared pages can appear in more than one process." :
+                resource.StartsWith("drive:", StringComparison.Ordinal) ? "Read/write throughput on this physical drive, grouped by executable name. The drive percentage measures total active time." :
+                resource.StartsWith("gpu:", StringComparison.Ordinal) ? "Busiest GPU engine on the selected card, grouped by executable name." :
+                "Share of total CPU capacity, grouped by executable name. Protected or very short-lived processes may not be sampled.");
+        }
         UpdateFill();
     }
+    static string FormatBytes(double bytes) => bytes >= 1073741824 ? $"{bytes / 1073741824:0.0} GB" :
+        bytes >= 1048576 ? $"{bytes / 1048576:0.0} MB" : bytes >= 1024 ? $"{bytes / 1024:0.0} KB" : $"{bytes:0} B";
 }
 
 public static class Palette
@@ -74,6 +97,8 @@ public sealed class OverlayWindow : Window
     public event Action<Snapshot>? SnapshotReceived;
     public event Action<bool>? AutoAvoidChanged;
     readonly Dictionary<Metric, MetricRow> rows = new();
+    readonly ApplicationUsageHistory applicationHistory = new();
+    public IReadOnlyDictionary<Metric, MetricRow> MetricRows => rows;
     public Dictionary<string, MetricRow> DriveRows { get; } = new();
     readonly StackPanel driveRows = new();
     readonly ScrollViewer readingsScroll;
@@ -208,15 +233,28 @@ public sealed class OverlayWindow : Window
     public void Receive(Snapshot snapshot)
     {
         Latest = snapshot;
+        applicationHistory.Add(snapshot.Applications);
         var readings = SensorSelection.Select(snapshot, Settings);
-        foreach (var pair in readings) rows[pair.Key].Update(pair.Value);
+        TopApplication Top(string resource) => snapshot.Applications == null ? new(null, 0, 0, "Waiting for application samples") :
+            applicationHistory.Top(resource, Settings.ApplicationAverageSeconds);
+        foreach (var pair in readings)
+        {
+            var resource = pair.Key switch
+            {
+                Metric.CpuUsage => UsageResource.Cpu, Metric.MemoryUsage => UsageResource.Memory,
+                Metric.GpuUsage => UsageResource.Gpu(SensorSelection.GraphicsId(snapshot, Settings)), _ => null
+            };
+            rows[pair.Key].Update(pair.Value, resource == null ? null : Top(resource), Settings.ApplicationAverageSeconds, resource);
+        }
         foreach (var id in DriveRows.Keys.Where(id => !snapshot.Drives.Any(d => d.Id == id)).ToArray())
         { driveRows.Children.Remove(DriveRows[id]); DriveRows.Remove(id); }
         foreach (var drive in snapshot.Drives)
         {
             if (!DriveRows.TryGetValue(drive.Id, out var row))
             { row = new MetricRow(drive.Label + " usage"); DriveRows.Add(drive.Id, row); }
-            row.SetLabel(drive.Label + " usage"); row.Update(drive.Reading);
+            row.SetLabel(drive.Label + " usage");
+            var resource = UsageResource.Drive(drive.Id);
+            row.Update(drive.Reading, Top(resource), Settings.ApplicationAverageSeconds, resource);
             row.Visibility = Settings.IsDriveVisible(drive.Id) ? Visibility.Visible : Visibility.Collapsed;
         }
         // Preserve disk-number order after reconnecting or discovering a new drive.
