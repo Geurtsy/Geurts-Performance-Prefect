@@ -44,6 +44,9 @@ Versions before 1.5.0 require one manual download to gain the updater.
 
 ## Build and verify
 
+Agent workflow rules are in [AGENTS.md](AGENTS.md). Development and local testing
+deliver changes through this repository; the user installs updates manually.
+
 On Windows with the .NET 10 SDK, run from this repository:
 
 ```powershell
