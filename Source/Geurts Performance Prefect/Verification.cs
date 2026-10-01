@@ -222,7 +222,13 @@ public static class Verification
         Check(!overlay.IsVisible && !overlay.ShowInTaskbar, "Enabling tray mode while minimised hides the taskbar entry");
         overlay.RestoreOverlay(); overlay.SaveSettings();
         Check(store.Load().MinimiseToTray, "Enabled tray preference survives saving and reloading");
+        var overlayHeader = ((StackPanel)((Border)overlay.Content).Child).Children.OfType<Grid>().Single();
+        overlay.UpdateLayout();
+        var heightWithHeader = overlay.ActualHeight;
         activePanel.AutoAvoidToggle.IsChecked = true;
+        overlay.UpdateLayout();
+        Check(overlayHeader.Visibility == Visibility.Collapsed && overlay.ActualHeight < heightWithHeader,
+            "Auto-avoid removes the entire header and its space from the overlay layout");
         var contextToggle = overlay.ContextMenu.Items.OfType<MenuItem>().Single(item => item.Header.ToString() == "Auto-avoid");
         Check(overlay.Settings.AutoAvoid && overlay.AutoAvoidTrayItem.Checked && contextToggle.IsChecked && store.Load().AutoAvoid,
             "Settings Auto-avoid toggle saves and synchronises both context menus");
@@ -263,6 +269,9 @@ public static class Verification
         Check((restoredCornerBounds.TopLeft - AutoAvoidPlacement.AtCorner(activeArea, restoredCornerBounds.Size, ScreenCorner.BottomRight, activeMargin).TopLeft).Length < 1.5,
             "Restoring after enabling Auto-avoid while minimised anchors the saved corner");
         activePanel.AutoAvoidToggle.IsChecked = false;
+        overlay.UpdateLayout();
+        Check(overlayHeader.Visibility == Visibility.Visible && overlayHeader.ActualHeight > 0,
+            "Disabling Auto-avoid restores the header and its controls");
         overlay.TryGetAutoAvoidLayout(out _, out var disabledBounds, out _);
         Check(!overlay.AvoidPointer(new Point(disabledBounds.Left + 10, disabledBounds.Top + 10)), "Disabled Auto-avoid leaves the overlay still on hover");
         overlay.AutoAvoidTrayItem.PerformClick();

@@ -120,7 +120,7 @@ public sealed class SettingsWindow : Window
         AutoAvoidToggle.Checked += (_, _) => overlay.SetAutoAvoid(true);
         AutoAvoidToggle.Unchecked += (_, _) => overlay.SetAutoAvoid(false);
         stack.Children.Add(AutoAvoidToggle);
-        stack.Children.Add(Note("Lock the overlay to a screen corner and move it to another corner when hovered. Use the tray menu to open Settings or turn Auto-avoid off; dragging is available while it is off."));
+        stack.Children.Add(Note("Lock the overlay to a screen corner and move it to another corner when hovered. The header is hidden in this mode. Use the tray menu to open Settings or turn Auto-avoid off; dragging is available while it is off."));
         MinimiseToTrayToggle = new CheckBox { Content = "Minimise to tray", IsChecked = overlay.Settings.MinimiseToTray };
         MinimiseToTrayToggle.Checked += (_, _) => { overlay.Settings.MinimiseToTray = true; overlay.Changed(); };
         MinimiseToTrayToggle.Unchecked += (_, _) => { overlay.Settings.MinimiseToTray = false; overlay.Changed(); };

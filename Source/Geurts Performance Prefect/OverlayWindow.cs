@@ -104,6 +104,7 @@ public sealed class OverlayWindow : Window
     readonly ScrollViewer readingsScroll;
     readonly TextBlock status, empty;
     readonly Border surface;
+    readonly Grid header;
     readonly Func<Point> cursorPosition;
     readonly DispatcherTimer saveTimer, staleTimer;
     readonly CancellationTokenSource stop = new();
@@ -130,7 +131,7 @@ public sealed class OverlayWindow : Window
         Left = settings.Left; Top = settings.Top;
         surface = new Border { Width = 318, Background = Palette.Background, BorderBrush = Palette.Track, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(13), Padding = new Thickness(14) };
         var stack = new StackPanel(); surface.Child = stack; Content = surface;
-        var header = new Grid { Margin = new Thickness(0,0,0,13), Background = Brushes.Transparent, Cursor = Cursors.SizeAll };
+        header = new Grid { Margin = new Thickness(0,0,0,13), Background = Brushes.Transparent, Cursor = Cursors.SizeAll };
         header.ColumnDefinitions.Add(new ColumnDefinition()); header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new StackPanel();
         title.Children.Add(new TextBlock { Text = "Geurts Performance\nPrefect", FontWeight = FontWeights.Bold, FontSize = 14, Foreground = Palette.Accent });
@@ -274,6 +275,7 @@ public sealed class OverlayWindow : Window
     {
         Settings.Normalise(); Topmost = Settings.AlwaysOnTop; Opacity = Settings.Opacity;
         ShowInTaskbar = !Settings.MinimiseToTray;
+        header.Visibility = Settings.AutoAvoid ? Visibility.Collapsed : Visibility.Visible;
         if (WindowState == WindowState.Minimized) ApplyMinimise();
         surface.LayoutTransform = new ScaleTransform(Settings.Scale, Settings.Scale);
         readingsScroll.MaxHeight = Math.Max(150, (SystemParameters.WorkArea.Height - 190) / Settings.Scale);
