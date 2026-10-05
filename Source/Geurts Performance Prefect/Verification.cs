@@ -21,6 +21,15 @@ public static class Verification
         void Check(bool condition, string name) { if (!condition) throw new InvalidOperationException("FAILED: " + name); log.Add("PASS: " + name); }
         UpdateVerification.Run(folder, Check);
         ApplicationUsageVerification.Run(folder, Check);
+        var iconFrames = new IconBitmapDecoder(Branding.IconUri, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames;
+        Check(new[] { 16, 20, 24, 32, 40, 48, 64, 96, 128, 256 }.All(size =>
+            iconFrames.Any(frame => frame.PixelWidth == size && frame.PixelHeight == size)),
+            "Embedded emerald icon contains every Windows size from 16 to 256 pixels");
+        using (var trayIcon = Branding.CreateTrayIcon())
+        using (var trayBitmap = trayIcon.ToBitmap())
+            Check(trayBitmap.Width == System.Windows.Forms.SystemInformation.SmallIconSize.Width &&
+                trayBitmap.Height == System.Windows.Forms.SystemInformation.SmallIconSize.Height,
+                "Tray icon remains usable at the system icon size after its resource stream closes");
         SensorValue Sensor(string id, string deviceId, HardwareType hardware, SensorType type, string name, float? value, bool board = false)
             => new(id, deviceId, deviceId, name, hardware, type, value, board);
         var sensors = new List<SensorValue>
@@ -139,6 +148,8 @@ public static class Verification
         var overlay = new OverlayWindow(store, new OverlaySettings(), verification: true, cursorPosition: () => simulatedPointer);
         overlay.Receive(snapshot);
         var panel = new SettingsWindow(overlay, parking);
+        Check(ReferenceEquals(overlay.Icon, Branding.WindowIcon) && ReferenceEquals(panel.Icon, Branding.WindowIcon),
+            "Overlay and Settings use the emerald icon for their native window and taskbar identity");
         var applicationFixture = ApplicationUsageVerification.Fixture(60, 60,
             (UsageResource.Cpu, "Example game", 18), (UsageResource.Memory, "Example browser", 1073741824),
             (UsageResource.Gpu("Graphics card"), "Example game", 24), (UsageResource.Gpu("Integrated graphics"), "Video player", 12),

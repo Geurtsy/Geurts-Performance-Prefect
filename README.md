@@ -4,6 +4,11 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control.
 
+The primary icon is an emerald-accented suit. It appears on the executable,
+taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%20Performance%20Prefect/Assets/Branding)
+include the approved master, PNG exports from 1024 down to 16 pixels and a
+Windows ICO containing ten sizes for different display scales.
+
 CPU, GPU, RAM and each physical drive also show their **Top app**, averaged over
 the last minute. Change the window under **Settings → Top Applications** from
 5 seconds to 10 minutes. Processes with the same executable name are combined.

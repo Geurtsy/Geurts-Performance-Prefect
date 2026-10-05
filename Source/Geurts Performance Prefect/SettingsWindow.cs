@@ -43,6 +43,7 @@ public sealed class SettingsWindow : Window
         this.parking = parking ?? new CoreParking();
         Foreground = Palette.Text; Background = Palette.Background; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
         Title = "Geurts Performance Prefect · Settings"; Width = 500; Height = 820; MinWidth = 430; MinHeight = 440;
+        Icon = Branding.WindowIcon;
         MaxHeight = SystemParameters.WorkArea.Height - 32; WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Topmost = overlay.Settings.AlwaysOnTop;
         var dock = new DockPanel { Margin = new Thickness(24), Background = Palette.Background }; Content = dock;

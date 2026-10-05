@@ -109,6 +109,7 @@ public sealed class OverlayWindow : Window
     readonly DispatcherTimer saveTimer, staleTimer;
     readonly CancellationTokenSource stop = new();
     readonly Forms.NotifyIcon? tray;
+    readonly System.Drawing.Icon? trayIcon;
     readonly Forms.ContextMenuStrip trayMenu = new();
     readonly MenuItem autoAvoidMenuItem;
     public Forms.ToolStripMenuItem AutoAvoidTrayItem { get; }
@@ -126,6 +127,7 @@ public sealed class OverlayWindow : Window
         this.cursorPosition = cursorPosition ?? (() => { var cursor = Forms.Cursor.Position; return new Point(cursor.X, cursor.Y); });
         Foreground = Palette.Text; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
         Title = "Geurts Performance Prefect"; Width = 318; SizeToContent = SizeToContent.WidthAndHeight;
+        Icon = Branding.WindowIcon;
         WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize; AllowsTransparency = true; Background = Brushes.Transparent;
         ShowInTaskbar = !settings.MinimiseToTray; Topmost = settings.AlwaysOnTop;
         Left = settings.Left; Top = settings.Top;
@@ -187,7 +189,8 @@ public sealed class OverlayWindow : Window
         trayMenu.Items.Add("Exit", null, (_, _) => Dispatcher.Invoke(Close));
         if (!verification)
         {
-            tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Application, Text = "Geurts Performance Prefect", Visible = true };
+            trayIcon = Branding.CreateTrayIcon();
+            tray = new Forms.NotifyIcon { Icon = trayIcon, Text = "Geurts Performance Prefect", Visible = true };
             tray.ContextMenuStrip = trayMenu;
             tray.DoubleClick += (_, _) => Dispatcher.Invoke(RestoreOverlay);
         }
@@ -428,7 +431,7 @@ public sealed class OverlayWindow : Window
     {
         if (closing) return;
         closing = true; saveTimer.Stop(); staleTimer.Stop(); stop.Cancel();
-        settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayMenu.Dispose();
+        settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();
         // Sampling owns the monitor and disposes it; never race its hardware update.
         worker?.Wait(TimeSpan.FromSeconds(2));
     }
