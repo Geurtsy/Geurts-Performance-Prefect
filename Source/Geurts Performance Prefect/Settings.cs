@@ -27,6 +27,7 @@ public sealed class OverlaySettings
     public bool MinimiseToTray { get; set; } = true;
     public bool AutoAvoid { get; set; }
     public ScreenCorner AutoAvoidCorner { get; set; } = ScreenCorner.TopLeft;
+    public HashSet<ScreenCorner> AutoAvoidAvailableCorners { get; set; } = new(Enum.GetValues<ScreenCorner>());
     public double Opacity { get; set; } = 0.94;
     public double Scale { get; set; } = 1;
     public int RefreshMilliseconds { get; set; } = 1000;
@@ -52,6 +53,11 @@ public sealed class OverlaySettings
         MotherboardSensorId ??= "";
         DriveVisible ??= new();
         if (!Enum.IsDefined(AutoAvoidCorner)) AutoAvoidCorner = ScreenCorner.TopLeft;
+        AutoAvoidAvailableCorners ??= new();
+        AutoAvoidAvailableCorners.RemoveWhere(corner => !Enum.IsDefined(corner));
+        if (AutoAvoidAvailableCorners.Count == 0) AutoAvoidAvailableCorners.UnionWith(Enum.GetValues<ScreenCorner>());
+        if (!AutoAvoidAvailableCorners.Contains(AutoAvoidCorner))
+            AutoAvoidCorner = Enum.GetValues<ScreenCorner>().First(AutoAvoidAvailableCorners.Contains);
         CoreParkingPreviousValues ??= new();
         foreach (var entry in CoreParkingPreviousValues.ToArray())
             if (entry.Value > 100) CoreParkingPreviousValues.Remove(entry.Key);

@@ -31,6 +31,8 @@ public sealed class SettingsWindow : Window
     public CheckBox TopmostToggle { get; }
     public CheckBox MinimiseToTrayToggle { get; }
     public CheckBox AutoAvoidToggle { get; }
+    public Dictionary<ScreenCorner, CheckBox> AutoAvoidCornerToggles { get; } = new();
+    bool updatingAutoAvoidCorners;
     public Slider ApplicationAverageSlider { get; }
     public Button CheckUpdatesButton { get; } = new() { Content = "Check for updates", HorizontalAlignment = HorizontalAlignment.Left };
     public Button InstallUpdateButton { get; } = new() { Content = "Install update and restart", HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Collapsed, Margin = new Thickness(0,8,0,0) };
@@ -122,6 +124,27 @@ public sealed class SettingsWindow : Window
         AutoAvoidToggle.Unchecked += (_, _) => overlay.SetAutoAvoid(false);
         stack.Children.Add(AutoAvoidToggle);
         stack.Children.Add(Note("Lock the overlay to a screen corner and move it to another corner when hovered. The header is hidden in this mode. Use the tray menu to open Settings or turn Auto-avoid off; dragging is available while it is off."));
+        stack.Children.Add(Label("Available corners for Auto-avoid"));
+        var cornerGrid = new Grid();
+        cornerGrid.ColumnDefinitions.Add(new()); cornerGrid.ColumnDefinitions.Add(new());
+        cornerGrid.RowDefinitions.Add(new()); cornerGrid.RowDefinitions.Add(new());
+        foreach (var corner in Enum.GetValues<ScreenCorner>())
+        {
+            var name = corner switch
+            {
+                ScreenCorner.TopLeft => "Top left", ScreenCorner.TopRight => "Top right",
+                ScreenCorner.BottomLeft => "Bottom left", _ => "Bottom right"
+            };
+            var toggle = new CheckBox { Content = name, IsChecked = overlay.Settings.AutoAvoidAvailableCorners.Contains(corner) };
+            toggle.Checked += (_, _) => { if (!updatingAutoAvoidCorners) overlay.SetAutoAvoidCornerAvailable(corner, true); };
+            toggle.Unchecked += (_, _) => { if (!updatingAutoAvoidCorners) overlay.SetAutoAvoidCornerAvailable(corner, false); };
+            Grid.SetColumn(toggle, corner is ScreenCorner.TopRight or ScreenCorner.BottomRight ? 1 : 0);
+            Grid.SetRow(toggle, corner is ScreenCorner.BottomLeft or ScreenCorner.BottomRight ? 1 : 0);
+            AutoAvoidCornerToggles.Add(corner, toggle); cornerGrid.Children.Add(toggle);
+        }
+        var cornersPanel = Panel(); cornersPanel.Child = cornerGrid; stack.Children.Add(cornersPanel);
+        stack.Children.Add(Note("Choose the corners Auto-avoid can use. Keep at least one selected. With one selected, the overlay stays in that corner. Choices save automatically and can be set before enabling Auto-avoid."));
+        UpdateAutoAvoid(overlay.Settings.AutoAvoid);
         MinimiseToTrayToggle = new CheckBox { Content = "Minimise to tray", IsChecked = overlay.Settings.MinimiseToTray };
         MinimiseToTrayToggle.Checked += (_, _) => { overlay.Settings.MinimiseToTray = true; overlay.Changed(); };
         MinimiseToTrayToggle.Unchecked += (_, _) => { overlay.Settings.MinimiseToTray = false; overlay.Changed(); };
@@ -170,7 +193,22 @@ public sealed class SettingsWindow : Window
         Closed += (_, _) => { overlay.SnapshotReceived -= UpdateSensors; overlay.AutoAvoidChanged -= UpdateAutoAvoid; overlay.SaveSettings(); };
         StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) overlay.Minimise(); };
     }
-    void UpdateAutoAvoid(bool enabled) { if (AutoAvoidToggle.IsChecked != enabled) AutoAvoidToggle.IsChecked = enabled; }
+    void UpdateAutoAvoid(bool enabled)
+    {
+        if (AutoAvoidToggle.IsChecked != enabled) AutoAvoidToggle.IsChecked = enabled;
+        updatingAutoAvoidCorners = true;
+        try
+        {
+            foreach (var pair in AutoAvoidCornerToggles)
+            {
+                var selected = overlay.Settings.AutoAvoidAvailableCorners.Contains(pair.Key);
+                pair.Value.IsChecked = selected;
+                pair.Value.IsEnabled = !selected || overlay.Settings.AutoAvoidAvailableCorners.Count > 1;
+                pair.Value.ToolTip = pair.Value.IsEnabled ? null : "Keep at least one corner selected.";
+            }
+        }
+        finally { updatingAutoAvoidCorners = false; }
+    }
     async void CheckUpdates()
     {
         CheckUpdatesButton.IsEnabled = false; InstallUpdateButton.Visibility = Visibility.Collapsed;

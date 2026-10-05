@@ -127,6 +127,17 @@ public static class Verification
         Check(store.Load().CoreParkingPreviousValues.Count == 0, "Older settings and null restoration data remain compatible");
         Check(store.Load().MinimiseToTray, "Older settings default to minimising to tray");
         Check(!store.Load().AutoAvoid, "Older settings leave Auto-avoid off");
+        Check(store.Load().AutoAvoidAvailableCorners.SetEquals(Enum.GetValues<ScreenCorner>()), "Older settings allow every Auto-avoid corner");
+        foreach (var json in new[] { "null", "[]", "[99]" })
+        {
+            File.WriteAllText(store.Path, "{\"AutoAvoidAvailableCorners\":" + json + "}");
+            Check(store.Load().AutoAvoidAvailableCorners.SetEquals(Enum.GetValues<ScreenCorner>()),
+                $"Malformed available corners {json} recover to all four corners");
+        }
+        File.WriteAllText(store.Path, "{\"AutoAvoidCorner\":0,\"AutoAvoidAvailableCorners\":[3,99,3]}");
+        restored = store.Load();
+        Check(restored.AutoAvoidAvailableCorners.SetEquals(new[] { ScreenCorner.BottomRight }) && restored.AutoAvoidCorner == ScreenCorner.BottomRight,
+            "Saved corner choices remove invalid entries and replace an excluded active corner");
         var monitorArea = new Rect(-1920, -120, 1920, 1080); var overlaySize = new Size(318, 600);
         foreach (var corner in Enum.GetValues<ScreenCorner>())
         {
@@ -138,6 +149,29 @@ public static class Verification
             Check(next != null && next != corner && !AutoAvoidPlacement.AtCorner(monitorArea, overlaySize, next.Value).Contains(pointer),
                 $"Hovering {corner} selects another corner clear of the pointer");
         }
+        for (var mask = 1; mask < 16; mask++)
+        {
+            var compactSize = new Size(318, 300);
+            var available = Enum.GetValues<ScreenCorner>().Where(corner => (mask & (1 << (int)corner)) != 0).ToHashSet();
+            foreach (var corner in Enum.GetValues<ScreenCorner>())
+            {
+                var bounds = AutoAvoidPlacement.AtCorner(monitorArea, compactSize, corner);
+                var pointer = new Point(bounds.Left + 20, bounds.Top + 20);
+                var next = AutoAvoidPlacement.AwayFrom(monitorArea, bounds, pointer, availableCorners: available);
+                var nearest = AutoAvoidPlacement.Nearest(monitorArea, bounds, availableCorners: available);
+                Check(available.Contains(nearest) && (next == null ? available.SetEquals(new[] { corner }) :
+                    available.Contains(next.Value) && next != corner && !AutoAvoidPlacement.AtCorner(monitorArea, compactSize, next.Value).Contains(pointer)),
+                    $"Corner selection {mask} respects available destinations from {corner}");
+            }
+        }
+        Check(AutoAvoidPlacement.AwayFrom(monitorArea, new Rect(0, 0, 318, 600), new Point(10, 10), availableCorners: Array.Empty<ScreenCorner>()) == null,
+            "No available destination leaves the overlay still");
+        var allowedTopLeft = AutoAvoidPlacement.AtCorner(monitorArea, overlaySize, ScreenCorner.TopLeft);
+        Check(AutoAvoidPlacement.AwayFrom(monitorArea, allowedTopLeft, new Point(allowedTopLeft.Left + 20, allowedTopLeft.Top + 20),
+            availableCorners: new[] { ScreenCorner.TopLeft }) == null, "A single selected corner does not bounce on hover");
+        var overlappingBottomLeft = AutoAvoidPlacement.AtCorner(monitorArea, overlaySize, ScreenCorner.BottomLeft);
+        Check(AutoAvoidPlacement.AwayFrom(monitorArea, overlappingBottomLeft, new Point(overlappingBottomLeft.Left + 20, overlappingBottomLeft.Top + 20),
+            availableCorners: new[] { ScreenCorner.TopLeft }) == null, "An unsafe available corner is not replaced by a safe but disabled corner");
         Check(AutoAvoidPlacement.AwayFrom(new Rect(0, 0, 200, 200), new Rect(0, 0, 318, 600), new Point(100,100)) == null,
             "An oversized overlay does not loop between corners that all contain the pointer");
         Check(AutoAvoidPlacement.AtCorner(new Rect(100,100,1920,1080), new Size(477,900), ScreenCorner.BottomRight, 18).BottomRight == new Point(2002,1162),
@@ -291,6 +325,64 @@ public static class Verification
         contextToggle.IsChecked = false; contextToggle.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         Check(!overlay.Settings.AutoAvoid && !overlay.AutoAvoidTrayItem.Checked && activePanel.AutoAvoidToggle.IsChecked == false,
             "Overlay context menu toggle stays synchronised with tray and Settings");
+        Check(activePanel.AutoAvoidCornerToggles.Count == 4 && activePanel.AutoAvoidCornerToggles.Values.All(toggle => toggle.IsChecked == true),
+            "Settings exposes four available corner choices enabled by default");
+        activePanel.AutoAvoidCornerToggles[ScreenCorner.TopLeft].IsChecked = false;
+        activePanel.AutoAvoidCornerToggles[ScreenCorner.TopRight].IsChecked = false;
+        activePanel.AutoAvoidCornerToggles[ScreenCorner.BottomLeft].IsChecked = false;
+        Check(store.Load().AutoAvoidAvailableCorners.SetEquals(new[] { ScreenCorner.BottomRight }) && !overlay.Settings.AutoAvoid,
+            "Corner checkboxes persist choices while Auto-avoid is off");
+        Check(!activePanel.AutoAvoidCornerToggles[ScreenCorner.BottomRight].IsEnabled &&
+            activePanel.AutoAvoidCornerToggles[ScreenCorner.TopLeft].IsEnabled, "The last selected corner cannot be unchecked but other corners remain selectable");
+        activePanel.AutoAvoidCornerToggles[ScreenCorner.BottomRight].IsChecked = false;
+        Check(activePanel.AutoAvoidCornerToggles[ScreenCorner.BottomRight].IsChecked == true && overlay.Settings.AutoAvoidAvailableCorners.Count == 1,
+            "Even a programmatic uncheck cannot remove the final corner");
+        activePanel.AutoAvoidToggle.IsChecked = true;
+        overlay.UpdateLayout(); overlay.SnapAutoAvoid();
+        overlay.TryGetAutoAvoidLayout(out activeArea, out var restrictedBounds, out activeMargin);
+        Check(overlay.Settings.AutoAvoidCorner == ScreenCorner.BottomRight &&
+            (restrictedBounds.TopLeft - AutoAvoidPlacement.AtCorner(activeArea, restrictedBounds.Size, ScreenCorner.BottomRight, activeMargin).TopLeft).Length < 1.5,
+            "Enabling Auto-avoid anchors the only available corner");
+        Check(!overlay.AvoidPointer(new Point(restrictedBounds.Left + 20, restrictedBounds.Top + 20)),
+            "Native hover stays put when the current corner is the only available destination");
+        activePanel.AutoAvoidCornerToggles[ScreenCorner.TopLeft].IsChecked = true;
+        Check(activePanel.AutoAvoidCornerToggles[ScreenCorner.BottomRight].IsEnabled, "Adding another corner unlocks the previously last selected corner");
+        Check(overlay.AvoidPointer(new Point(restrictedBounds.Left + 20, restrictedBounds.Top + 20)) && overlay.Settings.AutoAvoidCorner == ScreenCorner.TopLeft,
+            "Native hover moves only to the newly available corner");
+        activePanel.AutoAvoidCornerToggles[ScreenCorner.TopLeft].IsChecked = false;
+        overlay.TryGetAutoAvoidLayout(out activeArea, out restrictedBounds, out activeMargin);
+        Check(overlay.Settings.AutoAvoidCorner == ScreenCorner.BottomRight &&
+            (restrictedBounds.TopLeft - AutoAvoidPlacement.AtCorner(activeArea, restrictedBounds.Size, ScreenCorner.BottomRight, activeMargin).TopLeft).Length < 1.5,
+            "Disabling the occupied corner immediately relocates the native overlay to an allowed corner");
+        overlay.ResetPosition(); overlay.UpdateLayout();
+        overlay.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        Check(overlay.Settings.AutoAvoidCorner == ScreenCorner.BottomRight, "Reset position respects the available corners");
+        overlay.Settings.Scale = 1; overlay.Changed(); overlay.UpdateLayout();
+        overlay.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        overlay.TryGetAutoAvoidLayout(out activeArea, out restrictedBounds, out activeMargin);
+        Check(overlay.Settings.AutoAvoidCorner == ScreenCorner.BottomRight &&
+            (restrictedBounds.TopLeft - AutoAvoidPlacement.AtCorner(activeArea, restrictedBounds.Size, ScreenCorner.BottomRight, activeMargin).TopLeft).Length < 1.5,
+            "Resizing keeps the native overlay in an available corner");
+        overlay.Minimise();
+        overlay.SetAutoAvoidCornerAvailable(ScreenCorner.TopRight, true);
+        overlay.SetAutoAvoidCornerAvailable(ScreenCorner.BottomRight, false);
+        Check(!overlay.IsVisible && activePanel.AutoAvoidCornerToggles[ScreenCorner.TopRight].IsChecked == true &&
+            activePanel.AutoAvoidCornerToggles[ScreenCorner.BottomRight].IsChecked == false,
+            "Changing corners while minimised synchronises Settings without restoring the overlay");
+        overlay.RestoreOverlay();
+        overlay.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        overlay.TryGetAutoAvoidLayout(out activeArea, out restrictedBounds, out activeMargin);
+        Check(overlay.Settings.AutoAvoidCorner == ScreenCorner.TopRight &&
+            (restrictedBounds.TopLeft - AutoAvoidPlacement.AtCorner(activeArea, restrictedBounds.Size, ScreenCorner.TopRight, activeMargin).TopLeft).Length < 1.5,
+            "Tray restore anchors an available corner after the previous destination is disabled");
+        overlay.SaveSettings();
+        Check(store.Load().AutoAvoidAvailableCorners.SetEquals(new[] { ScreenCorner.TopRight }) && store.Load().AutoAvoidCorner == ScreenCorner.TopRight,
+            "Available corners and current destination survive saving and reload");
+        var cornerScroll = ((DockPanel)activePanel.Content).Children.OfType<ScrollViewer>().Single();
+        var cornerGrid = (FrameworkElement)activePanel.AutoAvoidCornerToggles[ScreenCorner.TopLeft].Parent;
+        cornerScroll.ScrollToVerticalOffset(cornerGrid.TransformToAncestor((Visual)cornerScroll.Content).Transform(new Point()).Y - 180);
+        cornerScroll.UpdateLayout();
+        Render((FrameworkElement)activePanel.Content, Path.Combine(folder, "auto-avoid-corners-preview.png"), 490, 790);
         overlay.Close();
         File.WriteAllLines(output, log.Append($"\n{log.Count} checks passed. Preview data is synthetic and never used in normal operation."));
     }

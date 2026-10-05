@@ -9,6 +9,13 @@ taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%
 include the approved master, PNG exports from 1024 down to 16 pixels and a
 Windows ICO containing ten sizes for different display scales.
 
+Under **Settings → Window → Available corners for Auto-avoid**, choose which
+corners automatic movement can use. All four are enabled by default and choices
+save automatically. Keep at least one selected; selecting only one keeps the
+overlay in that corner. Changing the choices while Auto-avoid is active moves
+the overlay out of a corner you disable. Resetting its position also respects
+the selected corners.
+
 CPU, GPU, RAM and each physical drive also show their **Top app**, averaged over
 the last minute. Change the window under **Settings → Top Applications** from
 5 seconds to 10 minutes. Processes with the same executable name are combined.

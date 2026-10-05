@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -19,15 +20,16 @@ public static class AutoAvoidPlacement
         return new Rect(new Point(corner is ScreenCorner.TopRight or ScreenCorner.BottomRight ? x1 : x0,
             corner is ScreenCorner.BottomLeft or ScreenCorner.BottomRight ? y1 : y0), size);
     }
-    public static ScreenCorner Nearest(Rect workArea, Rect window, double margin = 12) =>
-        Enum.GetValues<ScreenCorner>().OrderBy(corner =>
+    public static ScreenCorner Nearest(Rect workArea, Rect window, double margin = 12, IEnumerable<ScreenCorner>? availableCorners = null) =>
+        Enum.GetValues<ScreenCorner>().Where(corner => availableCorners == null || availableCorners.Contains(corner)).OrderBy(corner =>
             (AtCorner(workArea, window.Size, corner, margin).TopLeft - window.TopLeft).LengthSquared).First();
 
-    public static ScreenCorner? AwayFrom(Rect workArea, Rect window, Point cursor, double margin = 12)
+    public static ScreenCorner? AwayFrom(Rect workArea, Rect window, Point cursor, double margin = 12, IEnumerable<ScreenCorner>? availableCorners = null)
     {
         ScreenCorner? best = null; double distance = -1;
         foreach (var corner in Enum.GetValues<ScreenCorner>())
         {
+            if (availableCorners != null && !availableCorners.Contains(corner)) continue;
             var candidate = AtCorner(workArea, window.Size, corner, margin);
             var safeBounds = candidate; safeBounds.Inflate(8, 8);
             if (safeBounds.Contains(cursor) || candidate.TopLeft == window.TopLeft) continue;

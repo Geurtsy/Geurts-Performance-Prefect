@@ -303,7 +303,7 @@ public sealed class OverlayWindow : Window
     }
     public void ResetPosition()
     {
-        if (Settings.AutoAvoid) { Settings.AutoAvoidCorner = ScreenCorner.TopLeft; SnapAutoAvoid(); }
+        if (Settings.AutoAvoid) { Settings.AutoAvoidCorner = Enum.GetValues<ScreenCorner>().First(Settings.AutoAvoidAvailableCorners.Contains); SnapAutoAvoid(); }
         else { Left = 24; Top = 24; ClampToScreen(); }
         Changed();
     }
@@ -311,9 +311,18 @@ public sealed class OverlayWindow : Window
     {
         if (Settings.AutoAvoid == enabled) return;
         if (enabled && IsVisible && WindowState == WindowState.Normal && TryGetAutoAvoidLayout(out var workArea, out var bounds, out var margin))
-            Settings.AutoAvoidCorner = AutoAvoidPlacement.Nearest(workArea, bounds, margin);
+            Settings.AutoAvoidCorner = AutoAvoidPlacement.Nearest(workArea, bounds, margin, Settings.AutoAvoidAvailableCorners);
         Settings.AutoAvoid = enabled; Changed();
         if (enabled) { SnapAutoAvoid(); AvoidPointer(cursorPosition()); }
+        SaveSettings();
+    }
+    public void SetAutoAvoidCornerAvailable(ScreenCorner corner, bool available)
+    {
+        if (!Enum.IsDefined(corner)) return;
+        if (available) Settings.AutoAvoidAvailableCorners.Add(corner);
+        else if (Settings.AutoAvoidAvailableCorners.Count > 1) Settings.AutoAvoidAvailableCorners.Remove(corner);
+        Changed();
+        SnapAutoAvoid();
         SaveSettings();
     }
     internal bool TryGetAutoAvoidLayout(out Rect workArea, out Rect bounds, out double margin)
@@ -335,11 +344,13 @@ public sealed class OverlayWindow : Window
         if (!Settings.AutoAvoid || closing || placingAutoAvoid || !IsVisible || WindowState != WindowState.Normal) return;
         if (TryGetAutoAvoidLayout(out var area, out var bounds, out var margin))
         {
+            if (!Settings.AutoAvoidAvailableCorners.Contains(Settings.AutoAvoidCorner))
+                Settings.AutoAvoidCorner = AutoAvoidPlacement.Nearest(area, bounds, margin, Settings.AutoAvoidAvailableCorners);
             var cursor = cursorPosition();
             var target = AutoAvoidPlacement.AtCorner(area, bounds.Size, Settings.AutoAvoidCorner, margin);
             // A resize can grow the selected corner back underneath a stationary cursor.
             if (target.Contains(cursor))
-                Settings.AutoAvoidCorner = AutoAvoidPlacement.AwayFrom(area, bounds, cursor, margin) ?? Settings.AutoAvoidCorner;
+                Settings.AutoAvoidCorner = AutoAvoidPlacement.AwayFrom(area, bounds, cursor, margin, Settings.AutoAvoidAvailableCorners) ?? Settings.AutoAvoidCorner;
             PlaceAutoAvoid(AutoAvoidPlacement.AtCorner(area, bounds.Size, Settings.AutoAvoidCorner, margin), bounds);
         }
     }
@@ -347,7 +358,7 @@ public sealed class OverlayWindow : Window
     {
         if (!Settings.AutoAvoid || closing || placingAutoAvoid || !IsVisible || WindowState != WindowState.Normal || ContextMenu?.IsOpen == true) return false;
         if (!TryGetAutoAvoidLayout(out var area, out var bounds, out var margin) || !bounds.Contains(cursor)) return false;
-        var corner = AutoAvoidPlacement.AwayFrom(area, bounds, cursor, margin);
+        var corner = AutoAvoidPlacement.AwayFrom(area, bounds, cursor, margin, Settings.AutoAvoidAvailableCorners);
         if (corner == null) return false;
         Settings.AutoAvoidCorner = corner.Value;
         PlaceAutoAvoid(AutoAvoidPlacement.AtCorner(area, bounds.Size, corner.Value, margin), bounds);
