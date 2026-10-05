@@ -62,6 +62,9 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(Note("Choose the readings you want at a glance."));
         stack.Children.Add(Heading("APPLICATION UPDATES"));
         stack.Children.Add(Note("Installed version: " + AppUpdates.CurrentVersion));
+        var installationFolder = new Button { Content = "Open Installation Folder", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,8) };
+        installationFolder.Click += (_, _) => overlay.OpenInstallationFolder();
+        stack.Children.Add(installationFolder);
         stack.Children.Add(CheckUpdatesButton);
         stack.Children.Add(InstallUpdateButton);
         stack.Children.Add(UpdateStatus);

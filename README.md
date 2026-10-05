@@ -37,6 +37,10 @@ also require restarting the application as administrator.
 
 ## Updates
 
+Choose **Open Installation Folder** in Settings under **Application Updates**, in
+the tray menu, or in the overlay's right-click menu to open the folder containing
+the running application in File Explorer.
+
 Open **Settings → Application Updates → Check for updates**. When a newer stable
 release is available, choose **Install update and restart**. The app downloads
 the Windows ZIP from this repository, verifies GitHub's SHA-256 digest and the

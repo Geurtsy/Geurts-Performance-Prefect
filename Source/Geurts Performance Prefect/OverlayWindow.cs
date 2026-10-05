@@ -167,6 +167,7 @@ public sealed class OverlayWindow : Window
         autoAvoidMenuItem.Click += (_, _) => SetAutoAvoid(autoAvoidMenuItem.IsChecked); menu.Items.Add(autoAvoidMenuItem);
         var minimiseItem = new MenuItem { Header = "Minimise" }; minimiseItem.Click += (_, _) => Minimise(); menu.Items.Add(minimiseItem);
         var settingsItem = new MenuItem { Header = "Settings" }; settingsItem.Click += (_, _) => OpenSettings(); menu.Items.Add(settingsItem);
+        var installationItem = new MenuItem { Header = "Open Installation Folder" }; installationItem.Click += (_, _) => OpenInstallationFolder(); menu.Items.Add(installationItem);
         var exitItem = new MenuItem { Header = "Exit Geurts Performance Prefect" }; exitItem.Click += (_, _) => Close(); menu.Items.Add(exitItem); ContextMenu = menu;
         saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); SaveSettings(); };
@@ -186,6 +187,7 @@ public sealed class OverlayWindow : Window
         trayMenu.Items.Add("Minimise", null, (_, _) => Dispatcher.Invoke(Minimise));
         trayMenu.Items.Add(AutoAvoidTrayItem);
         trayMenu.Items.Add("Settings", null, (_, _) => Dispatcher.Invoke(OpenSettings));
+        trayMenu.Items.Add("Open Installation Folder", null, (_, _) => Dispatcher.Invoke(OpenInstallationFolder));
         trayMenu.Items.Add("Exit", null, (_, _) => Dispatcher.Invoke(Close));
         if (!verification)
         {
@@ -381,6 +383,11 @@ public sealed class OverlayWindow : Window
         var bottomRight = transform.Transform(new Point(screen.WorkingArea.Right, screen.WorkingArea.Bottom));
         Left = Math.Clamp(Left, topLeft.X, Math.Max(topLeft.X, bottomRight.X - ActualWidth));
         Top = Math.Clamp(Top, topLeft.Y, Math.Max(topLeft.Y, bottomRight.Y - ActualHeight));
+    }
+    public void OpenInstallationFolder()
+    {
+        try { Process.Start(new ProcessStartInfo(AppContext.BaseDirectory) { UseShellExecute = true }); }
+        catch (Exception ex) { MessageBox.Show("Could not open the installation folder: " + ex.Message, "Geurts Performance Prefect"); }
     }
     public void OpenSettings()
     {
