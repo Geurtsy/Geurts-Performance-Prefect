@@ -39,10 +39,19 @@ public sealed class SettingsWindow : Window
     public TextBlock UpdateStatus { get; } = Note("Check GitHub for a newer version.");
     readonly CancellationTokenSource updateStop = new();
     AppRelease? availableRelease;
-    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null)
+    public CheckBox AutoWipeDownloadsToggle { get; } = new() { Content = "Auto-wipe Downloads on app startup" };
+    public Button WipeDownloadsButton { get; } = new() { Content = "Wipe Downloads now…", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
+    public TextBlock DownloadsStatus { get; } = Note("");
+    public TextBlock DownloadsPath { get; } = Note("");
+    readonly Func<string, bool> confirmDownloads;
+    bool updatingDownloads;
+    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null)
     {
         this.overlay = overlay;
         this.parking = parking ?? new CoreParking();
+        this.confirmDownloads = confirmDownloads ?? (message => MessageBox.Show(this, message,
+            "Geurts Performance Prefect · Downloads", MessageBoxButton.YesNo, MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes);
         Foreground = Palette.Text; Background = Palette.Background; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
         Title = "Geurts Performance Prefect · Settings"; Width = 500; Height = 820; MinWidth = 430; MinHeight = 440;
         Icon = Branding.WindowIcon;
@@ -81,6 +90,20 @@ public sealed class SettingsWindow : Window
         CheckUpdatesButton.Click += (_, _) => CheckUpdates();
         InstallUpdateButton.Click += (_, _) => InstallUpdate();
         Closed += (_, _) => updateStop.Cancel();
+        stack.Children.Add(Heading("DOWNLOADS CLEANUP"));
+        stack.Children.Add(Note("Permanently deletes files and subfolders from your Windows Downloads folder. Deleted items do not go to the Recycle Bin. Locked, protected and linked items are skipped."));
+        stack.Children.Add(DownloadsPath);
+        AutoWipeDownloadsToggle.IsChecked = overlay.Settings.AutoWipeDownloadsOnStartup;
+        AutoWipeDownloadsToggle.Checked += (_, _) => ChangeAutoWipeDownloads(true);
+        AutoWipeDownloadsToggle.Unchecked += (_, _) => ChangeAutoWipeDownloads(false);
+        stack.Children.Add(AutoWipeDownloadsToggle);
+        stack.Children.Add(Note("Off by default. When enabled, wipes once each time this app starts, including after a restart or update. Enabling takes effect on the next startup."));
+        WipeDownloadsButton.Click += (_, _) => WipeDownloads();
+        stack.Children.Add(WipeDownloadsButton);
+        stack.Children.Add(DownloadsStatus);
+        overlay.Downloads.Changed += UpdateDownloads;
+        Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
+        UpdateDownloads();
         stack.Children.Add(Heading("PERFORMANCE"));
         stack.Children.Add(CoreParkingToggle);
         stack.Children.Add(Note("Keep cores unparked while plugged in by setting the active power plan to 100%. Turning this off restores the value saved by this app. This may increase power use and heat."));
@@ -195,6 +218,49 @@ public sealed class SettingsWindow : Window
         if (overlay.Latest != null) UpdateSensors(overlay.Latest);
         Closed += (_, _) => { overlay.SnapshotReceived -= UpdateSensors; overlay.AutoAvoidChanged -= UpdateAutoAvoid; overlay.SaveSettings(); };
         StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) overlay.Minimise(); };
+    }
+    void UpdateDownloads()
+    {
+        DownloadsStatus.Text = overlay.Downloads.Status;
+        WipeDownloadsButton.IsEnabled = !overlay.Downloads.IsBusy;
+        try { DownloadsPath.Text = "Folder: " + overlay.Downloads.GetPath(); }
+        catch (Exception ex) { DownloadsPath.Text = ex.Message; WipeDownloadsButton.IsEnabled = false; }
+    }
+    void ChangeAutoWipeDownloads(bool enabled)
+    {
+        if (updatingDownloads) return;
+        var previous = overlay.Settings.AutoWipeDownloadsOnStartup;
+        try
+        {
+            if (enabled && !confirmDownloads("Enable automatic cleanup of:\n\n" + overlay.Downloads.GetPath() +
+                "\n\nEvery app startup will permanently delete its files and subfolders without another prompt, including after a restart or update. Items do not go to the Recycle Bin. Cleanup starts on the next launch.")) return;
+            overlay.Settings.AutoWipeDownloadsOnStartup = enabled;
+            overlay.SaveSettings();
+            if (overlay.Store.LastError != null)
+            {
+                overlay.Settings.AutoWipeDownloadsOnStartup = previous;
+                DownloadsStatus.Text = overlay.Store.LastError;
+            }
+        }
+        catch (Exception ex) { DownloadsStatus.Text = ex.Message; }
+        finally
+        {
+            updatingDownloads = true;
+            AutoWipeDownloadsToggle.IsChecked = overlay.Settings.AutoWipeDownloadsOnStartup;
+            updatingDownloads = false;
+        }
+    }
+    async void WipeDownloads()
+    {
+        if (overlay.Downloads.IsBusy) return;
+        try
+        {
+            var path = overlay.Downloads.GetPath();
+            if (!confirmDownloads("Permanently delete all files and subfolders from:\n\n" + path +
+                "\n\nItems do not go to the Recycle Bin. The Downloads folder itself is kept.")) return;
+            await overlay.Downloads.RunAsync(path);
+        }
+        catch (Exception ex) { DownloadsStatus.Text = "Could not wipe Downloads: " + ex.Message; }
     }
     void UpdateAutoAvoid(bool enabled)
     {

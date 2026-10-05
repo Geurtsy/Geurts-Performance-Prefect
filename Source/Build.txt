@@ -29,6 +29,16 @@ For a local hardware report, use --diagnose followed by a quoted absolute JSON
 file path. The report stays on your computer and may include device names.
 
 DESIGN
+- Downloads cleanup resolves the current FOLDERID_Downloads through
+  SHGetKnownFolderPath. AutoWipeDownloadsOnStartup defaults false and persists
+  in the existing settings file. Only normal startup after the instance check
+  dispatches the optional wipe; self-test, diagnose and updater helper modes
+  return first. Settings confirms manual deletion and automatic cleanup opt-in.
+  A shared background task rejects concurrent requests and reports partial
+  failures. The traversal checks every entry and ancestor for reparse points,
+  uses non-recursive directory removal and preserves the Downloads root.
+  Tests use unique disposable folders, locked/read-only files, outside sentinel
+  files and actual Windows junctions; they never delete real Downloads content.
 - HardwareSampler owns and updates LibreHardwareMonitor on one worker thread.
 - Only CPU, GPU and motherboard hardware groups are enabled.
 - CPU busy time and physical memory also use Windows APIs independently.

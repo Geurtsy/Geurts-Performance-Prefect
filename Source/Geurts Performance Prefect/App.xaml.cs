@@ -80,6 +80,7 @@ public partial class App : Application
         MainWindow = new OverlayWindow(store, store.Load());
         MainWindow.Show();
         if (e.Args.Contains("--settings")) ((OverlayWindow)MainWindow).OpenSettings();
+        _ = ((OverlayWindow)MainWindow).Downloads.RunOnStartupAsync(((OverlayWindow)MainWindow).Settings);
         _ = PawnIOInstaller.InstallIfMissingAsync();
     }
     protected override void OnExit(ExitEventArgs e) { instance?.Dispose(); base.OnExit(e); }

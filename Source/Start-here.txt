@@ -13,6 +13,19 @@ update results are under its Updates subfolder. A protected application folder
 may require administrator approval. Versions before 1.5.0 need a manual upgrade
 once to gain the updater. Normal monitoring continues to work offline.
 
+DOWNLOADS CLEANUP
+Settings > Downloads Cleanup > Wipe Downloads now permanently deletes files
+and subfolders after you confirm the displayed folder. The Downloads folder
+itself is kept. Deleted items do not go to the Recycle Bin.
+Auto-wipe Downloads on app startup is off by default. Enable and confirm it to
+wipe once per app launch, starting with the next launch, without another prompt.
+This includes app restarts after updates or administrator elevation. Disable it
+to stop future startup cleanup. The manual button works with auto-wipe off.
+The current Windows Downloads location is used. Locked, read-only, inaccessible
+and linked items are skipped; Settings shows the result. Run the application
+outside Downloads: cleanup refuses folders containing the running app or its
+settings, protected Windows folders, drive roots and folder links/junctions.
+
 TOP APPLICATIONS
 CPU, GPU, RAM and each physical drive show the application with the highest
 average usage over the last 60 seconds. Settings > Top Applications changes the

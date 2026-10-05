@@ -2,7 +2,7 @@
 
 A portable Windows x64 system monitor with a compact overlay, per-drive activity,
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
-core-parking control.
+core-parking control and optional Downloads cleanup.
 
 The primary icon is an emerald-accented suit. It appears on the executable,
 taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%20Performance%20Prefect/Assets/Branding)
@@ -34,6 +34,30 @@ Windows x64 and the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/en-us
 The bundled official PawnIO installer requests administrator approval on first
 launch when its driver is missing. CPU and motherboard temperature access may
 also require restarting the application as administrator.
+
+## Downloads cleanup
+
+Under **Settings → Downloads Cleanup**, choose **Wipe Downloads now…** to
+permanently delete files and subfolders after confirming the displayed location.
+The Downloads folder itself stays in place. Deleted items do not go to the Recycle Bin.
+
+**Auto-wipe Downloads on app startup** is off by default and saves between
+launches. Enabling it asks for confirmation and takes effect on the next app
+startup. While enabled, each launch clears Downloads without another prompt,
+including launches after an update or a restart as administrator. Turning it off
+stops cleanup on future launches. The manual button works independently of this toggle.
+
+Cleanup uses the current Windows Downloads location, including a folder moved
+through Windows settings. Locked, read-only, inaccessible and linked entries
+are skipped, with a result shown in Settings. Links and junctions are never
+traversed. Cleanup refuses a drive/share root or a location containing the
+running application, its settings, or a protected Windows folder. Run the app
+from outside Downloads to use cleanup.
+
+Startup and manual cleanup share one background operation so the interface
+stays responsive and duplicate wipes cannot overlap. Dedicated test, diagnostic
+and updater helper modes bypass startup cleanup. Automated deletion tests use
+disposable folders under `Verification`, leaving your real Downloads intact.
 
 ## Updates
 

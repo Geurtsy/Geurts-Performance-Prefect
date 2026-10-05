@@ -21,6 +21,7 @@ public static class Verification
         void Check(bool condition, string name) { if (!condition) throw new InvalidOperationException("FAILED: " + name); log.Add("PASS: " + name); }
         UpdateVerification.Run(folder, Check);
         ApplicationUsageVerification.Run(folder, Check);
+        DownloadsCleanupVerification.Run(folder, Check);
         var iconFrames = new IconBitmapDecoder(Branding.IconUri, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames;
         Check(new[] { 16, 20, 24, 32, 40, 48, 64, 96, 128, 256 }.All(size =>
             iconFrames.Any(frame => frame.PixelWidth == size && frame.PixelHeight == size)),
@@ -235,9 +236,12 @@ public static class Verification
         Render((FrameworkElement)overlay.Content, Path.Combine(folder, "overlay-preview.png"), 318, 1000);
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-preview.png"), 490, 790);
         var settingsScroll = ((DockPanel)panel.Content).Children.OfType<ScrollViewer>().Single();
-        settingsScroll.ScrollToVerticalOffset(350); settingsScroll.UpdateLayout();
+        settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.DownloadsPath.TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 100));
+        settingsScroll.UpdateLayout();
+        Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-downloads-preview.png"), 490, 790);
+        settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.DriveToggles[driveA.Id].TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 110)); settingsScroll.UpdateLayout();
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-drives-preview.png"), 490, 790);
-        settingsScroll.ScrollToVerticalOffset(760); settingsScroll.UpdateLayout();
+        settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.AutoAvoidToggle.TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 40)); settingsScroll.UpdateLayout();
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-window-preview.png"), 490, 790);
         panel.Close();
         // Exercise real WPF window state changes using isolated preferences and no sensor worker.
@@ -386,7 +390,7 @@ public static class Verification
         overlay.Close();
         File.WriteAllLines(output, log.Append($"\n{log.Count} checks passed. Preview data is synthetic and never used in normal operation."));
     }
-    sealed class ParkingFixture : IParkingBackend
+    internal sealed class ParkingFixture : IParkingBackend
     {
         public ParkingState State = new(Guid.NewGuid(), 25);
         public int Activations, Writes;
