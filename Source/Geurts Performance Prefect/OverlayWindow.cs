@@ -247,6 +247,9 @@ public sealed class OverlayWindow : Window
             applicationHistory.Top(resource, Settings.ApplicationAverageSeconds);
         foreach (var pair in readings)
         {
+            if (pair.Key == Metric.MotherboardTemperature)
+                rows[pair.Key].SetLabel(pair.Value.Detail.StartsWith("ACPI thermal zone ", StringComparison.Ordinal)
+                    ? "System temperature (ACPI)" : MetricInfo.Label(pair.Key));
             var resource = pair.Key switch
             {
                 Metric.CpuUsage => UsageResource.Cpu, Metric.MemoryUsage => UsageResource.Memory,

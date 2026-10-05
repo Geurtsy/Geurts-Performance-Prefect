@@ -22,8 +22,9 @@ Start-Process .\output\GeurtsPerformancePrefect.exe -ArgumentList '--self-test',
 Get-Content $report
 
 The test also writes overlay-preview.png and settings-preview.png beside the
-report, using clearly synthetic fixture data. It does not read real temperature
-sensors and does not install or load a driver.
+report, using clearly synthetic fixture data. The thermal-zone check also reads
+Windows firmware performance counters and writes thermal-zone-diagnostic.json.
+It does not install or load a driver, change real settings, or start cleanup.
 
 For a local hardware report, use --diagnose followed by a quoted absolute JSON
 file path. The report stays on your computer and may include device names.
@@ -42,6 +43,13 @@ DESIGN
 - HardwareSampler owns and updates LibreHardwareMonitor on one worker thread.
 - Only CPU, GPU and motherboard hardware groups are enabled.
 - CPU busy time and physical memory also use Windows APIs independently.
+- Motherboard selection prefers a named dedicated board sensor. Windows PDH
+  Thermal Zone Information Temperature counters provide an ACPI fallback in
+  whole Kelvin, converted to Celsius. A single zone is automatic; multiple zones
+  require explicit selection, including when another zone is invalid. The overlay
+  labels this System temperature (ACPI) because firmware does not identify the
+  sensor's physical location. Invalid readings clear the value; unavailable
+  providers retry after 30 seconds without retaining old temperatures.
 - Physical drive activity uses Windows PDH PhysicalDisk % Idle Time counters:
   activity = 100 - idle time, clamped to 0-100%. English counter paths support
   Windows installations in other languages. The first interval and invalid

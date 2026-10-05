@@ -63,6 +63,44 @@ public static class Verification
         Check(SensorSelection.Select(ambiguous, new())[Metric.MotherboardTemperature].Value == null, "Ambiguous motherboard sensors are not guessed");
         var noSensors = snapshot with { Sensors = Array.Empty<SensorValue>() };
         Check(SensorSelection.Select(noSensors, new())[Metric.CpuUsage].Value == 24 && SensorSelection.Select(noSensors, new())[Metric.MemoryUsage].Value == 42, "CPU and RAM keep working without hardware driver sensors");
+        Check(Math.Abs(ThermalZoneSampler.Celsius(301, 0)!.Value - 27.85) < .001 &&
+            Math.Abs(ThermalZoneSampler.Celsius(310, 1)!.Value - 36.85) < .001,
+            "Windows thermal counters convert whole Kelvin to Celsius and accept new data status");
+        Check(new[] { 0d, 273.15, -1, 500, double.NaN, double.PositiveInfinity }.All(k => ThermalZoneSampler.Celsius(k, 0) == null) &&
+            ThermalZoneSampler.Celsius(301, 0xC0000BC6) == null,
+            "Unknown, placeholder, implausible and disconnected thermal readings stay unavailable");
+        var zone = ThermalZoneSampler.Sensor(@"\_TZ.TZ00", 301, 0)!;
+        Check(zone.Id == ThermalZoneSampler.Sensor(@"\_tz.tz00", 310, 0)!.Id &&
+            ThermalZoneSampler.Sensor("", 301, 0) == null && ThermalZoneSampler.Sensor("_Total", 301, 0) == null,
+            "Thermal zone selections have stable case-insensitive identities and exclude unnamed/aggregate counters");
+        var firmware = noSensors with { Sensors = new[] { zone } };
+        var firmwareReading = SensorSelection.Select(firmware, new())[Metric.MotherboardTemperature];
+        Check(Math.Abs(firmwareReading.Value!.Value - 27.85) < .001 && firmwareReading.Detail.Contains("firmware/system") &&
+            SensorSelection.BoardSensors(firmware).Single().Name.Contains("ACPI thermal zone"),
+            "Single firmware zone supplies a clearly identified system temperature and selectable source");
+        Check(SensorSelection.Select(snapshot with { Sensors = sensors.Append(zone).ToArray() }, new())[Metric.MotherboardTemperature].Value == 35,
+            "A named motherboard sensor takes priority over the firmware fallback");
+        var secondZone = ThermalZoneSampler.Sensor(@"\_TZ.TZ01", 310, 0)!;
+        var multipleZones = firmware with { Sensors = new[] { zone, secondZone } };
+        Check(SensorSelection.Select(multipleZones, new())[Metric.MotherboardTemperature].Value == null &&
+            SensorSelection.Select(multipleZones with { Sensors = new[] { zone, secondZone with { Value = null } } }, new())[Metric.MotherboardTemperature].Value == null,
+            "Multiple thermal zones require an explicit choice even when only one currently has a reading");
+        Check(Math.Abs(SensorSelection.Select(multipleZones, new() { MotherboardSensorId = secondZone.Id })[Metric.MotherboardTemperature].Value!.Value - 36.85) < .001 &&
+            SensorSelection.Select(firmware, new() { MotherboardSensorId = "missing" })[Metric.MotherboardTemperature].Value == null,
+            "Explicit firmware zone selection works and a missing saved source is never replaced automatically");
+        Check(SensorSelection.Select(firmware with { Sensors = new[] { zone with { Value = null } } }, new())[Metric.MotherboardTemperature].Value == null,
+            "A lost firmware reading clears the temperature instead of displaying old data");
+        using (var thermal = new ThermalZoneSampler())
+        {
+            var first = thermal.Sample();
+            Thread.Sleep(200);
+            var second = thermal.Sample();
+            File.WriteAllText(Path.Combine(folder, "thermal-zone-diagnostic.json"), System.Text.Json.JsonSerializer.Serialize(
+                new { Administrator = HardwareSampler.IsAdministrator, First = first, Second = second, Error = thermal.LastError },
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            Check(second.All(s => s.OnMotherboard && s.IsFirmwareThermalZone && (s.Value == null || s.Value is > 0 and < 150)),
+                "Live Windows thermal sampling returns firmware sources with valid temperatures or an unavailable result");
+        }
         var store = new SettingsStore(Path.Combine(folder, "test-settings.json"));
         settings = new OverlaySettings { AlwaysOnTop = false, MinimiseToTray = false, Opacity = .75, GraphicsId = "Graphics card", MotherboardSensorId = "board-vrm" };
         settings.Visible[Metric.CpuUsage] = false;
@@ -182,7 +220,11 @@ public static class Verification
         Check(store.Load().AutoAvoidCorner == ScreenCorner.TopLeft, "Invalid saved corner recovers to top left");
         var simulatedPointer = new Point(-100000,-100000);
         var overlay = new OverlayWindow(store, new OverlaySettings(), verification: true, cursorPosition: () => simulatedPointer);
+        overlay.Receive(firmware);
+        var boardLabel = ((Grid)overlay.MetricRows[Metric.MotherboardTemperature].Child).Children.OfType<TextBlock>().First();
+        Check(boardLabel.Text == "System temperature (ACPI)", "Firmware fallback is labelled as a system temperature in the overlay");
         overlay.Receive(snapshot);
+        Check(boardLabel.Text == "Motherboard temperature", "A dedicated board sensor restores the motherboard label");
         var panel = new SettingsWindow(overlay, parking);
         Check(ReferenceEquals(overlay.Icon, Branding.WindowIcon) && ReferenceEquals(panel.Icon, Branding.WindowIcon),
             "Overlay and Settings use the emerald icon for their native window and taskbar identity");

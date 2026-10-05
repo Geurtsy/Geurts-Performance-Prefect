@@ -7,13 +7,17 @@ using LibreHardwareMonitor.Hardware;
 
 namespace GeurtsPerformancePrefect;
 
-public sealed record SensorValue(string Id, string DeviceId, string Device, string Name, HardwareType HardwareType, SensorType Type, float? Value, bool OnMotherboard);
+public sealed record SensorValue(string Id, string DeviceId, string Device, string Name, HardwareType HardwareType, SensorType Type, float? Value, bool OnMotherboard)
+{
+    public bool IsFirmwareThermalZone { get; init; }
+}
 public sealed record DeviceChoice(string Id, string Name);
 public sealed record Reading(double? Value, string Source, string Detail = "");
 public sealed record Snapshot(DateTimeOffset Time, IReadOnlyList<SensorValue> Sensors, double? CpuUsage, double? MemoryUsage, string MemoryDetail, string? Error)
 {
     public IReadOnlyList<DriveReading> Drives { get; init; } = Array.Empty<DriveReading>();
     public string? DriveError { get; init; }
+    public string? BoardTemperatureError { get; init; }
     public ApplicationUsageSample? Applications { get; init; }
 }
 
@@ -40,7 +44,8 @@ public static class SensorSelection
         return null;
     }
     static Reading From(SensorValue? sensor) => sensor == null ? new(null, "No supported sensor reading")
-        : new(sensor.Value, sensor.Device + " / " + sensor.Name);
+        : new(sensor.Value, sensor.Device + " / " + sensor.Name,
+            sensor.IsFirmwareThermalZone ? sensor.Name + " · firmware/system" : "");
     public static Dictionary<Metric, Reading> Select(Snapshot snapshot, OverlaySettings settings)
     {
         var cpu = snapshot.Sensors.Where(s => s.HardwareType == HardwareType.Cpu).ToArray();
@@ -52,8 +57,11 @@ public static class SensorSelection
             .OrderByDescending(s => s.Value).FirstOrDefault();
         var board = snapshot.Sensors.Where(s => s.OnMotherboard && s.Type == SensorType.Temperature).ToArray();
         var boardTemp = string.IsNullOrEmpty(settings.MotherboardSensorId)
-            ? Named(board, "Motherboard", "System", "System 1", "Mainboard", "Board")
+            ? Named(board.Where(s => !s.IsFirmwareThermalZone), "Motherboard", "System", "System 1", "Mainboard", "Board")
             : board.FirstOrDefault(s => s.Id == settings.MotherboardSensorId && Valid(s));
+        var firmwareZones = board.Where(s => s.IsFirmwareThermalZone).ToArray();
+        if (boardTemp == null && string.IsNullOrEmpty(settings.MotherboardSensorId) && firmwareZones.Length == 1 && Valid(firmwareZones[0]))
+            boardTemp = firmwareZones[0];
         var cpuLoad = From(Named(cpu.Where(s => s.Type == SensorType.Load), "CPU Total"));
         return new()
         {
@@ -72,6 +80,7 @@ public sealed class HardwareSampler : IDisposable
     readonly Computer computer = new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true };
     readonly WindowsMetrics windows = new();
     readonly DriveSampler drives = new();
+    readonly ThermalZoneSampler thermalZones = new();
     readonly ApplicationUsageSampler applications = new();
     string? initialError;
     public static bool IsAdministrator
@@ -89,11 +98,12 @@ public sealed class HardwareSampler : IDisposable
         var errors = new List<string>();
         if (initialError != null) errors.Add(initialError);
         foreach (var hardware in computer.Hardware) Read(hardware, false, sensors, errors);
+        sensors.AddRange(thermalZones.Sample());
         var memory = windows.ReadMemory();
         var driveReadings = drives.Sample();
         return new(DateTimeOffset.Now, sensors, windows.ReadCpu(), memory.Percent, memory.Detail,
             errors.Count > 0 ? string.Join("; ", errors.Distinct()) : null)
-            { Drives = driveReadings, DriveError = drives.LastError, Applications = applications.Sample(sensors, driveReadings) };
+            { Drives = driveReadings, DriveError = drives.LastError, BoardTemperatureError = thermalZones.LastError, Applications = applications.Sample(sensors, driveReadings) };
     }
     static void Read(IHardware hardware, bool onBoard, List<SensorValue> values, List<string> errors)
     {
@@ -109,7 +119,7 @@ public sealed class HardwareSampler : IDisposable
         catch (Exception ex) { errors.Add(hardware.Name + ": " + ex.Message); }
         foreach (var child in hardware.SubHardware) Read(child, onBoard, values, errors);
     }
-    public void Dispose() { applications.Dispose(); drives.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
+    public void Dispose() { applications.Dispose(); drives.Dispose(); thermalZones.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
 }
 
 public sealed class WindowsMetrics

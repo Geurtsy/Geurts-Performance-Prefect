@@ -213,7 +213,7 @@ public sealed class SettingsWindow : Window
         board.DisplayMemberPath = "Name"; board.SelectedValuePath = "Id";
         board.SelectionChanged += (_, _) => { if (!updatingChoices && board.SelectedItem is DeviceChoice c) { overlay.Settings.MotherboardSensorId = c.Id; overlay.Changed(); } };
         stack.Children.Add(board);
-        stack.Children.Add(Note("Automatic uses a sensor named Motherboard or System. Select a source here if your board uses a different name."));
+        stack.Children.Add(Note("Automatic prefers Motherboard or System, then a single ACPI thermal zone. If several zones exist, select one here. ACPI reports a firmware/system temperature; its physical sensor location is not identified."));
         sensorStatus = Note("Detecting hardware…"); sensorStatus.Margin = new Thickness(0,12,0,12); stack.Children.Add(sensorStatus);
         var admin = new Button { Content = HardwareSampler.IsAdministrator ? "Running as administrator" : "Restart as administrator", IsEnabled = !HardwareSampler.IsAdministrator, HorizontalAlignment = HorizontalAlignment.Left };
         admin.Click += (_, _) => overlay.RestartElevated(); stack.Children.Add(admin);
@@ -424,7 +424,7 @@ public sealed class SettingsWindow : Window
         {
             choiceSignature = signature; updatingChoices = true;
             var gpuItems = new List<DeviceChoice> { new("", "Automatic (prefer a dedicated graphics card)") }; gpuItems.AddRange(gpuChoices);
-            var boardItems = new List<DeviceChoice> { new("", "Automatic (Motherboard / System)") }; boardItems.AddRange(boardChoices);
+            var boardItems = new List<DeviceChoice> { new("", "Automatic (Motherboard / System / ACPI)") }; boardItems.AddRange(boardChoices);
             if (overlay.Settings.GraphicsId != "" && !gpuItems.Any(c => c.Id == overlay.Settings.GraphicsId)) gpuItems.Add(new(overlay.Settings.GraphicsId, "Saved graphics card (unavailable)"));
             if (overlay.Settings.MotherboardSensorId != "" && !boardItems.Any(c => c.Id == overlay.Settings.MotherboardSensorId)) boardItems.Add(new(overlay.Settings.MotherboardSensorId, "Saved sensor (unavailable)"));
             graphics.ItemsSource = gpuItems; graphics.SelectedValue = overlay.Settings.GraphicsId;
@@ -435,6 +435,8 @@ public sealed class SettingsWindow : Window
         var missing = readings.Where(p => !p.Value.Value.HasValue).Select(p => MetricInfo.Label(p.Key)).ToArray();
         sensorStatus.Text = missing.Length == 0 ? "All six readings are available." : "Unavailable: " + string.Join(", ", missing) + ".";
         if (snapshot.Error != null) sensorStatus.Text += "\n" + snapshot.Error;
+        if (!readings[Metric.MotherboardTemperature].Value.HasValue && snapshot.BoardTemperatureError != null)
+            sensorStatus.Text += "\n" + snapshot.BoardTemperatureError;
         sensorStatus.ToolTip = string.Join("\n", readings.Select(p => MetricInfo.Label(p.Key) + ": " + p.Value.Source));
     }
     void UpdateDrives(Snapshot snapshot)

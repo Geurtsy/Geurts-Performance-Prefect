@@ -35,6 +35,24 @@ The bundled official PawnIO installer requests administrator approval on first
 launch when its driver is missing. CPU and motherboard temperature access may
 also require restarting the application as administrator.
 
+## Motherboard and system temperature
+
+The motherboard row first uses a supported sensor named Motherboard or System.
+If none is available, it can now read Windows **ACPI thermal zones**, including
+laptops that do not expose a supported motherboard sensor chip. A single zone
+is selected automatically; choose a source under **Settings → Sensor Sources →
+Motherboard temperature sensor** when several zones are available.
+
+The fallback row is labelled **System temperature (ACPI)** and shows the zone
+name. Firmware supplies this temperature without identifying the physical sensor
+location; it is not a verified measurement of the motherboard PCB or CPU.
+Windows reports the counter in Kelvin and Prefect converts it to Celsius.
+Firmware may update slowly or report a fixed value. Invalid or lost readings
+show unavailable, and a saved source never silently switches to a different one.
+This fallback uses Windows performance counters and does not need a new driver;
+availability and access depend on the machine. Dedicated board sensors retain
+their existing administrator/PawnIO requirements.
+
 ## Start with Windows
 
 Under **Settings → Startup**, enable **Start with Windows** to open the overlay
