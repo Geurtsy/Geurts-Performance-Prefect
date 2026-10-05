@@ -14,7 +14,7 @@
     <RootNamespace>GeurtsPerformancePrefect</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\Branding\prefect-emerald.ico</ApplicationIcon>
-    <Version>1.6.1</Version>
+    <Version>1.6.2</Version>
     <PlatformTarget>x64</PlatformTarget>
     <!-- WPF owns DPI awareness; Windows Forms is used only for the tray and monitor bounds. -->
     <NoWarn>$(NoWarn);WFO0003</NoWarn>
