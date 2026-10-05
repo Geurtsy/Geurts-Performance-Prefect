@@ -9,8 +9,17 @@ project changes through this Git repository. Local testing is allowed, but
 testing and publishing changes do not authorize updating the user's installed app.
 
 - Keep source, documentation and release changes in this repository. Commit and
-  push completed, appropriately validated work to `main`. Publish GitHub release
-  packages when the task calls for a release.
+  push completed, appropriately validated work to `main`.
+- Every completed application change must include a published GitHub release
+  package unless the user explicitly requests otherwise. Bug fixes, features
+  and behavior changes authorize this release workflow without a separate
+  publication request. Increment the version, update release notes, build from
+  clean committed source, validate the package, and publish the Windows ZIP and
+  checksum with `scripts/Build-Release.ps1` and `scripts/Publish-Release.ps1`.
+  Verify that GitHub's latest stable release exposes the new version and that
+  its asset checksum matches the validated package. Verify the updater using
+  an older disposable packaged fixture when available. Report any publication
+  blocker; do not claim delivery is complete until the package is published.
 - Never copy or publish build output into a local installation folder, replace
   installed executables or libraries, or change an installed update manifest.
   This includes the ignored `Geurts Performance Prefect/` and
