@@ -1,10 +1,10 @@
-Adds manual and optional automatic Downloads cleanup under Settings → Downloads Cleanup.
+Adds an optional Start with Windows setting.
 
-- Wipe Downloads now permanently deletes files and subfolders after you confirm the displayed Windows Downloads location. The Downloads folder itself stays in place; deleted items do not go to the Recycle Bin.
-- Auto-wipe Downloads on app startup is off by default. Enable and confirm it to clear Downloads on future app launches without another prompt, including after an update or restart as administrator. The preference saves between launches.
-- The manual button works independently of the startup toggle. Cleanup runs in the background and reports deleted and skipped items in Settings.
-- Locked, read-only, inaccessible and linked items are skipped. Links and junctions are never traversed. Cleanup refuses drive/share roots and folders containing the running app, its settings, or protected Windows folders. Run the app outside Downloads to use cleanup.
-- Dedicated test, diagnostic and updater helper modes bypass automatic cleanup. Automated deletion checks use disposable test folders and preserve real Downloads.
+- Enable Settings → Startup → Start with Windows to open the overlay when you sign in to your Windows account. It is off by default, saves immediately and does not require administrator approval.
+- Turning it off removes only this application's startup entry. Settings reports access failures and restores the checkbox to the actual registered state.
+- Keep the app in the same folder. If you move it, turn the option off and on from the new location. Updates in the same folder keep the entry. Windows Settings → Apps → Startup must also allow the app.
+- Startup launches use your normal overlay preferences and exit quietly if the app is already running. Downloads auto-wipe also runs on these launches if enabled.
+- Automated startup checks use an isolated registry fixture outside Windows startup keys and preserve real startup configuration.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

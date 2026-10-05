@@ -1,7 +1,17 @@
-GEURTS PERFORMANCE PREFECT 1.7.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.8.0 — WINDOWS x64
 
 Open Geurts Performance Prefect\GeurtsPerformancePrefect.exe, then click Settings.
 The existing HardwareOverlay.exe launcher also opens the updated application.
+
+START WITH WINDOWS
+Settings > Startup > Start with Windows opens the overlay automatically when
+you sign in to your Windows account. Off by default; changes save immediately
+without administrator approval. Turn it off to remove this app's startup entry.
+Keep the app in the same folder. If you move it, turn the option off and on from
+the new location. Updates in the same folder keep the startup entry. Windows
+Settings > Apps > Startup must also allow the app. Existing overlay preferences
+apply; Downloads auto-wipe also runs if you enabled it. If already running,
+a Windows startup launch exits quietly.
 
 APPLICATION UPDATES
 Settings > Application Updates > Check for updates checks the public repository:

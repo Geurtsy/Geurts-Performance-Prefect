@@ -45,10 +45,15 @@ public sealed class SettingsWindow : Window
     public TextBlock DownloadsPath { get; } = Note("");
     readonly Func<string, bool> confirmDownloads;
     bool updatingDownloads;
-    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null)
+    readonly WindowsStartup startup;
+    bool updatingStartup;
+    public CheckBox StartWithWindowsToggle { get; } = new() { Content = "Start with Windows" };
+    public TextBlock StartupStatus { get; } = Note("");
+    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null)
     {
         this.overlay = overlay;
         this.parking = parking ?? new CoreParking();
+        this.startup = startup ?? new WindowsStartup();
         this.confirmDownloads = confirmDownloads ?? (message => MessageBox.Show(this, message,
             "Geurts Performance Prefect · Downloads", MessageBoxButton.YesNo, MessageBoxImage.Warning,
             MessageBoxResult.No) == MessageBoxResult.Yes);
@@ -69,6 +74,15 @@ public sealed class SettingsWindow : Window
         var stack = new StackPanel { Margin = new Thickness(0,0,12,0) }; scroll.Content = stack; dock.Children.Add(scroll);
         stack.Children.Add(new TextBlock { Text = "Make it yours", FontSize = 26, FontWeight = FontWeights.SemiBold });
         stack.Children.Add(Note("Choose the readings you want at a glance."));
+        stack.Children.Add(Heading("STARTUP"));
+        stack.Children.Add(StartWithWindowsToggle);
+        stack.Children.Add(Note("Off by default. Open the overlay automatically when you sign in to Windows. Applies to your Windows account and saves immediately; administrator approval is not needed."));
+        stack.Children.Add(StartupStatus);
+        stack.Children.Add(Note("Keep the application in the same folder. If you move it, turn this off and on from the new location. Windows Settings → Apps → Startup can also disable it."));
+        StartWithWindowsToggle.Checked += (_, _) => ChangeStartup(true);
+        StartWithWindowsToggle.Unchecked += (_, _) => ChangeStartup(false);
+        RefreshStartup();
+        Activated += (_, _) => RefreshStartup();
         stack.Children.Add(Heading("APPLICATION UPDATES"));
         stack.Children.Add(Note("Installed version: " + AppUpdates.CurrentVersion));
         var installationFolder = new Button { Content = "Open Installation Folder", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,8) };
@@ -277,6 +291,36 @@ public sealed class SettingsWindow : Window
             }
         }
         finally { updatingAutoAvoidCorners = false; }
+    }
+    void RefreshStartup(string? message = null)
+    {
+        updatingStartup = true;
+        try
+        {
+            var command = startup.Read();
+            StartWithWindowsToggle.IsChecked = !string.IsNullOrWhiteSpace(command);
+            StartWithWindowsToggle.IsEnabled = true;
+            StartupStatus.Text = string.IsNullOrWhiteSpace(command) ? "Automatic startup is off." :
+                string.Equals(command, startup.Command, StringComparison.OrdinalIgnoreCase) ?
+                "Registered to start when you sign in. Windows startup controls must also allow it." :
+                "Startup is registered for another application location. Turn this off and on to use this copy.";
+        }
+        catch (Exception ex)
+        {
+            StartWithWindowsToggle.IsChecked = null;
+            StartWithWindowsToggle.IsEnabled = false;
+            StartupStatus.Text = "Could not read the Windows startup setting: " + ex.Message;
+        }
+        finally { updatingStartup = false; }
+        if (message != null) StartupStatus.Text += "\n" + message;
+    }
+    void ChangeStartup(bool enabled)
+    {
+        if (updatingStartup) return;
+        string? message = null;
+        try { startup.SetEnabled(enabled); }
+        catch (Exception ex) { message = "Could not change automatic startup: " + ex.Message; }
+        RefreshStartup(message);
     }
     async void CheckUpdates()
     {

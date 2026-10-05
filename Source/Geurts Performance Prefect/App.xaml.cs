@@ -73,7 +73,8 @@ public partial class App : Application
         instance = new Mutex(true, "Local\\HardwareOverlay-9CDCC2D7", out var created);
         if (!created)
         {
-            MessageBox.Show("Geurts Performance Prefect is already running. Open Settings from its tray icon.", "Geurts Performance Prefect");
+            if (!e.Args.Contains("--windows-startup"))
+                MessageBox.Show("Geurts Performance Prefect is already running. Open Settings from its tray icon.", "Geurts Performance Prefect");
             Shutdown(); return;
         }
         var store = new SettingsStore();

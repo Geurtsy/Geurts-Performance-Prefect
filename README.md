@@ -2,7 +2,7 @@
 
 A portable Windows x64 system monitor with a compact overlay, per-drive activity,
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
-core-parking control and optional Downloads cleanup.
+core-parking control, optional Downloads cleanup and optional startup with Windows.
 
 The primary icon is an emerald-accented suit. It appears on the executable,
 taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%20Performance%20Prefect/Assets/Branding)
@@ -34,6 +34,20 @@ Windows x64 and the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/en-us
 The bundled official PawnIO installer requests administrator approval on first
 launch when its driver is missing. CPU and motherboard temperature access may
 also require restarting the application as administrator.
+
+## Start with Windows
+
+Under **Settings → Startup**, enable **Start with Windows** to open the overlay
+automatically when you sign in to your Windows account. It is off by default.
+The change saves immediately without administrator approval. Turning it off
+removes this application's startup entry; other startup apps are unaffected.
+
+Keep the extracted application in the same folder. After moving it, turn the
+option off and on from the new location. Updates in the same folder retain the
+startup entry. Windows **Settings → Apps → Startup** must also allow the app;
+the checkbox shows whether its entry is registered. Startup launches use normal
+overlay preferences and exit quietly if the application is already running.
+If Downloads auto-wipe is enabled, it also runs on Windows startup launches.
 
 ## Downloads cleanup
 
