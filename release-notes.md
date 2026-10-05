@@ -1,11 +1,10 @@
-Adds selectable corners for automatic overlay movement and an Open Installation Folder action.
+Adds manual and optional automatic Downloads cleanup under Settings → Downloads Cleanup.
 
-- Choose Top left, Top right, Bottom left and Bottom right under Settings → Window → Available corners for Auto-avoid.
-- Auto-avoid moves only to enabled corners, including after resizing, resetting position and restoring from the tray.
-- Corner choices save automatically. All four are enabled by default; at least one must remain selected. Selecting one keeps the overlay in that corner.
-- Disabling the occupied corner immediately moves the overlay to an enabled corner. If no enabled corner is clear of the pointer, it stays put.
-- Open the running app's installation folder from Settings, the tray menu or the overlay's right-click menu.
-- Retains the emerald suit branding from v1.6.1.
+- Wipe Downloads now permanently deletes files and subfolders after you confirm the displayed Windows Downloads location. The Downloads folder itself stays in place; deleted items do not go to the Recycle Bin.
+- Auto-wipe Downloads on app startup is off by default. Enable and confirm it to clear Downloads on future app launches without another prompt, including after an update or restart as administrator. The preference saves between launches.
+- The manual button works independently of the startup toggle. Cleanup runs in the background and reports deleted and skipped items in Settings.
+- Locked, read-only, inaccessible and linked items are skipped. Links and junctions are never traversed. Cleanup refuses drive/share roots and folders containing the running app, its settings, or protected Windows folders. Run the app outside Downloads to use cleanup.
+- Dedicated test, diagnostic and updater helper modes bypass automatic cleanup. Automated deletion checks use disposable test folders and preserve real Downloads.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

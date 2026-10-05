@@ -1,4 +1,4 @@
-GEURTS PERFORMANCE PREFECT 1.6.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.7.0 — WINDOWS x64
 
 Open Geurts Performance Prefect\GeurtsPerformancePrefect.exe, then click Settings.
 The existing HardwareOverlay.exe launcher also opens the updated application.
