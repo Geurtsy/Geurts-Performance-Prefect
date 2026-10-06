@@ -26,6 +26,8 @@ public static class ForegroundFpsVerification
         history.Add(new(123, "main", start + 2 * frequency), start + 2 * frequency);
         check(Math.Abs(history.Read(start + 2 * frequency).Value!.Value - 60) < .01,
             "Duplicate and out-of-order frame times cannot inflate FPS");
+        check(Math.Abs(history.Read(start + 2 * frequency + frequency * 5 / 4).Value!.Value - 60) < .01,
+            "Real-time trace buffering does not prematurely clear an otherwise valid frame rate");
         check(history.Read(start + 4 * frequency).Value == null,
             "Stopped or unsupported frame activity clears FPS instead of showing a stale value or false zero");
         history.Focus(new(456, 1, "Other"), start + 4 * frequency);

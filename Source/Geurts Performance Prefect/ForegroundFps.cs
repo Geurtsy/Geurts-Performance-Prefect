@@ -51,7 +51,8 @@ public sealed class ForegroundFrameHistory
             while (times.Count > 0 && times.Peek() < now - 2 * Stopwatch.Frequency) times.Dequeue();
             if (times.Count == 0) chains.Remove(key);
         }
-        var active = chains.Values.Where(t => t.Count >= 2 && now - t.Last() <= Stopwatch.Frequency)
+        // Real-time ETW delivery can buffer roughly a second of events.
+        var active = chains.Values.Where(t => t.Count >= 2 && now - t.Last() <= Stopwatch.Frequency * 3 / 2)
             .OrderByDescending(t => t.Count).FirstOrDefault();
         if (active == null) return new(null, source + "\nWaiting for supported frame events", process + " · no recent frames");
         var fps = (active.Count - 1) * (double)Stopwatch.Frequency / (active.Last() - active.Peek());

@@ -36,7 +36,8 @@ DESIGN
   GPU, display and input tracking are disabled. No CSV or ETL files are retained.
   Foreground ownership is polled every 100 ms; PID plus process start time resets
   history. Frames before focus changes are rejected, the busiest swap chain
-  supplies a two-second rate, and one second without recent events clears FPS.
+  supplies a two-second rate, and 1.5 seconds without recent events clears FPS,
+  allowing for the real-time trace's delivery buffering.
   Values appear at the configured overlay refresh interval. This is presented
   FPS, not displayed FPS or generated frames; child renderers are not guessed.
   A unique private session preserves other captures. Hiding the row or normal
