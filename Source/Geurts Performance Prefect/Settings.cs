@@ -6,7 +6,7 @@ using System.Text.Json;
 
 namespace GeurtsPerformancePrefect;
 
-public enum Metric { CpuUsage, CpuTemperature, GpuUsage, GpuTemperature, MemoryUsage, MotherboardTemperature }
+public enum Metric { CpuUsage, CpuTemperature, GpuUsage, GpuTemperature, MemoryUsage, MotherboardTemperature, ForegroundFps }
 
 public static class MetricInfo
 {
@@ -15,7 +15,7 @@ public static class MetricInfo
     {
         Metric.CpuUsage => "CPU usage", Metric.CpuTemperature => "CPU temperature",
         Metric.GpuUsage => "GPU usage", Metric.GpuTemperature => "GPU temperature",
-        Metric.MemoryUsage => "RAM usage", _ => "Motherboard temperature"
+        Metric.MemoryUsage => "RAM usage", Metric.ForegroundFps => "Foreground FPS", _ => "Motherboard temperature"
     };
     public static bool IsTemperature(Metric metric) => metric is Metric.CpuTemperature or Metric.GpuTemperature or Metric.MotherboardTemperature;
 }

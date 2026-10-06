@@ -23,6 +23,7 @@ public static class Verification
         ApplicationUsageVerification.Run(folder, Check);
         DownloadsCleanupVerification.Run(folder, Check);
         WindowsStartupVerification.Run(folder, Check);
+        ForegroundFpsVerification.Run(folder, Check);
         var iconFrames = new IconBitmapDecoder(Branding.IconUri, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames;
         Check(new[] { 16, 20, 24, 32, 40, 48, 64, 96, 128, 256 }.All(size =>
             iconFrames.Any(frame => frame.PixelWidth == size && frame.PixelHeight == size)),
@@ -108,10 +109,10 @@ public static class Verification
         var restored = store.Load();
         Check(!restored.AlwaysOnTop && !restored.MinimiseToTray && !restored.Visible[Metric.CpuUsage] && restored.Opacity == .75 && restored.MotherboardSensorId == "board-vrm", "Settings survive reload including visibility, minimise preference, window mode and sensor source");
         File.WriteAllText(store.Path, "broken json");
-        Check(store.Load().Visible.Count == 6 && store.LastError != null, "Corrupt settings recover to usable defaults");
+        Check(store.Load().Visible.Count == MetricInfo.All.Length && store.LastError != null, "Corrupt settings recover to usable defaults");
         File.WriteAllText(store.Path, "{\"Visible\":null,\"Scale\":99,\"Opacity\":-1,\"RefreshMilliseconds\":1}");
         restored = store.Load();
-        Check(restored.Visible.Count == 6 && restored.Scale == 1.6 && restored.Opacity == .35 && restored.RefreshMilliseconds == 500, "Malformed setting ranges are repaired");
+        Check(restored.Visible.Count == MetricInfo.All.Length && restored.Scale == 1.6 && restored.Opacity == .35 && restored.RefreshMilliseconds == 500, "Malformed setting ranges are repaired");
         var metrics = new WindowsMetrics(); metrics.ReadCpu(); Thread.Sleep(200);
         Check(metrics.ReadCpu() is >= 0 and <= 100 && metrics.ReadMemory().Percent is >= 0 and <= 100, "Live Windows CPU and physical memory readings are in range");
         Check(DriveSampler.ActivePercent(100, 0) == 0 && DriveSampler.ActivePercent(25, 1) == 75 && DriveSampler.ActivePercent(0, 0) == 100,
@@ -232,7 +233,7 @@ public static class Verification
             (UsageResource.Cpu, "Example game", 18), (UsageResource.Memory, "Example browser", 1073741824),
             (UsageResource.Gpu("Graphics card"), "Example game", 24), (UsageResource.Gpu("Integrated graphics"), "Video player", 12),
             (UsageResource.Drive(driveA.Id), "File copy", 2097152), (UsageResource.Drive(driveB.Id), "Backup", 1048576));
-        snapshot = snapshot with { Applications = applicationFixture };
+        snapshot = snapshot with { Applications = applicationFixture, ForegroundFps = new(144, "PresentMon / Example game (PID 123)", "Example game (PID 123)") };
         Check(panel.CheckUpdatesButton.IsEnabled && panel.InstallUpdateButton.Visibility == Visibility.Collapsed,
             "Settings exposes update checking and hides installation until a newer release is found");
         overlay.Receive(snapshot with { Drives = new[] { driveA, driveB } });
@@ -268,13 +269,13 @@ public static class Verification
         Check(panel.CoreParkingToggle.Content.ToString() == "Remove Core Parking" && panel.CoreParkingToggle.IsChecked == false && power.State.Minimum == 25, "Setting reads current state without applying changes when opened");
         Check(overlay.Title == "Geurts Performance Prefect" && panel.Title == "Geurts Performance Prefect · Settings", "Application and settings use the requested name");
         foreach (var pair in panel.MetricToggles) pair.Value.IsChecked = false;
-        Check(overlay.Settings.Visible.Values.All(v => !v), "All six settings switches control overlay visibility");
+        Check(overlay.Settings.Visible.Values.All(v => !v), "All settings switches control overlay visibility");
         panel.TopmostToggle.IsChecked = false;
         Check(!overlay.Topmost, "Always-on-top off reaches the native window");
         panel.TopmostToggle.IsChecked = true;
         Check(overlay.Topmost, "Always-on-top on reaches the native window");
         foreach (var pair in panel.MetricToggles) pair.Value.IsChecked = true;
-        Check(overlay.Settings.Visible.Values.All(v => v), "All six readings can be restored");
+        Check(overlay.Settings.Visible.Values.All(v => v), "All readings can be restored");
         // Render our own WPF content off screen for layout review; no desktop automation.
         Render((FrameworkElement)overlay.Content, Path.Combine(folder, "overlay-preview.png"), 318, 1000);
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-preview.png"), 490, 790);

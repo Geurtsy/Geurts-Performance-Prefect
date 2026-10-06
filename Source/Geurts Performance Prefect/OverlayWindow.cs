@@ -20,11 +20,13 @@ public sealed class MetricRow : Border
     readonly TextBlock application;
     readonly Border fill;
     readonly bool temperature;
+    readonly bool fps;
     readonly TextBlock label;
-    public MetricRow(Metric metric) : this(MetricInfo.Label(metric), MetricInfo.IsTemperature(metric)) { }
-    public MetricRow(string name, bool temperature = false)
+    public MetricRow(Metric metric) : this(MetricInfo.Label(metric), MetricInfo.IsTemperature(metric), metric == Metric.ForegroundFps) { }
+    public MetricRow(string name, bool temperature = false, bool fps = false)
     {
         this.temperature = temperature;
+        this.fps = fps;
         Background = Palette.Panel; CornerRadius = new CornerRadius(8); Padding = new Thickness(12,9,12,8); Margin = new Thickness(0,0,0,6);
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition());
@@ -40,6 +42,7 @@ public sealed class MetricRow : Border
         var track = new Border { Background = Palette.Track, Height = 3, CornerRadius = new CornerRadius(2), ClipToBounds = true };
         fill = new Border { Background = Palette.Accent, Width = 0, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(2) };
         track.Child = fill; Grid.SetRow(track, 3); Grid.SetColumnSpan(track, 2); grid.Children.Add(track);
+        if (fps) track.Visibility = Visibility.Collapsed;
         track.SizeChanged += (_, _) => UpdateFill();
         Child = grid;
     }
@@ -47,13 +50,15 @@ public sealed class MetricRow : Border
     public void SetLabel(string name) => label.Text = name;
     void UpdateFill() => fill.Width = Math.Max(0, ((FrameworkElement)fill.Parent).ActualWidth * fraction);
     public string ApplicationText => application.Text;
+    public string ValueText => value.Text;
+    public string DetailText => detail.Text;
     public void Update(Reading reading, TopApplication? topApplication = null, int averageSeconds = 60, string? resource = null)
     {
         var valid = reading.Value.HasValue && double.IsFinite(reading.Value.Value);
-        value.Text = valid ? $"{reading.Value:0}{(temperature ? " °C" : " %")}" : "—";
+        value.Text = valid ? $"{reading.Value:0}{(fps ? " FPS" : temperature ? " °C" : " %")}" : "—";
         var separator = reading.Source.LastIndexOf(" / ", StringComparison.Ordinal);
         var sourceLabel = separator >= 0 ? reading.Source[(separator + 3)..] : reading.Source;
-        detail.Text = valid ? (string.IsNullOrEmpty(reading.Detail) ? sourceLabel : reading.Detail) : "Unavailable · open Settings";
+        detail.Text = valid || fps ? (string.IsNullOrEmpty(reading.Detail) ? sourceLabel : reading.Detail) : "Unavailable · open Settings";
         ToolTip = valid ? reading.Source + "\n" + reading.Detail : reading.Source + "\nNo reading is available. Check Settings.";
         fraction = valid ? Math.Clamp(reading.Value!.Value / 100d, 0, 1) : 0;
         var hot = temperature && reading.Value >= 85;
@@ -117,6 +122,7 @@ public sealed class OverlayWindow : Window
     Task? worker;
     SettingsWindow? settingsWindow;
     int refreshMilliseconds;
+    bool monitorFps;
     bool closing;
     bool restoreSettingsAfterMinimise;
     bool restoringOverlay;
@@ -231,7 +237,7 @@ public sealed class OverlayWindow : Window
         while (!stop.IsCancellationRequested)
         {
             Snapshot snapshot;
-            try { snapshot = sampler.Sample(); }
+            try { snapshot = sampler.Sample(Volatile.Read(ref monitorFps)); }
             catch (Exception ex) { snapshot = new(DateTimeOffset.Now, Array.Empty<SensorValue>(), null, null, "", ex.Message); }
             if (stop.IsCancellationRequested) break;
             Dispatcher.BeginInvoke(() => { if (!closing) Receive(snapshot); });
@@ -293,6 +299,7 @@ public sealed class OverlayWindow : Window
         foreach (var pair in DriveRows) pair.Value.Visibility = Settings.IsDriveVisible(pair.Key) ? Visibility.Visible : Visibility.Collapsed;
         UpdateEmpty();
         Volatile.Write(ref refreshMilliseconds, Settings.RefreshMilliseconds);
+        Volatile.Write(ref monitorFps, Settings.Visible[Metric.ForegroundFps]);
         if (settingsWindow != null) settingsWindow.Topmost = Settings.AlwaysOnTop;
         if (Latest != null) Receive(Latest);
         AutoAvoidTrayItem.Checked = Settings.AutoAvoid; autoAvoidMenuItem.IsChecked = Settings.AutoAvoid;
@@ -456,6 +463,6 @@ public sealed class OverlayWindow : Window
         closing = true; saveTimer.Stop(); staleTimer.Stop(); stop.Cancel();
         settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();
         // Sampling owns the monitor and disposes it; never race its hardware update.
-        worker?.Wait(TimeSpan.FromSeconds(2));
+        worker?.Wait(TimeSpan.FromSeconds(8));
     }
 }

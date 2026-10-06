@@ -14,12 +14,13 @@
     <RootNamespace>GeurtsPerformancePrefect</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\Branding\prefect-emerald.ico</ApplicationIcon>
-    <Version>1.8.1</Version>
+    <Version>1.9.0</Version>
     <PlatformTarget>x64</PlatformTarget>
     <!-- WPF owns DPI awareness; Windows Forms is used only for the tray and monitor bounds. -->
     <NoWarn>$(NoWarn);WFO0003</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Assets\PresentMon\PresentMon.exe" LogicalName="Prefect.PresentMon.exe" />
     <Resource Include="Assets\Branding\prefect-emerald.ico" />
     <Reference Include="Dependencies\*.dll" />
     <Content Include="Dependencies\**\*" Exclude="Dependencies\*.dll">

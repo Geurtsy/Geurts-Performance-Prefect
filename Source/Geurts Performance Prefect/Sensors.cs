@@ -19,6 +19,7 @@ public sealed record Snapshot(DateTimeOffset Time, IReadOnlyList<SensorValue> Se
     public string? DriveError { get; init; }
     public string? BoardTemperatureError { get; init; }
     public ApplicationUsageSample? Applications { get; init; }
+    public Reading? ForegroundFps { get; init; }
 }
 
 public static class SensorSelection
@@ -70,7 +71,8 @@ public static class SensorSelection
             [Metric.GpuUsage] = From(Named(gpu.Where(s => s.Type == SensorType.Load), "GPU Core", "D3D 3D", "GPU D3D 3D")),
             [Metric.GpuTemperature] = From(Named(gpu.Where(s => s.Type == SensorType.Temperature), "GPU Core", "GPU Temperature")),
             [Metric.MemoryUsage] = new(snapshot.MemoryUsage, "Windows / physical memory", snapshot.MemoryDetail),
-            [Metric.MotherboardTemperature] = From(boardTemp)
+            [Metric.MotherboardTemperature] = From(boardTemp),
+            [Metric.ForegroundFps] = snapshot.ForegroundFps ?? new(null, "Waiting for foreground frame capture")
         };
     }
 }
@@ -82,6 +84,7 @@ public sealed class HardwareSampler : IDisposable
     readonly DriveSampler drives = new();
     readonly ThermalZoneSampler thermalZones = new();
     readonly ApplicationUsageSampler applications = new();
+    readonly ForegroundFpsSampler fps = new();
     string? initialError;
     public static bool IsAdministrator
     {
@@ -92,7 +95,7 @@ public sealed class HardwareSampler : IDisposable
         try { computer.Open(); }
         catch (Exception ex) { initialError = "Hardware access: " + ex.Message; }
     }
-    public Snapshot Sample()
+    public Snapshot Sample(bool monitorFps = true)
     {
         var sensors = new List<SensorValue>();
         var errors = new List<string>();
@@ -103,7 +106,7 @@ public sealed class HardwareSampler : IDisposable
         var driveReadings = drives.Sample();
         return new(DateTimeOffset.Now, sensors, windows.ReadCpu(), memory.Percent, memory.Detail,
             errors.Count > 0 ? string.Join("; ", errors.Distinct()) : null)
-            { Drives = driveReadings, DriveError = drives.LastError, BoardTemperatureError = thermalZones.LastError, Applications = applications.Sample(sensors, driveReadings) };
+            { Drives = driveReadings, DriveError = drives.LastError, BoardTemperatureError = thermalZones.LastError, Applications = applications.Sample(sensors, driveReadings), ForegroundFps = fps.Sample(monitorFps) };
     }
     static void Read(IHardware hardware, bool onBoard, List<SensorValue> values, List<string> errors)
     {
@@ -119,7 +122,7 @@ public sealed class HardwareSampler : IDisposable
         catch (Exception ex) { errors.Add(hardware.Name + ": " + ex.Message); }
         foreach (var child in hardware.SubHardware) Read(child, onBoard, values, errors);
     }
-    public void Dispose() { applications.Dispose(); drives.Dispose(); thermalZones.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
+    public void Dispose() { fps.Dispose(); applications.Dispose(); drives.Dispose(); thermalZones.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
 }
 
 public sealed class WindowsMetrics

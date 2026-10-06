@@ -42,6 +42,16 @@ Package: https://www.nuget.org/packages/Mono.Posix.NETStandard/1.0.0
 
 The .NET runtime is not bundled. Windows and .NET are Microsoft trademarks.
 
+PresentMon 2.6.0 console collector — MIT
+Copyright (C) 2017–2024 Intel Corporation
+Official binary: https://github.com/GameTechDev/PresentMon/releases/download/v2.6.0/PresentMon-2.6.0-x64.exe
+Exact source: https://github.com/GameTechDev/PresentMon/tree/v2.6.0
+SHA256: b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af
+Licence: Licences\PresentMon-LICENSE.txt
+The unmodified collector is embedded in GeurtsPerformancePrefect.dll and extracted
+to a private temporary folder only while FPS monitoring is enabled. No PresentMon
+service, capture application, MSI installer or driver is installed.
+
 
 PawnIO 2.2.0 installer — GNU General Public License 2.0
 Official release: https://github.com/namazso/PawnIO.Setup/releases/tag/2.2.0

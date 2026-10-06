@@ -53,6 +53,29 @@ This fallback uses Windows performance counters and does not need a new driver;
 availability and access depend on the machine. Dedicated board sensors retain
 their existing administrator/PawnIO requirements.
 
+## Foreground FPS
+
+**Foreground FPS** follows the process that owns the active window and shows its
+name and process ID. It uses the bundled official PresentMon 2.6.0 collector for
+DirectX, Vulkan and OpenGL applications. Restart Prefect as administrator if the
+row reports that frame tracing needs access. No service, driver or internet
+connection is needed for FPS capture, and Prefect never elevates automatically.
+
+The number is **presented FPS**: the rate of application frame presents on the
+busiest swap chain over the last two seconds. Multiple swap chains and other
+processes are not added together. This can differ from frames actually displayed
+or added by frame generation. The reading updates at the configured overlay
+refresh interval and starts a fresh history when the foreground process changes.
+Static windows, inaccessible processes, and applications without supported recent
+frame events show unavailable. A browser window tracks its owning process;
+rendering in a separate worker process is not attributed to that window.
+
+Turn the row off under **Settings → Overlay Readings → Foreground FPS** to stop
+capture. The collector runs hidden in a private temporary folder and uses its own
+trace session; normal shutdown removes it. Existing PresentMon captures remain
+independent. Fullscreen applications must permit desktop overlays for Prefect to
+appear above them.
+
 ## Start with Windows
 
 Under **Settings → Startup**, enable **Start with Windows** to open the overlay

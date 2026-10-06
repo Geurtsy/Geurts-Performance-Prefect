@@ -1,10 +1,10 @@
-Adds a Windows firmware temperature fallback for motherboards and laptops.
+# Geurts Performance Prefect 1.9.0
 
-- Prefect now reads ACPI thermal zones through Windows performance counters, including Lenovo laptops without a supported motherboard sensor chip. No new driver is needed for this source.
-- Automatic selection prefers a dedicated Motherboard/System sensor, then a single firmware thermal zone. Select a zone in Settings when Windows exposes several; saved selections never silently switch sources.
-- Firmware readings appear as System temperature (ACPI) with the zone name. Firmware does not identify the physical sensor location, so this is not a verified motherboard PCB temperature. Its reported value may update slowly or remain fixed.
-- Invalid, missing or disconnected temperatures remain unavailable. Windows Kelvin values are converted to Celsius, and unavailable providers retry without displaying stale data.
-- Validation on the Lenovo 83DV / LNVNB161216 found TZ00 reporting 301 K (27.85°C) without administrator access. Dedicated board sensor support and access requirements remain hardware dependent.
+- Added Foreground FPS with the active process name and PID. Tracks presented frames using bundled official PresentMon 2.6.0 for DirectX, Vulkan and OpenGL, with a two-second rate on the busiest swap chain.
+- Automatically resets history on foreground changes, excludes other processes and swap chains, and clears stale or unavailable readings. FPS measures application presents; displayed and generated frames can differ, and child renderer processes are not attributed to their parent window.
+- Added a saved Foreground FPS visibility switch. Hiding it stops capture; showing it starts a fresh private collector. Capture needs administrator or Performance Log Users access. Prefect displays access errors without changing permissions or automatically elevating.
+- Bundled the collector inside the app for offline operation and compatibility with existing updater file checks. No new service or driver is installed; other PresentMon captures use separate sessions.
+- Automated validation covers frame timing, process switches, PID reuse, multiple swap chains, stale frames, CSV parsing, settings, collector integrity and cleanup. Non-elevated live checks confirm the access requirement; elevated game capture and exclusive fullscreen overlay behavior remain unverified.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

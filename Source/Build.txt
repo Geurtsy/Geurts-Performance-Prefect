@@ -30,6 +30,24 @@ For a local hardware report, use --diagnose followed by a quoted absolute JSON
 file path. The report stays on your computer and may include device names.
 
 DESIGN
+- Foreground FPS uses the embedded official PresentMon 2.6.0 x64 console collector.
+  Its SHA-256 is checked before launching in a unique temporary folder. Output
+  streams through redirected stdout, using v1 metrics and raw QPC timestamps;
+  GPU, display and input tracking are disabled. No CSV or ETL files are retained.
+  Foreground ownership is polled every 100 ms; PID plus process start time resets
+  history. Frames before focus changes are rejected, the busiest swap chain
+  supplies a two-second rate, and one second without recent events clears FPS.
+  Values appear at the configured overlay refresh interval. This is presented
+  FPS, not displayed FPS or generated frames; child renderers are not guessed.
+  A unique private session preserves other captures. Hiding the row or normal
+  shutdown stops that session, waits for the owned helper, and removes its files.
+  Access-denied errors request a manual administrator restart without elevation
+  or changing group membership. The helper is embedded so older updater file
+  allowlists accept this release; its MIT licence uses the existing licence path.
+  Self-tests cover CSV parsing, timing, multiple chains, stale activity, focus
+  switches, PID reuse, visibility compatibility, rendering, helper integrity,
+  access handling and cleanup. Actual elevated game capture needs an elevated
+  validation run; this machine's non-elevated diagnostics confirm access denial.
 - Downloads cleanup resolves the current FOLDERID_Downloads through
   SHGetKnownFolderPath. AutoWipeDownloadsOnStartup defaults false and persists
   in the existing settings file. Only normal startup after the instance check

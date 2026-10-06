@@ -138,6 +138,8 @@ public sealed class SettingsWindow : Window
             MetricToggles.Add(metric, toggle); ((StackPanel)toggles.Child).Children.Add(toggle);
         }
         stack.Children.Add(toggles);
+        stack.Children.Add(Note("Foreground FPS follows the process owning the active window. Shows presented frames per second on its busiest swap chain over the last 2 seconds; displayed and generated frames can differ. Hiding this reading stops capture."));
+        stack.Children.Add(Note("FPS uses bundled PresentMon for DirectX, Vulkan and OpenGL. Restart as administrator if frame tracing is unavailable. Static windows and unsupported or protected applications may have no recent frames."));
         stack.Children.Add(Heading("HARD DRIVE USAGE"));
         stack.Children.Add(Note("Show activity (%) for each physical drive, including SSDs. Choices save automatically."));
         var drivesPanel = Panel(); drivesPanel.Child = driveToggles; stack.Children.Add(drivesPanel);
@@ -433,7 +435,8 @@ public sealed class SettingsWindow : Window
         }
         var readings = SensorSelection.Select(snapshot, overlay.Settings);
         var missing = readings.Where(p => !p.Value.Value.HasValue).Select(p => MetricInfo.Label(p.Key)).ToArray();
-        sensorStatus.Text = missing.Length == 0 ? "All six readings are available." : "Unavailable: " + string.Join(", ", missing) + ".";
+        sensorStatus.Text = missing.Length == 0 ? "All readings are available." : "Unavailable: " + string.Join(", ", missing) + ".";
+        if (!readings[Metric.ForegroundFps].Value.HasValue) sensorStatus.Text += "\n" + readings[Metric.ForegroundFps].Detail;
         if (snapshot.Error != null) sensorStatus.Text += "\n" + snapshot.Error;
         if (!readings[Metric.MotherboardTemperature].Value.HasValue && snapshot.BoardTemperatureError != null)
             sensorStatus.Text += "\n" + snapshot.BoardTemperatureError;
