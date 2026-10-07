@@ -35,6 +35,7 @@ public sealed class OverlaySettings
     public int ApplicationAverageSeconds { get; set; } = 60;
     public double Left { get; set; } = 24;
     public double Top { get; set; } = 24;
+    public string OverlayMonitorId { get; set; } = "";
     public string GraphicsId { get; set; } = "";
     public string MotherboardSensorId { get; set; } = "";
     public Dictionary<string, bool> DriveVisible { get; set; } = new();
@@ -50,6 +51,7 @@ public sealed class OverlaySettings
         ApplicationAverageSeconds = Math.Clamp(ApplicationAverageSeconds, 5, 600);
         if (!double.IsFinite(Left)) Left = 24;
         if (!double.IsFinite(Top)) Top = 24;
+        OverlayMonitorId ??= "";
         GraphicsId ??= "";
         MotherboardSensorId ??= "";
         DriveVisible ??= new();

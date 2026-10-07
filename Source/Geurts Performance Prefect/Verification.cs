@@ -431,6 +431,10 @@ public static class Verification
         cornerScroll.ScrollToVerticalOffset(cornerGrid.TransformToAncestor((Visual)cornerScroll.Content).Transform(new Point()).Y - 180);
         cornerScroll.UpdateLayout();
         Render((FrameworkElement)activePanel.Content, Path.Combine(folder, "auto-avoid-corners-preview.png"), 490, 790);
+        OverlayDisplaysVerification.Run(overlay, activePanel, Check);
+        cornerScroll.ScrollToVerticalOffset(activePanel.OverlayMonitorSelector.TransformToAncestor((Visual)cornerScroll.Content).Transform(new Point()).Y - 60);
+        cornerScroll.UpdateLayout();
+        Render((FrameworkElement)activePanel.Content, Path.Combine(folder, "overlay-monitor-preview.png"), 490, 790);
         overlay.Close();
         File.WriteAllLines(output, log.Append($"\n{log.Count} checks passed. Preview data is synthetic and never used in normal operation."));
     }

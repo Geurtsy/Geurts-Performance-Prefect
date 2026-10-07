@@ -44,6 +44,12 @@ public static class AutoAvoidPlacement
 
 internal static class OverlayScreenPosition
 {
+    public static void Restore(IntPtr handle)
+    {
+        // WPF can report Normal before the hidden native window leaves its
+        // minimised state. Restore it before reading bounds for monitor placement.
+        if (handle != IntPtr.Zero && IsIconic(handle)) ShowWindow(handle, 9);
+    }
     public static bool Read(IntPtr handle, out Rect bounds)
     {
         if (handle != IntPtr.Zero && GetWindowRect(handle, out var rectangle))
@@ -60,6 +66,10 @@ internal static class OverlayScreenPosition
             throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
     }
     [StructLayout(LayoutKind.Sequential)] struct NativeRect { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)]
+    static extern bool IsIconic(IntPtr handle);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)]
+    static extern bool ShowWindow(IntPtr handle, int command);
     [DllImport("user32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
     static extern bool GetWindowRect(IntPtr handle, out NativeRect rectangle);
     [DllImport("user32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]

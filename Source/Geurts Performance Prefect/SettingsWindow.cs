@@ -31,6 +31,8 @@ public sealed class SettingsWindow : Window
     public CheckBox TopmostToggle { get; }
     public CheckBox MinimiseToTrayToggle { get; }
     public CheckBox AutoAvoidToggle { get; }
+    public ComboBox OverlayMonitorSelector { get; } = new();
+    bool updatingMonitors;
     public Dictionary<ScreenCorner, CheckBox> AutoAvoidCornerToggles { get; } = new();
     bool updatingAutoAvoidCorners;
     public Slider ApplicationAverageSlider { get; }
@@ -161,6 +163,19 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(Note("Default: 60 seconds. Range: 5 seconds to 10 minutes. While starting, averages use the samples collected so far. CPU and GPU show average usage; RAM shows average physical working set; drives show average read/write throughput."));
         stack.Children.Add(Note("Per-drive application tracking needs administrator access. Use Restart as administrator below if it is unavailable. GPU attribution follows your graphics card choice and requires supported Windows counters."));
         stack.Children.Add(Heading("WINDOW"));
+        stack.Children.Add(Label("Overlay monitor"));
+        System.Windows.Automation.AutomationProperties.SetName(OverlayMonitorSelector, "Overlay monitor");
+        stack.Children.Add(OverlayMonitorSelector);
+        stack.Children.Add(Note("Choose the display for the overlay, Reset position and Auto-avoid. Current monitor lets you drag between displays. If a chosen display is disconnected, the primary display is used until it returns."));
+        OverlayMonitorSelector.SelectionChanged += (_, _) =>
+        {
+            if (!updatingMonitors && OverlayMonitorSelector.SelectedItem is OverlayMonitorChoice choice)
+                overlay.SetOverlayMonitor(choice.Id);
+        };
+        RefreshMonitors();
+        Activated += (_, _) => RefreshMonitors();
+        overlay.DisplaysChanged += RefreshMonitors;
+        Closed += (_, _) => overlay.DisplaysChanged -= RefreshMonitors;
         AutoAvoidToggle = new CheckBox { Content = "Auto-avoid", IsChecked = overlay.Settings.AutoAvoid };
         AutoAvoidToggle.Checked += (_, _) => overlay.SetAutoAvoid(true);
         AutoAvoidToggle.Unchecked += (_, _) => overlay.SetAutoAvoid(false);
@@ -293,6 +308,20 @@ public sealed class SettingsWindow : Window
             }
         }
         finally { updatingAutoAvoidCorners = false; }
+    }
+    void RefreshMonitors()
+    {
+        updatingMonitors = true;
+        try
+        {
+            var choices = overlay.AvailableDisplays.Select(display => new OverlayMonitorChoice(display.Id, display.Label)).ToList();
+            choices.Insert(0, new("", "Current monitor (drag to move)"));
+            var id = overlay.Settings.OverlayMonitorId;
+            if (!choices.Any(choice => choice.Id == id)) choices.Add(new(id, id + " · Disconnected (using primary)"));
+            OverlayMonitorSelector.ItemsSource = choices;
+            OverlayMonitorSelector.SelectedItem = choices.First(choice => choice.Id == id);
+        }
+        finally { updatingMonitors = false; }
     }
     void RefreshStartup(string? message = null)
     {

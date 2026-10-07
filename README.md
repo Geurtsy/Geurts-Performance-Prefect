@@ -9,6 +9,15 @@ taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%
 include the approved master, PNG exports from 1024 down to 16 pixels and a
 Windows ICO containing ten sizes for different display scales.
 
+Under **Settings → Window → Overlay monitor**, choose which display hosts the
+overlay. Choices show the Windows display name, resolution and primary display.
+The selection saves automatically and applies to dragging, Reset position and
+Auto-avoid. **Current monitor (drag to move)** preserves the original behavior:
+drag the overlay to another display while Auto-avoid is off. A specific monitor
+keeps the overlay on that display. If it disconnects, the overlay uses the primary
+display and returns to the saved display when it reconnects. Display names follow
+Windows configuration; after rearranging display identities, check this choice.
+
 Under **Settings → Window → Available corners for Auto-avoid**, choose which
 corners automatic movement can use. All four are enabled by default and choices
 save automatically. Keep at least one selected; selecting only one keeps the

@@ -30,6 +30,19 @@ For a local hardware report, use --diagnose followed by a quoted absolute JSON
 file path. The report stays on your computer and may include device names.
 
 DESIGN
+- Overlay monitor selection stores the Windows display device name. Empty means
+  the current monitor, preserving drag behavior for existing settings. Explicit
+  selections constrain manual placement, reset and Auto-avoid to that monitor's
+  physical working area. Missing selections fall back to primary without losing
+  the preference. DisplaySettingsChanged refreshes choices and repositions on the
+  WPF dispatcher, with the subscription removed on close. Readings height follows
+  the target working area and current DPI/scale; native moves settle again after
+  a DPI transition. Dragging defers placement until release so automatic mode
+  can move freely between monitors. Self-tests exercise both connected monitors,
+  startup, tray restore, selected corners and simulated disconnect/reconnect.
+  Tray restore completes a native SW_RESTORE when WPF reports Normal before the
+  native window leaves its minimised state, so placement reads normal bounds.
+  Physical hot-plug, physical dragging and mixed-DPI behavior remain unverified.
 - Foreground FPS uses the embedded official PresentMon 2.6.0 x64 console collector.
   Its SHA-256 is checked before launching in a unique temporary folder. Output
   streams through redirected stdout, using v1 metrics and raw QPC timestamps;

@@ -102,6 +102,7 @@ public sealed class OverlayWindow : Window
     public Snapshot? Latest { get; private set; }
     public event Action<Snapshot>? SnapshotReceived;
     public event Action<bool>? AutoAvoidChanged;
+    public event Action? DisplaysChanged;
     readonly Dictionary<Metric, MetricRow> rows = new();
     readonly ApplicationUsageHistory applicationHistory = new();
     public IReadOnlyDictionary<Metric, MetricRow> MetricRows => rows;
@@ -126,7 +127,7 @@ public sealed class OverlayWindow : Window
     bool closing;
     bool restoreSettingsAfterMinimise;
     bool restoringOverlay;
-    bool placingAutoAvoid, autoAvoidSnapPending;
+    bool placingAutoAvoid, autoAvoidSnapPending, draggingOverlay;
     public Button MinimiseButton { get; }
     public OverlayWindow(SettingsStore store, OverlaySettings settings, bool verification = false, Func<Point>? cursorPosition = null, DownloadsCleanup? downloads = null)
     {
@@ -158,7 +159,14 @@ public sealed class OverlayWindow : Window
         {
             if (e.OriginalSource is DependencyObject source && IsInsideButton(source)) return;
             if (e.ClickCount == 2) OpenSettings();
-            else if (!Settings.AutoAvoid) { try { DragMove(); } catch (InvalidOperationException) { } ClampToScreen(); Changed(); }
+            else if (!Settings.AutoAvoid)
+            {
+                draggingOverlay = true;
+                try { DragMove(); }
+                catch (InvalidOperationException) { }
+                finally { draggingOverlay = false; }
+                UpdateOverlayHeight(); ClampToScreen(); Changed();
+            }
         };
         stack.Children.Add(header);
         var readingsStack = new StackPanel();
@@ -206,6 +214,8 @@ public sealed class OverlayWindow : Window
         }
         Loaded += (_, _) =>
         {
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaysChanged;
+            UpdateOverlayHeight();
             ClampToScreen();
             QueueAutoAvoidSnap();
             if (!verification && worker == null) { staleTimer.Start(); worker = Task.Factory.StartNew(SampleLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default); }
@@ -215,7 +225,7 @@ public sealed class OverlayWindow : Window
         MouseEnter += (_, _) => AvoidPointer(this.cursorPosition());
         SizeChanged += (_, _) => QueueAutoAvoidSnap();
         LocationChanged += (_, _) => { if (!placingAutoAvoid) QueueAutoAvoidSnap(); };
-        DpiChanged += (_, _) => QueueAutoAvoidSnap();
+        DpiChanged += (_, _) => { UpdateOverlayHeight(); QueueAutoAvoidSnap(); };
         StateChanged += (_, _) =>
         {
             if (closing) return;
@@ -294,7 +304,7 @@ public sealed class OverlayWindow : Window
         header.Visibility = Settings.AutoAvoid ? Visibility.Collapsed : Visibility.Visible;
         if (WindowState == WindowState.Minimized) ApplyMinimise();
         surface.LayoutTransform = new ScaleTransform(Settings.Scale, Settings.Scale);
-        readingsScroll.MaxHeight = Math.Max(150, (SystemParameters.WorkArea.Height - 190) / Settings.Scale);
+        UpdateOverlayHeight();
         foreach (var pair in rows) pair.Value.Visibility = Settings.Visible[pair.Key] ? Visibility.Visible : Visibility.Collapsed;
         foreach (var pair in DriveRows) pair.Value.Visibility = Settings.IsDriveVisible(pair.Key) ? Visibility.Visible : Visibility.Collapsed;
         UpdateEmpty();
@@ -318,8 +328,39 @@ public sealed class OverlayWindow : Window
     public void ResetPosition()
     {
         if (Settings.AutoAvoid) { Settings.AutoAvoidCorner = Enum.GetValues<ScreenCorner>().First(Settings.AutoAvoidAvailableCorners.Contains); SnapAutoAvoid(); }
-        else { Left = 24; Top = 24; ClampToScreen(); }
+        else if (OverlayScreenPosition.Read(new System.Windows.Interop.WindowInteropHelper(this).Handle, out var bounds))
+        {
+            var area = ActiveDisplay.WorkArea;
+            var dpi = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1;
+            PlaceAutoAvoid(new Rect(OverlayDisplay.Clamp(area, new Rect(new Point(area.Left + 24 * dpi, area.Top + 24 * dpi), bounds.Size)), bounds.Size), bounds);
+        }
         Changed();
+    }
+    internal Func<OverlayDisplay[]> DisplaySource { get; set; } = OverlayDisplay.Read;
+    internal OverlayDisplay[] AvailableDisplays => DisplaySource();
+    internal OverlayDisplay ActiveDisplay => OverlayDisplay.Resolve(AvailableDisplays, Settings.OverlayMonitorId,
+        Forms.Screen.FromHandle(new System.Windows.Interop.WindowInteropHelper(this).Handle).DeviceName);
+    public void SetOverlayMonitor(string id)
+    {
+        if (Settings.OverlayMonitorId == id) return;
+        Settings.OverlayMonitorId = id;
+        UpdateOverlayHeight();
+        if (Settings.AutoAvoid) { Changed(); SnapAutoAvoid(); }
+        else ResetPosition();
+        SaveSettings();
+    }
+    void UpdateOverlayHeight()
+    {
+        var dpi = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M22 ?? 1;
+        readingsScroll.MaxHeight = Math.Max(1, (ActiveDisplay.WorkArea.Height / dpi - 190) / Settings.Scale);
+    }
+    void OnDisplaysChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(new Action(RefreshDisplays));
+    internal void RefreshDisplays()
+    {
+        if (closing) return;
+        UpdateOverlayHeight();
+        QueueAutoAvoidSnap();
+        DisplaysChanged?.Invoke();
     }
     public void SetAutoAvoid(bool enabled)
     {
@@ -342,16 +383,22 @@ public sealed class OverlayWindow : Window
     internal bool TryGetAutoAvoidLayout(out Rect workArea, out Rect bounds, out double margin)
     {
         var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-        var screen = Forms.Screen.FromHandle(handle);
-        workArea = new Rect(screen.WorkingArea.Left, screen.WorkingArea.Top, screen.WorkingArea.Width, screen.WorkingArea.Height);
+        workArea = ActiveDisplay.WorkArea;
         margin = 12 * (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1);
         return OverlayScreenPosition.Read(handle, out bounds);
     }
     void QueueAutoAvoidSnap()
     {
-        if (!Settings.AutoAvoid || closing || placingAutoAvoid || autoAvoidSnapPending || !IsVisible || WindowState != WindowState.Normal) return;
+        if (closing || placingAutoAvoid || draggingOverlay || autoAvoidSnapPending || !IsVisible || WindowState != WindowState.Normal) return;
         autoAvoidSnapPending = true;
-        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => { autoAvoidSnapPending = false; SnapAutoAvoid(); }));
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            autoAvoidSnapPending = false;
+            if (closing || draggingOverlay || !IsVisible || WindowState != WindowState.Normal) return;
+            UpdateOverlayHeight();
+            if (Settings.AutoAvoid) SnapAutoAvoid();
+            else ClampToScreen();
+        }));
     }
     internal void SnapAutoAvoid()
     {
@@ -385,16 +432,13 @@ public sealed class OverlayWindow : Window
         try { OverlayScreenPosition.Move(new System.Windows.Interop.WindowInteropHelper(this).Handle, target.TopLeft); saveTimer.Stop(); saveTimer.Start(); }
         catch (Win32Exception ex) { status.Text = "Could not move the overlay"; status.ToolTip = ex.Message; }
         finally { placingAutoAvoid = false; }
+        QueueAutoAvoidSnap();
     }
     void ClampToScreen()
     {
-        // Convert physical monitor coordinates to WPF device-independent units.
-        var screen = Forms.Screen.FromHandle(new System.Windows.Interop.WindowInteropHelper(this).Handle);
-        var transform = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
-        var topLeft = transform.Transform(new Point(screen.WorkingArea.Left, screen.WorkingArea.Top));
-        var bottomRight = transform.Transform(new Point(screen.WorkingArea.Right, screen.WorkingArea.Bottom));
-        Left = Math.Clamp(Left, topLeft.X, Math.Max(topLeft.X, bottomRight.X - ActualWidth));
-        Top = Math.Clamp(Top, topLeft.Y, Math.Max(topLeft.Y, bottomRight.Y - ActualHeight));
+        if (closing || !IsVisible || WindowState != WindowState.Normal) return;
+        if (OverlayScreenPosition.Read(new System.Windows.Interop.WindowInteropHelper(this).Handle, out var bounds))
+            PlaceAutoAvoid(new Rect(OverlayDisplay.Clamp(ActiveDisplay.WorkArea, bounds), bounds.Size), bounds);
     }
     public void OpenInstallationFolder()
     {
@@ -434,7 +478,12 @@ public sealed class OverlayWindow : Window
         if (closing) return;
         ShowInTaskbar = !Settings.MinimiseToTray;
         restoringOverlay = true;
-        try { WindowState = WindowState.Normal; Show(); ClampToScreen(); Activate(); }
+        try
+        {
+            WindowState = WindowState.Normal; Show();
+            OverlayScreenPosition.Restore(new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            ClampToScreen(); Activate();
+        }
         finally { restoringOverlay = false; }
         RestoreSettingsAfterMinimise();
         QueueAutoAvoidSnap();
@@ -461,6 +510,7 @@ public sealed class OverlayWindow : Window
     {
         if (closing) return;
         closing = true; saveTimer.Stop(); staleTimer.Stop(); stop.Cancel();
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
         settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();
         // Sampling owns the monitor and disposes it; never race its hardware update.
         worker?.Wait(TimeSpan.FromSeconds(8));
