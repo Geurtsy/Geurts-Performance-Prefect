@@ -51,6 +51,9 @@ public sealed class SettingsWindow : Window
     bool updatingStartup;
     public CheckBox StartWithWindowsToggle { get; } = new() { Content = "Start with Windows" };
     public TextBlock StartupStatus { get; } = Note("");
+    public CheckBox StartAsAdministratorToggle { get; } = new() { Content = "Start as administrator" };
+    public TextBlock AdministratorStartupStatus { get; } = Note("");
+    bool updatingAdministratorStartup;
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null)
     {
         this.overlay = overlay;
@@ -85,6 +88,13 @@ public sealed class SettingsWindow : Window
         StartWithWindowsToggle.Unchecked += (_, _) => ChangeStartup(false);
         RefreshStartup();
         Activated += (_, _) => RefreshStartup();
+        stack.Children.Add(StartAsAdministratorToggle);
+        stack.Children.Add(Note("Off by default. Applies on the next launch, including Start with Windows. Windows may ask for administrator approval. Cancelling approval keeps the app running with normal permissions."));
+        stack.Children.Add(AdministratorStartupStatus);
+        StartAsAdministratorToggle.IsChecked = overlay.Settings.StartAsAdministrator;
+        RefreshAdministratorStartup();
+        StartAsAdministratorToggle.Checked += (_, _) => ChangeAdministratorStartup(true);
+        StartAsAdministratorToggle.Unchecked += (_, _) => ChangeAdministratorStartup(false);
         stack.Children.Add(Heading("APPLICATION UPDATES"));
         stack.Children.Add(Note("Installed version: " + AppUpdates.CurrentVersion));
         var installationFolder = new Button { Content = "Open Installation Folder", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,8) };
@@ -322,6 +332,28 @@ public sealed class SettingsWindow : Window
             OverlayMonitorSelector.SelectedItem = choices.First(choice => choice.Id == id);
         }
         finally { updatingMonitors = false; }
+    }
+    void RefreshAdministratorStartup(string? message = null)
+    {
+        AdministratorStartupStatus.Text = "This session: " + (HardwareSampler.IsAdministrator ? "administrator" : "normal permissions") + ". " +
+            (overlay.Settings.StartAsAdministrator ? "Administrator startup is on for the next launch." : "Administrator startup is off.");
+        if (message != null) AdministratorStartupStatus.Text += "\n" + message;
+    }
+    void ChangeAdministratorStartup(bool enabled)
+    {
+        if (updatingAdministratorStartup) return;
+        var previous = overlay.Settings.StartAsAdministrator;
+        overlay.Settings.StartAsAdministrator = enabled;
+        string? message = null;
+        if (!overlay.Store.Save(overlay.Settings))
+        {
+            overlay.Settings.StartAsAdministrator = previous;
+            updatingAdministratorStartup = true;
+            try { StartAsAdministratorToggle.IsChecked = previous; }
+            finally { updatingAdministratorStartup = false; }
+            message = overlay.Store.LastError;
+        }
+        RefreshAdministratorStartup(message);
     }
     void RefreshStartup(string? message = null)
     {

@@ -68,7 +68,8 @@ their existing administrator/PawnIO requirements.
 name and process ID. It uses the bundled official PresentMon 2.6.0 collector for
 DirectX, Vulkan and OpenGL applications. Restart Prefect as administrator if the
 row reports that frame tracing needs access. No service, driver or internet
-connection is needed for FPS capture, and Prefect never elevates automatically.
+connection is needed for FPS capture. Administrator startup is optional and off
+by default; enable it under **Settings → Startup → Start as administrator**.
 
 The number is **presented FPS**: the rate of application frame presents on the
 busiest swap chain over the last two seconds. Multiple swap chains and other
@@ -98,6 +99,20 @@ startup entry. Windows **Settings → Apps → Startup** must also allow the app
 the checkbox shows whether its entry is registered. Startup launches use normal
 overlay preferences and exit quietly if the application is already running.
 If Downloads auto-wipe is enabled, it also runs on Windows startup launches.
+
+**Start as administrator** is a separate checkbox in the same section. It is
+off by default, saves immediately, and applies the next time you launch Prefect,
+including when **Start with Windows** is enabled. It does not restart the current
+session or turn on Windows startup. The status shows the current session's
+permissions and the saved startup preference.
+
+When enabled, a normal launch requests administrator approval through Windows
+UAC. Approve it to open the administrator session. If you cancel or Windows
+cannot elevate, Prefect explains the problem and continues with normal
+permissions, retaining the preference for next time. Already elevated launches
+continue directly. Turning the checkbox off affects future launches; an already
+elevated session keeps its permissions until you exit it. Diagnostic, self-test
+and updater helper modes do not use this preference.
 
 ## Downloads cleanup
 

@@ -23,6 +23,7 @@ public static class Verification
         ApplicationUsageVerification.Run(folder, Check);
         DownloadsCleanupVerification.Run(folder, Check);
         WindowsStartupVerification.Run(folder, Check);
+        AdministratorStartupVerification.Run(folder, Check);
         ForegroundFpsVerification.Run(folder, Check);
         var iconFrames = new IconBitmapDecoder(Branding.IconUri, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames;
         Check(new[] { 16, 20, 24, 32, 40, 48, 64, 96, 128, 256 }.All(size =>
@@ -461,7 +462,7 @@ public static class Verification
             Activations++;
         }
     }
-    static void Render(FrameworkElement content, string path, double width, double height)
+    internal static void Render(FrameworkElement content, string path, double width, double height)
     {
         content.Measure(new Size(width, height));
         var wanted = content.DesiredSize;

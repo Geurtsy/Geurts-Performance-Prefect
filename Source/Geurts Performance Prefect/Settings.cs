@@ -27,6 +27,7 @@ public sealed class OverlaySettings
     public bool MinimiseToTray { get; set; } = true;
     public bool AutoAvoid { get; set; }
     public bool AutoWipeDownloadsOnStartup { get; set; }
+    public bool StartAsAdministrator { get; set; }
     public ScreenCorner AutoAvoidCorner { get; set; } = ScreenCorner.TopLeft;
     public HashSet<ScreenCorner> AutoAvoidAvailableCorners { get; set; } = new(Enum.GetValues<ScreenCorner>());
     public double Opacity { get; set; } = 0.94;

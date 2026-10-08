@@ -78,7 +78,14 @@ public partial class App : Application
             Shutdown(); return;
         }
         var store = new SettingsStore();
-        MainWindow = new OverlayWindow(store, store.Load());
+        var settings = store.Load();
+        if (AdministratorStartup.ShouldElevate(settings, HardwareSampler.IsAdministrator, e.Args))
+        {
+            var result = AdministratorStartup.Relaunch(e.Args, Environment.ProcessId);
+            if (result.Started) { Shutdown(); return; }
+            MessageBox.Show(result.Error, "Geurts Performance Prefect · Administrator startup", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        MainWindow = new OverlayWindow(store, settings);
         MainWindow.Show();
         if (e.Args.Contains("--settings")) ((OverlayWindow)MainWindow).OpenSettings();
         _ = ((OverlayWindow)MainWindow).Downloads.RunOnStartupAsync(((OverlayWindow)MainWindow).Settings);
