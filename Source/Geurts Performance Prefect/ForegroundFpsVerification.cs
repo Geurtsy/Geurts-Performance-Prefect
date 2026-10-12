@@ -74,6 +74,33 @@ public static class ForegroundFpsVerification
         check(row.ValueText == "144 FPS" && row.DetailText == "Game (PID 123)", "FPS row shows the rate with FPS units and the foreground process");
         row.Update(new(null, "PresentMon", "Restart as administrator for FPS monitoring"));
         check(row.ValueText == "—" && row.DetailText.Contains("administrator"), "FPS row clears its value and displays the availability explanation");
+        var editor = new ForegroundProcess(321, 1, "Notepad");
+        var desktop = DesktopCompositionFps.From(editor, 144000, 1000, 0);
+        check(desktop.Value == 144 && DesktopCompositionFps.IsDesktopReading(desktop) && desktop.Detail == "Notepad (PID 321)" &&
+            desktop.Source.Contains("not the foreground app's own render rate"),
+            "Desktop apps receive a clearly identified DWM composition cadence with the foreground app name");
+        var ownFrames = new Reading(60, "PresentMon / Notepad", "Notepad");
+        check(DesktopCompositionFps.Select(ownFrames, desktop) == ownFrames,
+            "A desktop application's own presented FPS always takes priority over the compositor fallback");
+        var denied = new Reading(null, "Restart as administrator for FPS monitoring");
+        check(DesktopCompositionFps.Select(denied, desktop).Value == 144 && DesktopCompositionFps.Select(denied, desktop).Source.Contains("administrator"),
+            "Desktop FPS works when app tracing lacks privileges and retains the app-capture explanation in its tooltip");
+        check(new[] { DesktopCompositionFps.Rate(0, 1, 0), DesktopCompositionFps.Rate(1, 0, 0),
+            DesktopCompositionFps.Rate(144, 1, unchecked((int)0x80004005)), DesktopCompositionFps.Rate(144, 1, 1) }.All(r => r == null),
+            "Zero or malformed DWM ratios and failed calls remain unavailable instead of inventing FPS");
+        check(DesktopCompositionFps.Select(denied, DesktopCompositionFps.From(editor, 144, 1, unchecked((int)0x80004005))).Value == null,
+            "Unavailable app and desktop sources show no cached or fabricated frame rate");
+        check(DesktopCompositionFps.Sample(null).Value == null,
+            "A missing foreground process does not inherit an unrelated desktop FPS label");
+        check(System.Runtime.InteropServices.Marshal.SizeOf<DesktopCompositionFps.Timing>() == 292 &&
+            System.Runtime.InteropServices.Marshal.OffsetOf<DesktopCompositionFps.Timing>("ComposeNumerator").ToInt32() == 20 &&
+            System.Runtime.InteropServices.Marshal.OffsetOf<DesktopCompositionFps.Timing>("ComposeDenominator").ToInt32() == 24,
+            "Native DWM timing buffer matches the Windows SDK's packed 292-byte ABI");
+        var liveDesktop = DesktopCompositionFps.Sample(editor);
+        File.WriteAllText(Path.Combine(folder, "desktop-fps-diagnostic.json"), System.Text.Json.JsonSerializer.Serialize(
+            new { Administrator = HardwareSampler.IsAdministrator, ForegroundLabelIsSynthetic = true, Reading = liveDesktop }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        check(liveDesktop.Value == null || liveDesktop.Value > 0 && double.IsFinite(liveDesktop.Value.Value),
+            "Live Windows desktop composition API returns a valid cadence or an explicit unavailable result without elevation");
         using (var sampler = new ForegroundFpsSampler())
         {
             check(sampler.Sample(false).Value == null, "Hidden FPS reading does not start a collector");

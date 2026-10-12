@@ -160,8 +160,8 @@ public sealed class SettingsWindow : Window
             MetricToggles.Add(metric, toggle); ((StackPanel)toggles.Child).Children.Add(toggle);
         }
         stack.Children.Add(toggles);
-        stack.Children.Add(Note("Foreground FPS follows the process owning the active window. Shows presented frames per second on its busiest swap chain over the last 2 seconds; displayed and generated frames can differ. Hiding this reading stops capture."));
-        stack.Children.Add(Note("FPS uses bundled PresentMon for DirectX, Vulkan and OpenGL. Restart as administrator if frame tracing is unavailable. Static windows and unsupported or protected applications may have no recent frames."));
+        stack.Children.Add(Note("FPS works with desktop apps as well as games. Foreground FPS shows the active process's presented frames when available. Otherwise the row says Desktop FPS and shows Windows' desktop composition cadence, often the display refresh rate. This fallback is desktop-wide, not that app's own render rate or its monitor's measured FPS."));
+        stack.Children.Add(Note("App frames use PresentMon for DirectX, Vulkan and OpenGL and may need administrator access. Desktop FPS needs no administrator access and covers static windows, traditional desktop apps and apps that render in separate worker processes. Hiding the FPS reading stops capture."));
         stack.Children.Add(Heading("HARD DRIVE USAGE"));
         stack.Children.Add(Note("Show activity (%) for each physical drive, including SSDs. Choices save automatically."));
         var drivesPanel = Panel(); drivesPanel.Child = driveToggles; stack.Children.Add(drivesPanel);

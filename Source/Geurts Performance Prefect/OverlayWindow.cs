@@ -51,6 +51,7 @@ public sealed class MetricRow : Border
     void UpdateFill() => fill.Width = Math.Max(0, ((FrameworkElement)fill.Parent).ActualWidth * fraction);
     public string ApplicationText => application.Text;
     public string ValueText => value.Text;
+    public string LabelText => label.Text;
     public string DetailText => detail.Text;
     public void Update(Reading reading, TopApplication? topApplication = null, int averageSeconds = 60, string? resource = null)
     {
@@ -271,6 +272,8 @@ public sealed class OverlayWindow : Window
             applicationHistory.Top(resource, Settings.ApplicationAverageSeconds);
         foreach (var pair in readings)
         {
+            if (pair.Key == Metric.ForegroundFps)
+                rows[pair.Key].SetLabel(DesktopCompositionFps.IsDesktopReading(pair.Value) ? "Desktop FPS" : MetricInfo.Label(pair.Key));
             if (pair.Key == Metric.MotherboardTemperature)
                 rows[pair.Key].SetLabel(pair.Value.Detail.StartsWith("ACPI thermal zone ", StringComparison.Ordinal)
                     ? "System temperature (ACPI)" : MetricInfo.Label(pair.Key));

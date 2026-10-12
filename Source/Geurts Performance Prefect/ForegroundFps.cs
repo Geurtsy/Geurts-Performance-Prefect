@@ -20,6 +20,7 @@ public sealed class ForegroundFrameHistory
 {
     readonly Dictionary<string, Queue<long>> chains = new();
     ForegroundProcess? foreground;
+    internal ForegroundProcess? Foreground => foreground;
     long changed;
     public void Focus(ForegroundProcess? process, long now)
     {
@@ -121,7 +122,9 @@ public sealed class ForegroundFpsSampler : IDisposable
             history.Focus(CurrentForeground(), Stopwatch.GetTimestamp());
             var failure = error;
             if (helper is { HasExited: true } && failure == null) failure = "Frame capture stopped; restart the app to retry";
-            return history.Read(Stopwatch.GetTimestamp(), failure);
+            var application = history.Read(Stopwatch.GetTimestamp(), failure);
+            if (application.Value.HasValue) return application;
+            return DesktopCompositionFps.Select(application, DesktopCompositionFps.Sample(history.Foreground));
         }
     }
     internal static Stream HelperResource() => typeof(ForegroundFpsSampler).Assembly.GetManifestResourceStream("Prefect.PresentMon.exe")

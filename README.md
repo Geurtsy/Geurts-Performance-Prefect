@@ -80,14 +80,26 @@ row reports that frame tracing needs access. No service, driver or internet
 connection is needed for FPS capture. Administrator startup is optional and off
 by default; enable it under **Settings → Startup → Start as administrator**.
 
-The number is **presented FPS**: the rate of application frame presents on the
+The **Foreground FPS** number is **presented FPS**: the rate of application frame presents on the
 busiest swap chain over the last two seconds. Multiple swap chains and other
 processes are not added together. This can differ from frames actually displayed
 or added by frame generation. The reading updates at the configured overlay
 refresh interval and starts a fresh history when the foreground process changes.
-Static windows, inaccessible processes, and applications without supported recent
-frame events show unavailable. A browser window tracks its owning process;
-rendering in a separate worker process is not attributed to that window.
+Desktop apps are supported as well as games. When the foreground process has no
+recent frame events, or tracing lacks permission, the row automatically changes
+to **Desktop FPS**. This fallback shows the Desktop Window Manager's reported
+composition cadence, often matching display refresh, with the active app name.
+It works without administrator access for static windows, traditional GDI apps
+and browsers or other apps that draw through a separate worker process.
+
+**Desktop FPS is desktop-wide cadence, not the foreground app's own rendering
+rate or a count of its unique frames.** Current Windows requires querying DWM
+without a window handle, so this source does not identify the foreground monitor
+or a specific window. Prefect does not guess a browser tab's renderer or assign
+other processes' frames to it. Hover over the row for its source and any app-trace
+availability reason. Per-app frames take priority when available; if neither
+source is available, or no foreground process can be identified, the row shows
+unavailable. [Windows composition timing API](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmgetcompositiontiminginfo).
 
 Turn the row off under **Settings → Overlay Readings → Foreground FPS** to stop
 capture. The collector runs hidden in a private temporary folder and uses its own

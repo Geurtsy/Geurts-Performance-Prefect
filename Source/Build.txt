@@ -61,6 +61,17 @@ DESIGN
   allowing for the real-time trace's delivery buffering.
   Values appear at the configured overlay refresh interval. This is presented
   FPS, not displayed FPS or generated frames; child renderers are not guessed.
+  Desktop apps without per-process frame events (including separate renderers)
+  use a clearly labelled Desktop FPS fallback. DwmGetCompositionTimingInfo(NULL)
+  supplies rateCompose from the packed 292-byte DWM_TIMING_INFO structure. This
+  is the reported desktop-wide composition cadence, often display refresh, not
+  a measured count of app frames or a foreground-monitor-specific reading.
+  A fresh native query is made whenever the fallback is needed; invalid ratios
+  and failed calls do not reuse old values. The fallback needs no elevation and
+  retains PresentMon's availability reason in the tooltip. Per-app frames always
+  take priority. Hiding the row also disables desktop queries; source changes
+  update the visible row label. Tests cover fallback precedence, native layout,
+  error handling, live non-elevated DWM access and both rendered source labels.
   A unique private session preserves other captures. Hiding the row or normal
   shutdown stops that session, waits for the owned helper, and removes its files.
   Access-denied errors request a manual administrator restart without elevation

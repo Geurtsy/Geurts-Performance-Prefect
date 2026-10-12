@@ -279,6 +279,15 @@ public static class Verification
         Check(overlay.Topmost, "Always-on-top on reaches the native window");
         foreach (var pair in panel.MetricToggles) pair.Value.IsChecked = true;
         Check(overlay.Settings.Visible.Values.All(v => v), "All readings can be restored");
+        var desktopPreview = snapshot with { Drives = new[] { driveA, driveB }, ForegroundFps = DesktopCompositionFps.From(new(321, 1, "Example editor"), 144, 1, 0) };
+        overlay.Receive(desktopPreview);
+        Check(overlay.MetricRows[Metric.ForegroundFps].LabelText == "Desktop FPS" &&
+            overlay.MetricRows[Metric.ForegroundFps].ValueText == "144 FPS" && overlay.MetricRows[Metric.ForegroundFps].DetailText.Contains("Example editor"),
+            "Desktop fallback is visibly labelled Desktop FPS and follows the foreground desktop app");
+        Render((FrameworkElement)overlay.Content, Path.Combine(folder, "desktop-fps-preview.png"), 318, 1000);
+        overlay.Receive(snapshot with { Drives = new[] { driveA, driveB } });
+        Check(overlay.MetricRows[Metric.ForegroundFps].LabelText == "Foreground FPS" && overlay.MetricRows[Metric.ForegroundFps].ValueText == "144 FPS",
+            "The overlay switches back to application FPS when supported process frames return");
         // Render our own WPF content off screen for layout review; no desktop automation.
         Render((FrameworkElement)overlay.Content, Path.Combine(folder, "overlay-preview.png"), 318, 1000);
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-preview.png"), 490, 790);
