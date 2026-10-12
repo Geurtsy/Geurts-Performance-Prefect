@@ -4,6 +4,9 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
+Settings dropdowns use mouse or keyboard selection. The mouse wheel scrolls the
+page over a closed dropdown and browses the list when it is open.
+
 The primary icon is an emerald-accented suit. It appears on the executable,
 taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%20Performance%20Prefect/Assets/Branding)
 include the approved master, PNG exports from 1024 down to 16 pixels and a

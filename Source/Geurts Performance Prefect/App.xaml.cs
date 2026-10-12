@@ -4,11 +4,24 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace GeurtsPerformancePrefect;
 
 public partial class App : Application
 {
+    void PreventWheelSelection(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not ComboBox choice || choice.IsDropDownOpen) return;
+        // Closed choices must not change while scrolling through Settings.
+        // An open list still receives the wheel so its items can be browsed.
+        e.Handled = true;
+        if (choice.Parent is UIElement parent)
+            parent.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+                { RoutedEvent = UIElement.MouseWheelEvent, Source = parent });
+    }
+
     Mutex? instance;
     protected override void OnStartup(StartupEventArgs e)
     {

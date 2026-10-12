@@ -60,6 +60,7 @@
    </Setter.Value></Setter>
   </Style>
   <Style TargetType="ComboBox">
+   <EventSetter Event="PreviewMouseWheel" Handler="PreventWheelSelection"/>
    <Setter Property="Foreground" Value="#15211A"/>
    <Setter Property="MinHeight" Value="30"/>
    <Setter Property="Padding" Value="7,4"/>

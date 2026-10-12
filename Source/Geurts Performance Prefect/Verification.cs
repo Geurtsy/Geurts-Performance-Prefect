@@ -294,6 +294,7 @@ public static class Verification
         // Exercise real WPF window state changes using isolated preferences and no sensor worker.
         overlay.Show(); overlay.OpenSettings();
         var activePanel = Application.Current.Windows.OfType<SettingsWindow>().Single(w => w.IsVisible);
+        DropdownWheelVerification.Run(activePanel, Check);
         activePanel.MinimiseToTrayToggle.IsChecked = false;
         Check(!overlay.Settings.MinimiseToTray && overlay.ShowInTaskbar, "Disabling tray mode immediately makes the overlay available on the taskbar");
         var originalLeft = overlay.Left; var originalTop = overlay.Top;
