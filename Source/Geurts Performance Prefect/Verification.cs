@@ -20,6 +20,7 @@ public static class Verification
         var log = new List<string>();
         void Check(bool condition, string name) { if (!condition) throw new InvalidOperationException("FAILED: " + name); log.Add("PASS: " + name); }
         UpdateVerification.Run(folder, Check);
+        PowerOptionsVerification.Run(folder, Check);
         ApplicationUsageVerification.Run(folder, Check);
         DownloadsCleanupVerification.Run(folder, Check);
         WindowsStartupVerification.Run(folder, Check);

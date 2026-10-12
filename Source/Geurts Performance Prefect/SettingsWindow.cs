@@ -54,6 +54,14 @@ public sealed class SettingsWindow : Window
     public CheckBox StartAsAdministratorToggle { get; } = new() { Content = "Start as administrator" };
     public TextBlock AdministratorStartupStatus { get; } = Note("");
     bool updatingAdministratorStartup;
+    public CheckBox ApplyPowerOptionsToggle { get; } = new() { Content = "Apply selected power preset on app startup" };
+    public ComboBox PowerPresetSelector { get; } = new();
+    public Slider BatteryCpuLimitSlider { get; } = new() { Minimum = 50, Maximum = 100, SmallChange = 1, LargeChange = 5, TickFrequency = 1, IsSnapToTickEnabled = true };
+    public Button ApplyPowerOptionsButton { get; } = new() { Content = "Apply preset now", HorizontalAlignment = HorizontalAlignment.Left };
+    public Button RestorePowerOptionsButton { get; } = new() { Content = "Restore previous power plan", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
+    public TextBlock PowerOptionsStatus { get; } = Note("");
+    readonly TextBlock batteryCpuCaption = Label("");
+    bool updatingPowerOptions;
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null)
     {
         this.overlay = overlay;
@@ -131,6 +139,7 @@ public sealed class SettingsWindow : Window
         Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
         UpdateDownloads();
         stack.Children.Add(Heading("PERFORMANCE"));
+        AddPowerOptions(stack);
         stack.Children.Add(CoreParkingToggle);
         stack.Children.Add(Note("Keep cores unparked while plugged in by setting the active power plan to 100%. Turning this off restores the value saved by this app. This may increase power use and heat."));
         stack.Children.Add(parkingStatus);
@@ -424,6 +433,73 @@ public sealed class SettingsWindow : Window
         catch (Exception ex) { UpdateStatus.Text = "Could not install the update. " + ex.Message; }
         finally { CheckUpdatesButton.IsEnabled = true; InstallUpdateButton.IsEnabled = true; }
     }
+    void AddPowerOptions(StackPanel stack)
+    {
+        stack.Children.Add(Label("Power preset"));
+        PowerPresetSelector.ItemsSource = Enum.GetValues<PowerPreset>().Select(preset => new PowerPresetChoice(preset, PowerPolicy.Name(preset))).ToArray();
+        PowerPresetSelector.SelectedValuePath = "Preset";
+        var template = new DataTemplate();
+        var text = new FrameworkElementFactory(typeof(TextBlock));
+        text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Name"));
+        text.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+        text.SetValue(FrameworkElement.MaxWidthProperty, 345d);
+        template.VisualTree = text; PowerPresetSelector.ItemTemplate = template;
+        System.Windows.Automation.AutomationProperties.SetName(PowerPresetSelector, "Power preset");
+        stack.Children.Add(PowerPresetSelector);
+        stack.Children.Add(Note("Performance Mode Only: maximum CPU performance, boost, all cores unparked, CPU idle saving disabled, full brightness, and no automatic sleep, hibernate, dimming, screen-off or disk-off on battery or plugged in. Lid close and the sleep button do nothing."));
+        stack.Children.Add(Note("Plugged performance / unplugged saving: the same performance settings while plugged in. On battery: CPU performance limit, core parking, no boost, strongest supported device power saving, 10% brightness, dim after 30 seconds, screen off after 1 minute, sleep after 2 minutes, hibernate after 5 minutes. Lid close and the sleep button sleep."));
+        stack.Children.Add(batteryCpuCaption); stack.Children.Add(BatteryCpuLimitSlider);
+        System.Windows.Automation.AutomationProperties.SetName(BatteryCpuLimitSlider, "Battery CPU performance limit in percent");
+        stack.Children.Add(Note("Default: 50%. Increase to 100%. Limits maximum processor performance and the percentage of unparked cores where supported; Task Manager CPU usage can still reach 100%. Applies only to the battery-saving preset."));
+        stack.Children.Add(ApplyPowerOptionsToggle);
+        stack.Children.Add(Note("Off by default. Saves for the next app launch, including Start with Windows. Changing the preset or slider saves for the next application; use Apply preset now to apply it now. Turning startup off leaves the current Windows plan active."));
+        stack.Children.Add(ApplyPowerOptionsButton); stack.Children.Add(RestorePowerOptionsButton);
+        stack.Children.Add(PowerOptionsStatus);
+        stack.Children.Add(Note("Uses a separate Windows power plan and leaves your previous plan available to restore. Windows switches between its AC and battery values automatically, even when Prefect is closed. Restore also turns startup application off. Administrator approval may be required. Unsupported options are listed after application; hardware, firmware, vendor controls and Windows policies can limit the effect. Critical battery protection is retained."));
+        UpdatePowerOptions();
+        ApplyPowerOptionsToggle.Checked += (_, _) => SavePowerOptions();
+        ApplyPowerOptionsToggle.Unchecked += (_, _) => SavePowerOptions();
+        PowerPresetSelector.SelectionChanged += (_, _) => SavePowerOptions();
+        BatteryCpuLimitSlider.ValueChanged += (_, _) => SavePowerOptions();
+        ApplyPowerOptionsButton.Click += async (_, _) => { if (!parkingBusy) await overlay.PowerOptions.ApplyAsync(); };
+        RestorePowerOptionsButton.Click += async (_, _) => { if (!parkingBusy) await overlay.PowerOptions.RestoreAsync(); };
+        overlay.PowerOptions.Changed += PowerOptionsChanged;
+        Closed += (_, _) => overlay.PowerOptions.Changed -= PowerOptionsChanged;
+    }
+    void PowerOptionsChanged() { UpdatePowerOptions(); RefreshParking(); }
+    void UpdatePowerOptions()
+    {
+        updatingPowerOptions = true;
+        ApplyPowerOptionsToggle.IsChecked = overlay.Settings.ApplyPowerOptionsOnStartup;
+        PowerPresetSelector.SelectedValue = overlay.Settings.PowerPreset;
+        BatteryCpuLimitSlider.Value = overlay.Settings.BatteryCpuLimit;
+        batteryCpuCaption.Text = $"Battery CPU performance limit · {overlay.Settings.BatteryCpuLimit}%";
+        var busy = overlay.PowerOptions.Busy || parkingBusy;
+        ApplyPowerOptionsToggle.IsEnabled = !busy; PowerPresetSelector.IsEnabled = !busy;
+        BatteryCpuLimitSlider.IsEnabled = !busy && overlay.Settings.PowerPreset == PowerPreset.PerformancePluggedBatterySaving;
+        ApplyPowerOptionsButton.IsEnabled = !busy;
+        RestorePowerOptionsButton.IsEnabled = !busy && overlay.Settings.ManagedPowerScheme != Guid.Empty && overlay.Settings.PreviousPowerScheme != Guid.Empty;
+        PowerOptionsStatus.Text = overlay.PowerOptions.Status;
+        updatingPowerOptions = false;
+    }
+    void SavePowerOptions()
+    {
+        if (updatingPowerOptions || overlay.PowerOptions.Busy) return;
+        var previousToggle = overlay.Settings.ApplyPowerOptionsOnStartup;
+        var previousPreset = overlay.Settings.PowerPreset; var previousLimit = overlay.Settings.BatteryCpuLimit;
+        overlay.Settings.ApplyPowerOptionsOnStartup = ApplyPowerOptionsToggle.IsChecked == true;
+        if (PowerPresetSelector.SelectedValue is PowerPreset preset) overlay.Settings.PowerPreset = preset;
+        overlay.Settings.BatteryCpuLimit = (int)Math.Round(BatteryCpuLimitSlider.Value);
+        var saved = overlay.Store.Save(overlay.Settings);
+        if (!saved)
+        {
+            overlay.Settings.ApplyPowerOptionsOnStartup = previousToggle;
+            overlay.Settings.PowerPreset = previousPreset; overlay.Settings.BatteryCpuLimit = previousLimit;
+        }
+        UpdatePowerOptions();
+        PowerOptionsStatus.Text = saved ? "Saved. " + (overlay.Settings.ApplyPowerOptionsOnStartup ? "Selected preset will apply on the next app launch." : "Startup application is off.") + " Use Apply preset now for an immediate change." : overlay.Store.LastError;
+    }
+    sealed record PowerPresetChoice(PowerPreset Preset, string Name);
     void RefreshParking(string? message = null)
     {
         updatingParking = true;
@@ -433,23 +509,26 @@ public sealed class SettingsWindow : Window
             displayedParking = state;
             CoreParkingToggle.IsChecked = state.Minimum == 100;
             var canRestore = overlay.Settings.CoreParkingPreviousValues.TryGetValue(state.Scheme, out var previous);
-            CoreParkingToggle.IsEnabled = !parkingBusy && (state.Minimum != 100 || canRestore);
+            var managed = state.Scheme == overlay.Settings.ManagedPowerScheme;
+            CoreParkingToggle.IsEnabled = !parkingBusy && !overlay.PowerOptions.Busy && !managed && (state.Minimum != 100 || canRestore);
             parkingStatus.Text = $"Plugged-in minimum: {state.Minimum}%. " +
                 (state.Minimum == 100 ? "Core parking is removed for this setting." : "Core parking is permitted.") +
                 (state.Minimum == 100 && !canRestore ? " Already enabled outside this app; no previous value is available to restore." : canRestore ? $" Saved previous value: {previous}%." : "");
             if (message != null) parkingStatus.Text += "\n" + message;
+            if (managed) parkingStatus.Text += "\nCore parking is controlled by the active Prefect preset. Restore the previous power plan to use this separate control.";
         }
         catch (Exception ex) { displayedParking = null; CoreParkingToggle.IsChecked = false; CoreParkingToggle.IsEnabled = false; parkingStatus.Text = "Core parking setting unavailable: " + ex.Message; }
         finally { updatingParking = false; }
     }
     async void ChangeParking(bool enabled)
     {
-        if (updatingParking || parkingBusy) return;
-        parkingBusy = true; CoreParkingToggle.IsEnabled = false; parkingRefresh.IsEnabled = false;
+        if (updatingParking || parkingBusy || overlay.PowerOptions.Busy) return;
+        parkingBusy = true; UpdatePowerOptions(); CoreParkingToggle.IsEnabled = false; parkingRefresh.IsEnabled = false;
         string? message = null;
         try
         {
             var state = parking.Read();
+            if (state.Scheme == overlay.Settings.ManagedPowerScheme) throw new InvalidOperationException("Core parking is controlled by the Prefect power preset.");
             if (state != displayedParking) throw new InvalidOperationException("The power plan or core parking value changed. The setting has been refreshed; try again.");
             uint desired;
             if (enabled)
@@ -475,7 +554,7 @@ public sealed class SettingsWindow : Window
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { message = "Administrator approval cancelled. No change was applied."; }
         catch (Exception ex) { message = ex.Message; }
-        finally { parkingBusy = false; parkingRefresh.IsEnabled = true; RefreshParking(message); }
+        finally { parkingBusy = false; UpdatePowerOptions(); parkingRefresh.IsEnabled = true; RefreshParking(message); }
     }
     void UpdateSensors(Snapshot snapshot)
     {

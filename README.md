@@ -86,6 +86,64 @@ trace session; normal shutdown removes it. Existing PresentMon captures remain
 independent. Fullscreen applications must permit desktop overlays for Prefect to
 appear above them.
 
+## Startup power options
+
+In **Settings → Performance**, choose one of the two power presets. Enable
+**Apply selected power preset on app startup** to apply it on future launches,
+including **Start with Windows**. The toggle is off by default. Preset and slider
+changes save immediately for the next application; **Apply preset now** applies
+them immediately. Windows may request administrator approval. Turning startup
+application off leaves the current power plan active.
+
+| Setting | Performance Mode Only (plugged in and battery) | Performance Mode Plugged and Ultra Battery Saving Unplugged (battery) |
+| --- | --- | --- |
+| Processor state | Minimum and maximum 100% | Minimum 0%, maximum 50% by default |
+| Core parking | Disabled, all cores unparked | Enabled, maximum 50% unparked by default |
+| CPU boost / idle saving | Aggressive boost / idle saving disabled | Boost disabled / idle saving enabled |
+| Screen | Full brightness, no dimming or timeout | 10% brightness, dim at 30 seconds, off at 1 minute |
+| Sleep / unattended sleep | Never | 2 minutes |
+| Hibernate | Never | 5 minutes, if hibernation is available |
+| Lid close / sleep button | Do nothing | Sleep |
+| Disk idle timeout | Never | 1 minute |
+| USB, SATA, PCIe, wireless, device idle, media | Performance, device saving disabled | Maximum saving for configured settings |
+
+The combined preset uses exactly the performance-only values while plugged in.
+Windows automatically selects the power plan's AC or battery values when you
+connect or disconnect power; this continues when Prefect is closed.
+
+The **Battery CPU performance limit** slider ranges from **50% to 100%** and
+changes both maximum processor state and maximum unparked-core percentage where
+supported, including available processor efficiency classes. This is a processor
+performance limit, **not a hard cap on Task Manager CPU utilisation**; utilisation
+may still show 100%. Windows decides which cores to park. See
+[maximum processor state](https://learn.microsoft.com/en-us/windows-hardware/customize/power-settings/options-for-perf-state-engine-maxperformance)
+and [maximum unparked cores](https://learn.microsoft.com/en-us/windows-hardware/customize/power-settings/options-for-core-parking-cpmaxcores).
+
+Prefect creates a separate plan, configures and reads back both AC and battery
+values, and only activates it after verification. Your original plan remains
+available. **Restore previous power plan** restores it and turns startup
+application off. It refuses to replace a different plan selected outside Prefect.
+Reapplying keeps the original restore target and removes the superseded Prefect
+plan when possible. Failed writes and verification trigger rollback. Cancelled
+approval leaves the current plan active. Settings save failure stops before
+application. The separate **Remove Core Parking** control is unavailable while
+the Prefect plan is active, so it cannot override the preset.
+
+Unavailable optional settings are listed after application; missing required
+CPU, parking, sleep or display settings prevent activation. Read-back confirms
+Windows policy values, not physical hardware behavior. Hardware, firmware,
+Modern Standby, vendor GPU/device controls, organisation policies, screen savers,
+and applications requesting wakefulness can limit the result. The presets do
+not configure every vendor-specific option, globally enable hibernation, change
+critical battery protection, or replace a manual shutdown/power-button action.
+Performance mode increases power consumption and heat.
+
+Self-tests simulate startup, both presets, AC/DC values, rollback, cancellation,
+plan changes and saved preferences, render normal/narrow settings previews, and
+read the native Windows power backend without changing the machine's settings.
+Interactive UAC, actual power-source transitions, physical core parking and
+sleep/display timing remain unverified.
+
 ## Start with Windows
 
 Under **Settings → Startup**, enable **Start with Windows** to open the overlay

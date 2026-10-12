@@ -84,7 +84,7 @@ sealed class WindowsParkingBackend : IParkingBackend
     }
     public void Write(Guid scheme, uint value) => Run("/setacvalueindex", scheme.ToString("D"), "SUB_PROCESSOR", "CPMINCORES", value.ToString(System.Globalization.CultureInfo.InvariantCulture));
     public void Activate(Guid scheme) => Run("/setactive", scheme.ToString("D"));
-    static void Run(params string[] arguments)
+    internal static void Run(params string[] arguments)
     {
         var info = new ProcessStartInfo(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "powercfg.exe"))
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true };

@@ -99,6 +99,7 @@ public sealed class OverlayWindow : Window
     public OverlaySettings Settings { get; }
     public SettingsStore Store { get; }
     public DownloadsCleanup Downloads { get; }
+    public PowerOptionsController PowerOptions { get; }
     public Snapshot? Latest { get; private set; }
     public event Action<Snapshot>? SnapshotReceived;
     public event Action<bool>? AutoAvoidChanged;
@@ -129,9 +130,10 @@ public sealed class OverlayWindow : Window
     bool restoringOverlay;
     bool placingAutoAvoid, autoAvoidSnapPending, draggingOverlay;
     public Button MinimiseButton { get; }
-    public OverlayWindow(SettingsStore store, OverlaySettings settings, bool verification = false, Func<Point>? cursorPosition = null, DownloadsCleanup? downloads = null)
+    public OverlayWindow(SettingsStore store, OverlaySettings settings, bool verification = false, Func<Point>? cursorPosition = null, DownloadsCleanup? downloads = null, PowerOptionsController? powerOptions = null)
     {
         Store = store; Settings = settings;
+        PowerOptions = powerOptions ?? new PowerOptionsController(settings, store);
         Downloads = downloads ?? new DownloadsCleanup();
         this.cursorPosition = cursorPosition ?? (() => { var cursor = Forms.Cursor.Position; return new Point(cursor.X, cursor.Y); });
         Foreground = Palette.Text; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;

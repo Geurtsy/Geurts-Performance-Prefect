@@ -28,6 +28,11 @@ public sealed class OverlaySettings
     public bool AutoAvoid { get; set; }
     public bool AutoWipeDownloadsOnStartup { get; set; }
     public bool StartAsAdministrator { get; set; }
+    public bool ApplyPowerOptionsOnStartup { get; set; }
+    public PowerPreset PowerPreset { get; set; } = PowerPreset.PerformanceOnly;
+    public int BatteryCpuLimit { get; set; } = 50;
+    public Guid ManagedPowerScheme { get; set; }
+    public Guid PreviousPowerScheme { get; set; }
     public ScreenCorner AutoAvoidCorner { get; set; } = ScreenCorner.TopLeft;
     public HashSet<ScreenCorner> AutoAvoidAvailableCorners { get; set; } = new(Enum.GetValues<ScreenCorner>());
     public double Opacity { get; set; } = 0.94;
@@ -50,6 +55,8 @@ public sealed class OverlaySettings
         Scale = double.IsFinite(Scale) ? Math.Clamp(Scale, .8, 1.6) : 1;
         RefreshMilliseconds = Math.Clamp(RefreshMilliseconds, 500, 5000);
         ApplicationAverageSeconds = Math.Clamp(ApplicationAverageSeconds, 5, 600);
+        BatteryCpuLimit = Math.Clamp(BatteryCpuLimit, 50, 100);
+        if (!Enum.IsDefined(PowerPreset)) PowerPreset = PowerPreset.PerformanceOnly;
         if (!double.IsFinite(Left)) Left = 24;
         if (!double.IsFinite(Top)) Top = 24;
         OverlayMonitorId ??= "";

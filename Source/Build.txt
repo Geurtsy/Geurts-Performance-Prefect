@@ -30,6 +30,14 @@ For a local hardware report, use --diagnose followed by a quoted absolute JSON
 file path. The report stays on your computer and may include device names.
 
 DESIGN
+- Startup power options use a fresh duplicated Windows power scheme, write both
+  AC/DC values, read back configured settings, then activate only if the prior
+  scheme remains active. Recovery identities are saved before the privileged
+  helper runs. Rollback preserves independently selected schemes; restore turns
+  automatic startup application off before switching. Helper arguments are
+  handled before normal startup, driver installation, sensors and live settings.
+  Native self-test coverage reads power policy only; writes, failure recovery and
+  UI behavior use disposable settings and an injected simulated backend.
 - Overlay monitor selection stores the Windows display device name. Empty means
   the current monitor, preserving drag behavior for existing settings. Explicit
   selections constrain manual placement, reset and Auto-avoid to that monitor's

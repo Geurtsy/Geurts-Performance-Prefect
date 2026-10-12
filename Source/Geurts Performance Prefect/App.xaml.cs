@@ -13,6 +13,25 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length > 0 && e.Args[0] is "--power-options" or "--restore-power-options")
+        {
+            try
+            {
+                var engine = new PowerOptionsEngine(new WindowsPowerOptionsBackend());
+                if (e.Args[0] == "--restore-power-options" && e.Args.Length == 3 &&
+                    Guid.TryParse(e.Args[1], out var managed) && Guid.TryParse(e.Args[2], out var previous))
+                    engine.Restore(managed, previous);
+                else if (e.Args[0] == "--power-options" && e.Args.Length == 6 &&
+                    Guid.TryParse(e.Args[1], out var expected) && Guid.TryParse(e.Args[2], out var basis) &&
+                    Guid.TryParse(e.Args[3], out var candidate) && int.TryParse(e.Args[4], out var preset) &&
+                    Enum.IsDefined((PowerPreset)preset) && int.TryParse(e.Args[5], out var limit) && limit >= 50 && limit <= 100)
+                    engine.Apply(new(expected, basis, candidate, (PowerPreset)preset, limit));
+                else throw new ArgumentException("Invalid power options arguments.");
+                Shutdown(0);
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "Geurts Performance Prefect · Power options"); Shutdown(1); }
+            return;
+        }
         if (e.Args.Length == 2 && e.Args[0] == "--apply-update")
         {
             Shutdown(AppUpdates.Apply(e.Args[1]));
@@ -87,9 +106,16 @@ public partial class App : Application
         }
         MainWindow = new OverlayWindow(store, settings);
         MainWindow.Show();
+        _ = ApplyStartupPowerOptionsAsync((OverlayWindow)MainWindow);
         if (e.Args.Contains("--settings")) ((OverlayWindow)MainWindow).OpenSettings();
         _ = ((OverlayWindow)MainWindow).Downloads.RunOnStartupAsync(((OverlayWindow)MainWindow).Settings);
         _ = PawnIOInstaller.InstallIfMissingAsync();
+    }
+    static async Task ApplyStartupPowerOptionsAsync(OverlayWindow overlay)
+    {
+        await overlay.PowerOptions.RunOnStartupAsync();
+        if (overlay.Settings.ApplyPowerOptionsOnStartup && !overlay.PowerOptions.LastOperationSucceeded)
+            MessageBox.Show(overlay.PowerOptions.Status, "Geurts Performance Prefect · Startup power options", MessageBoxButton.OK, MessageBoxImage.Information);
     }
     protected override void OnExit(ExitEventArgs e) { instance?.Dispose(); base.OnExit(e); }
 }

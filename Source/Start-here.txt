@@ -1,7 +1,23 @@
-GEURTS PERFORMANCE PREFECT 1.8.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.12.0 — WINDOWS x64
 
 Open Geurts Performance Prefect\GeurtsPerformancePrefect.exe, then click Settings.
 The existing HardwareOverlay.exe launcher also opens the updated application.
+
+POWER OPTIONS
+Settings > Performance offers Performance Mode Only, and Performance Mode
+Plugged and Ultra Battery Saving Unplugged. Enable Apply selected power preset
+on app startup to apply it on future launches (off by default), or choose Apply
+preset now. Administrator approval may be needed. The battery CPU performance
+limit defaults to 50% and can be increased to 100%; it is not a hard cap on
+Task Manager CPU usage. Battery saving enables core parking, dims at 30 seconds,
+turns the screen off at 1 minute, sleeps at 2 minutes, and hibernates at 5 minutes
+where available. Plugged-in values use full performance and no automatic sleep
+or screen-off. Performance Mode Only uses these values for battery too.
+Restore previous power plan switches back and disables startup application.
+Turning just the startup toggle off leaves the current Windows plan active.
+Windows switches AC/battery values automatically even after Prefect exits.
+Unsupported settings are reported; hardware/vendor controls and Windows policy
+can limit their effect. Critical battery protection is retained.
 
 START WITH WINDOWS
 Settings > Startup > Start with Windows opens the overlay automatically when
