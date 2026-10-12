@@ -603,7 +603,7 @@ public sealed class SettingsWindow : Window
         var stack = new StackPanel { Margin = new Thickness(0,0,12,0) };
         var scroll = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Visible,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        scroll.Resources[SystemParameters.VerticalScrollBarWidthKey] = 30d;
+        scroll.Style = (Style)FindResource("SettingsScrollViewer");
         var tab = new TabItem { Header = title, Content = scroll };
         System.Windows.Automation.AutomationProperties.SetName(tab, title);
         Sections.Items.Add(tab);
