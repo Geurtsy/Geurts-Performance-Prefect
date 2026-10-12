@@ -10,6 +10,26 @@ controls, Top applications averaging settings and Window controls.
 Each tab has its own scrollable page, while Done and Exit application stay visible.
 Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
 
+Under **Settings → Performance → Close Boring Applications**, search the installed
+desktop application list and select apps you want to close. Your list saves
+automatically. **Close Boring Applications** terminates all matching running
+processes with one click; save your work first because forced closure can lose
+unsaved changes. Nothing closes on startup or simply by selecting an app.
+
+**Refresh installed applications** reads Windows' uninstall entries and Start menu.
+Apps without a detected executable remain visible; use **Add executable…** for
+these, portable apps or Store apps. The selected app's discovered executables,
+including helpers in its installation directory, become its saved targets. Hover
+over an entry to review those paths. Refresh preserves the saved targets; after an
+app moves or changes its versioned folder, deselect and reselect it to update them.
+**Show selected applications only** makes your saved list easy to manage.
+
+Closure matches full executable paths in your current sign-in session. It skips
+Windows executables, Prefect and critical processes, and reports failures or
+processes it cannot inspect. Elevated/protected apps may be inaccessible; the
+feature does not request elevation. Unselected child processes are not killed,
+and some applications may restart themselves after being closed.
+
 Settings dropdowns use mouse or keyboard selection. The mouse wheel scrolls the
 page over a closed dropdown and browses the list when it is open. A wide scrollbar
 stays visible on the right side of Settings for easier dragging and navigation,

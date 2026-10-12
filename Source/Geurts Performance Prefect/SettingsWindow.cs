@@ -138,6 +138,7 @@ public sealed class SettingsWindow : Window
         Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
         UpdateDownloads();
         stack = AddTab("Performance");
+        stack.Children.Add(new BoringApplicationsPanel(overlay.Settings, () => overlay.Store.Save(overlay.Settings)));
         AddPowerOptions(stack);
         stack.Children.Add(CoreParkingToggle);
         stack.Children.Add(Note("Keep cores unparked while plugged in by setting the active power plan to 100%. Turning this off restores the value saved by this app. This may increase power use and heat."));

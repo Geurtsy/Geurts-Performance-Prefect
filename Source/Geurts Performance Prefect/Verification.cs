@@ -23,6 +23,7 @@ public static class Verification
         PowerOptionsVerification.Run(folder, Check);
         ApplicationUsageVerification.Run(folder, Check);
         DownloadsCleanupVerification.Run(folder, Check);
+        BoringApplicationsVerification.Run(folder, Check);
         WindowsStartupVerification.Run(folder, Check);
         AdministratorStartupVerification.Run(folder, Check);
         ApplicationRestartVerification.Run(folder, Check);

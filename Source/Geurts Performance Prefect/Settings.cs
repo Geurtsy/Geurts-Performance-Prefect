@@ -28,6 +28,7 @@ public sealed class OverlaySettings
     public bool AutoAvoid { get; set; }
     public bool AutoWipeDownloadsOnStartup { get; set; }
     public bool StartAsAdministrator { get; set; }
+    public List<BoringApplication> BoringApplications { get; set; } = new();
     public bool ApplyPowerOptionsOnStartup { get; set; }
     public PowerPreset PowerPreset { get; set; } = PowerPreset.PerformanceOnly;
     public int BatteryCpuLimit { get; set; } = 50;
@@ -50,6 +51,10 @@ public sealed class OverlaySettings
     public void Normalise()
     {
         Visible ??= new();
+        BoringApplications = (BoringApplications ?? new()).Where(a => a != null && !string.IsNullOrWhiteSpace(a.Id) && !string.IsNullOrWhiteSpace(a.Name))
+            .Select(a => a with { Executables = (a.Executables ?? Array.Empty<string>()).Select(GeurtsPerformancePrefect.BoringApplications.ExecutablePath)
+                .Where(p => p != null).Select(p => p!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() })
+            .Where(a => a.Executables.Length > 0).GroupBy(a => a.Id, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
         foreach (var metric in MetricInfo.All) Visible.TryAdd(metric, true);
         Opacity = double.IsFinite(Opacity) ? Math.Clamp(Opacity, .35, 1) : .94;
         Scale = double.IsFinite(Scale) ? Math.Clamp(Scale, .8, 1.6) : 1;
