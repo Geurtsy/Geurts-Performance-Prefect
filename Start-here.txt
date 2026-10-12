@@ -28,7 +28,7 @@ settings, protected Windows folders, drive roots and folder links/junctions.
 
 TOP APPLICATIONS
 CPU, GPU, RAM and each physical drive show the application with the highest
-average usage over the last 60 seconds. Settings > Overlay Readings > Top Applications changes the
+average usage over the last 60 seconds. Settings > Overlay > Top Applications changes the
 averaging window from 5 seconds to 10 minutes and saves your preference.
 Processes with the same executable name are combined. CPU and GPU show average
 usage, RAM shows average physical working set, and drives show average read/write
@@ -37,7 +37,7 @@ Per-drive application tracking needs Settings > Restart as administrator.
 GPU attribution follows your selected graphics card and needs supported counters.
 
 HARD DRIVE USAGE
-Settings > Overlay Readings > Hard Drive Usage lists each detected physical drive, including SSDs.
+Settings > Overlay > Hard Drive Usage lists each detected physical drive, including SSDs.
 Tick a drive to show its activity (%) in the overlay; untick it to hide it.
 Each choice saves between launches. New drives appear automatically.
 Activity is the percentage of time the drive is busy reading or writing.
@@ -64,7 +64,7 @@ restore value. Battery power and other processor settings are unchanged.
 Keeping cores unparked may increase power consumption and heat.
 
 OVERLAY
-Auto-avoid is available in Settings > Window and in the tray's right-click menu.
+Auto-avoid is available in Settings > Overlay and in the tray's right-click menu.
 Enable it to anchor the overlay to the nearest corner of its current monitor.
 When the cursor enters it, the overlay moves to another corner clear of the
 pointer and remains anchored there. It uses top left, top right, bottom left,
@@ -74,7 +74,7 @@ The toggle and selected corner save between launches; the toggle defaults off.
 When Auto-avoid is on, use the tray for Settings or to disable it before dragging.
 
 Click the — button in the header to minimise the application.
-Settings > Window > Minimise to tray is enabled by default. It hides the overlay
+Settings > Overlay > Minimise to tray is enabled by default. It hides the overlay
 and any open Settings window in the notification area. Double-click the tray
 icon, or right-click it and choose Restore, to bring them back. The tray's
 Settings command also restores the application. Disable Minimise to tray to

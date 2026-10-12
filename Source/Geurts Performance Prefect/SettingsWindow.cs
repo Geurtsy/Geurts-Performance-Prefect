@@ -148,7 +148,7 @@ public sealed class SettingsWindow : Window
         CoreParkingToggle.Unchecked += (_, _) => ChangeParking(false);
         RefreshParking();
         Activated += (_, _) => { if (!parkingBusy) RefreshParking(); };
-        stack = AddTab("Overlay readings");
+        stack = AddTab("Overlay");
         var toggles = Panel();
         foreach (var metric in MetricInfo.All)
         {
@@ -180,7 +180,7 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(ApplicationAverageSlider);
         stack.Children.Add(Note("Default: 60 seconds. Range: 5 seconds to 10 minutes. While starting, averages use the samples collected so far. CPU and GPU show average usage; RAM shows average physical working set; drives show average read/write throughput."));
         stack.Children.Add(Note("Per-drive application tracking needs administrator access. Use Restart as administrator in Sensor sources if it is unavailable. GPU attribution follows your graphics card choice and requires supported Windows counters."));
-        stack = AddTab("Window");
+        stack.Children.Add(Label("Window"));
         stack.Children.Add(Label("Overlay monitor"));
         System.Windows.Automation.AutomationProperties.SetName(OverlayMonitorSelector, "Overlay monitor");
         stack.Children.Add(OverlayMonitorSelector);

@@ -4,9 +4,9 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses seven tabs: Startup, Application updates, Downloads cleanup, Performance,
-Overlay readings, Window and Sensor sources. Overlay readings includes the metric
-toggles, Hard drive usage controls and Top applications averaging settings.
+Settings uses six tabs: Startup, Application updates, Downloads cleanup, Performance,
+Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
+controls, Top applications averaging settings and Window controls.
 Each tab has its own scrollable page, while Done and Exit application stay visible.
 Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
 
@@ -25,7 +25,7 @@ your preferences, close Prefect and reopen it. The replacement waits for the old
 session to exit. If saving preferences or launching fails, the app stays open
 and explains the problem. Your administrator startup preference still applies.
 
-Under **Settings → Window → Overlay monitor**, choose which display hosts the
+Under **Settings → Overlay → Overlay monitor**, choose which display hosts the
 overlay. Choices show the Windows display name, resolution and primary display.
 The selection saves automatically and applies to dragging, Reset position and
 Auto-avoid. **Current monitor (drag to move)** preserves the original behavior:
@@ -34,7 +34,7 @@ keeps the overlay on that display. If it disconnects, the overlay uses the prima
 display and returns to the saved display when it reconnects. Display names follow
 Windows configuration; after rearranging display identities, check this choice.
 
-Under **Settings → Window → Available corners for Auto-avoid**, choose which
+Under **Settings → Overlay → Available corners for Auto-avoid**, choose which
 corners automatic movement can use. All four are enabled by default and choices
 save automatically. Keep at least one selected; selecting only one keeps the
 overlay in that corner. Changing the choices while Auto-avoid is active moves
@@ -42,7 +42,7 @@ the overlay out of a corner you disable. Resetting its position also respects
 the selected corners.
 
 CPU, GPU, RAM and each physical drive also show their **Top app**, averaged over
-the last minute. Change the window under **Settings → Overlay readings → Top applications** from
+the last minute. Change the window under **Settings → Overlay → Top applications** from
 5 seconds to 10 minutes. Processes with the same executable name are combined.
 CPU/GPU show average usage, RAM shows average physical working set, and drives
 show average read/write throughput on that physical drive. Startup averages use
@@ -108,7 +108,7 @@ availability reason. Per-app frames take priority when available; if neither
 source is available, or no foreground process can be identified, the row shows
 unavailable. [Windows composition timing API](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmgetcompositiontiminginfo).
 
-Turn the row off under **Settings → Overlay Readings → Foreground FPS** to stop
+Turn the row off under **Settings → Overlay → Foreground FPS** to stop
 capture. The collector runs hidden in a private temporary folder and uses its own
 trace session; normal shutdown removes it. Existing PresentMon captures remain
 independent. Fullscreen applications must permit desktop overlays for Prefect to

@@ -27,13 +27,17 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 7 && tabs.Select(t => t.Header).Distinct().Count() == 7,
-            "All seven Settings sections have distinct tabs");
+        check(tabs.Length == 6 && tabs.Select(t => t.Header).Distinct().Count() == 6,
+            "All six Settings sections have distinct tabs");
         var readings = Select(panel, panel.MetricToggles.Values.First());
-        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Overlay readings" &&
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Overlay" &&
             Select(panel, panel.ApplicationAverageSlider) == readings &&
+            Select(panel, panel.OverlayMonitorSelector) == readings &&
+            Select(panel, panel.AutoAvoidToggle) == readings &&
+            Select(panel, panel.MinimiseToTrayToggle) == readings &&
+            Select(panel, panel.TopmostToggle) == readings &&
             panel.DriveToggles.Values.All(toggle => Select(panel, toggle) == readings),
-            "Overlay readings contains the metric, hard drive and top application controls");
+            "Overlay contains the metric, hard drive, top application and window controls");
         foreach (var width in new[] { 500d, 430d })
         {
             foreach (var tab in tabs)
@@ -48,6 +52,9 @@ public static class SettingsTabVerification
                     "Tab labels and scrollable content have usable space: " + tab.Header + " / " + width);
                 if (selected == readings)
                 {
+                    selected.ScrollToVerticalOffset(panel.OverlayMonitorSelector.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 50);
+                    selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-overlay-window-" + width + ".png"), width, 820);
                     selected.ScrollToBottom(); selected.UpdateLayout();
                     Capture(panel, Path.Combine(folder, "settings-overlay-details-" + width + ".png"), width, 820);
                     selected.ScrollToTop(); selected.UpdateLayout();
