@@ -27,8 +27,13 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 9 && tabs.Select(t => t.Header).Distinct().Count() == 9,
-            "All nine Settings sections have distinct tabs");
+        check(tabs.Length == 7 && tabs.Select(t => t.Header).Distinct().Count() == 7,
+            "All seven Settings sections have distinct tabs");
+        var readings = Select(panel, panel.MetricToggles.Values.First());
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Overlay readings" &&
+            Select(panel, panel.ApplicationAverageSlider) == readings &&
+            panel.DriveToggles.Values.All(toggle => Select(panel, toggle) == readings),
+            "Overlay readings contains the metric, hard drive and top application controls");
         foreach (var width in new[] { 500d, 430d })
         {
             foreach (var tab in tabs)
@@ -41,6 +46,12 @@ public static class SettingsTabVerification
                     "Selecting " + tab.Header + " exposes only its own controls at width " + width);
                 check(tabs.All(t => t.ActualWidth > 0 && t.ActualHeight >= 40) && selected.ViewportHeight > 100,
                     "Tab labels and scrollable content have usable space: " + tab.Header + " / " + width);
+                if (selected == readings)
+                {
+                    selected.ScrollToBottom(); selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-overlay-details-" + width + ".png"), width, 820);
+                    selected.ScrollToTop(); selected.UpdateLayout();
+                }
             }
         }
         panel.Sections.SelectedIndex = 0;

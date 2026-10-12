@@ -160,11 +160,11 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(toggles);
         stack.Children.Add(Note("FPS works with desktop apps as well as games. Foreground FPS shows the active process's presented frames when available. Otherwise the row says Desktop FPS and shows Windows' desktop composition cadence, often the display refresh rate. This fallback is desktop-wide, not that app's own render rate or its monitor's measured FPS."));
         stack.Children.Add(Note("App frames use PresentMon for DirectX, Vulkan and OpenGL and may need administrator access. Desktop FPS needs no administrator access and covers static windows, traditional desktop apps and apps that render in separate worker processes. Hiding the FPS reading stops capture."));
-        stack = AddTab("Hard drive usage");
+        stack.Children.Add(Label("Hard drive usage"));
         stack.Children.Add(Note("Show activity (%) for each physical drive, including SSDs. Choices save automatically."));
         var drivesPanel = Panel(); drivesPanel.Child = driveToggles; stack.Children.Add(drivesPanel);
         stack.Children.Add(driveStatus);
-        stack = AddTab("Top applications");
+        stack.Children.Add(Label("Top applications"));
         stack.Children.Add(Note("Each usage reading shows the application with the highest average over the selected window. Processes with the same executable name are combined."));
         var averageCaption = Label($"Average over · {overlay.Settings.ApplicationAverageSeconds} seconds");
         stack.Children.Add(averageCaption);

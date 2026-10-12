@@ -4,8 +4,9 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses nine tabs: Startup, Application updates, Downloads cleanup, Performance,
-Overlay readings, Hard drive usage, Top applications, Window and Sensor sources.
+Settings uses seven tabs: Startup, Application updates, Downloads cleanup, Performance,
+Overlay readings, Window and Sensor sources. Overlay readings includes the metric
+toggles, Hard drive usage controls and Top applications averaging settings.
 Each tab has its own scrollable page, while Done and Exit application stay visible.
 Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
 
@@ -41,7 +42,7 @@ the overlay out of a corner you disable. Resetting its position also respects
 the selected corners.
 
 CPU, GPU, RAM and each physical drive also show their **Top app**, averaged over
-the last minute. Change the window under **Settings → Top Applications** from
+the last minute. Change the window under **Settings → Overlay readings → Top applications** from
 5 seconds to 10 minutes. Processes with the same executable name are combined.
 CPU/GPU show average usage, RAM shows average physical working set, and drives
 show average read/write throughput on that physical drive. Startup averages use

@@ -54,7 +54,7 @@ settings, protected Windows folders, drive roots and folder links/junctions.
 
 TOP APPLICATIONS
 CPU, GPU, RAM and each physical drive show the application with the highest
-average usage over the last 60 seconds. Settings > Top Applications changes the
+average usage over the last 60 seconds. Settings > Overlay Readings > Top Applications changes the
 averaging window from 5 seconds to 10 minutes and saves your preference.
 Processes with the same executable name are combined. CPU and GPU show average
 usage, RAM shows average physical working set, and drives show average read/write
@@ -63,7 +63,7 @@ Per-drive application tracking needs Settings > Restart as administrator.
 GPU attribution follows your selected graphics card and needs supported counters.
 
 HARD DRIVE USAGE
-Settings > Hard Drive Usage lists each detected physical drive, including SSDs.
+Settings > Overlay Readings > Hard Drive Usage lists each detected physical drive, including SSDs.
 Tick a drive to show its activity (%) in the overlay; untick it to hide it.
 Each choice saves between launches. New drives appear automatically.
 Activity is the percentage of time the drive is busy reading or writing.
