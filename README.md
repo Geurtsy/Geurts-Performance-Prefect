@@ -4,6 +4,11 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
+Settings uses nine tabs: Startup, Application updates, Downloads cleanup, Performance,
+Overlay readings, Hard drive usage, Top applications, Window and Sensor sources.
+Each tab has its own scrollable page, while Done and Exit application stay visible.
+Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
+
 Settings dropdowns use mouse or keyboard selection. The mouse wheel scrolls the
 page over a closed dropdown and browses the list when it is open. A wide scrollbar
 stays visible on the right side of Settings for easier dragging and navigation,

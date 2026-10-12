@@ -1,8 +1,9 @@
-# Geurts Performance Prefect 1.14.1
+# Geurts Performance Prefect 1.15.0
 
-- Styled the large Settings scrollbar to match the app's dark green and emerald theme, with a rounded track, emerald thumb and matching arrow buttons.
-- The thumb brightens on hover and while dragging. The scrollbar retains its 30-pixel logical width, always-visible position on the right, arrow navigation and page scrolling.
-- Validated thumb dragging, arrow and page navigation, scroll boundaries and existing dropdown-wheel behavior using isolated preferences. Reviewed normal and narrow Settings previews.
+- Replaced the nine Settings section headings with individual tabs, so each group of controls has its own page.
+- Added dark green tab navigation with a clear selected state, visible keyboard focus and wrapping labels at narrow window sizes. Switch sections with the mouse or Ctrl+Tab / Ctrl+Shift+Tab.
+- Kept Done and Exit application visible, retained automatic saving and preserved the wide emerald scrollbar within each tab.
+- Validated tab selection, normal/narrow/minimum layouts, dropdown scrolling, scrollbar navigation and existing behavior with isolated preferences and rendered WPF previews.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

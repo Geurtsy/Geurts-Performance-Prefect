@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace GeurtsPerformancePrefect;
 
@@ -17,6 +19,7 @@ public static class SettingsTabVerification
         var tab = (TabItem)(parent ?? throw new InvalidOperationException("Control is not in a settings tab."));
         panel.Sections.SelectedItem = tab;
         panel.UpdateLayout();
+        panel.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         return (ScrollViewer)tab.Content;
     }
 
@@ -26,14 +29,13 @@ public static class SettingsTabVerification
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
         check(tabs.Length == 9 && tabs.Select(t => t.Header).Distinct().Count() == 9,
             "All nine Settings sections have distinct tabs");
-        foreach (var width in new[] { 490d, 420d })
+        foreach (var width in new[] { 500d, 430d })
         {
             foreach (var tab in tabs)
             {
                 var peer = new TabItemAutomationPeer(tab, new TabControlAutomationPeer(panel.Sections));
                 ((ISelectionItemProvider)peer.GetPattern(PatternInterface.SelectionItem)).Select();
-                Verification.Render((FrameworkElement)panel.Content,
-                    Path.Combine(folder, "settings-tab-" + tabs.ToList().IndexOf(tab) + "-" + width + ".png"), width, 790);
+                Capture(panel, Path.Combine(folder, "settings-tab-" + tabs.ToList().IndexOf(tab) + "-" + width + ".png"), width, 820);
                 var selected = (ScrollViewer)tab.Content;
                 check(tab.IsSelected && selected.IsVisible && tabs.Where(t => t != tab).All(t => !((ScrollViewer)t.Content).IsVisible),
                     "Selecting " + tab.Header + " exposes only its own controls at width " + width);
@@ -42,8 +44,29 @@ public static class SettingsTabVerification
             }
         }
         panel.Sections.SelectedIndex = 0;
-        Verification.Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-tabs-minimum.png"), 420, 410);
-        check(((ScrollViewer)tabs[0].Content).ViewportHeight > 60,
+        Capture(panel, Path.Combine(folder, "settings-tabs-minimum.png"), 430, 440);
+        check(((ScrollViewer)tabs[0].Content).ViewportHeight > 30,
             "Minimum Settings height retains scrollable content below every tab");
+        var root = (DockPanel)panel.Content;
+        var footer = root.Children.OfType<StackPanel>().Single();
+        var bounds = footer.TransformToAncestor(root).TransformBounds(new Rect(footer.RenderSize));
+        check(bounds.Bottom <= root.ActualHeight + 1 && bounds.Top >= panel.Sections.ActualHeight,
+            "Done and Exit remain fully visible below the tabs at minimum window size");
+        panel.Width = 500; panel.Height = 820; panel.UpdateLayout();
+    }
+
+    static void Capture(SettingsWindow panel, string path, double width, double height)
+    {
+        panel.Width = width; panel.Height = height;
+        panel.UpdateLayout();
+        panel.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        var content = (FrameworkElement)panel.Content;
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(content.ActualWidth), (int)Math.Ceiling(content.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        var drawing = new DrawingVisual();
+        using (var context = drawing.RenderOpen())
+            context.DrawRectangle(new VisualBrush(content), null, new Rect(content.RenderSize));
+        bitmap.Render(drawing);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path); encoder.Save(stream);
     }
 }

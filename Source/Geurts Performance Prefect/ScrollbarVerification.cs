@@ -10,7 +10,9 @@ public static class ScrollbarVerification
 {
     public static void Run(SettingsWindow panel, Action<bool, string> check)
     {
-        var scroll = ((DockPanel)panel.Content).Children.OfType<ScrollViewer>().Single();
+        var originalHeight = panel.Height;
+        panel.Height = panel.MinHeight;
+        var scroll = SettingsTabVerification.Select(panel, panel.PowerPresetSelector);
         panel.UpdateLayout();
         var bar = (ScrollBar)scroll.Template.FindName("PART_VerticalScrollBar", scroll);
         bar.ApplyTemplate();
@@ -52,5 +54,7 @@ public static class ScrollbarVerification
         Move(0);
         Click((RepeatButton)bar.Template.FindName("LineUp", bar));
         check(scroll.VerticalOffset == 0, "The themed scrollbar stays within the top boundary");
+        panel.Height = originalHeight;
+        panel.UpdateLayout();
     }
 }

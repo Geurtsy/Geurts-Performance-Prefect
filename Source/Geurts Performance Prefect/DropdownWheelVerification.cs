@@ -41,7 +41,7 @@ public static class DropdownWheelVerification
                 { RoutedEvent = UIElement.PreviewMouseWheelEvent };
             choice.RaiseEvent(openWheel);
             check(!openWheel.Handled && choice.SelectedIndex == selected,
-                "Open dropdown allows list scrolling without changing selection: " + choices.ToList().IndexOf(choice));
+                "Open dropdown allows list scrolling without changing selection: " + choices.ToList().IndexOf(choice) + $" (open={choice.IsDropDownOpen}, handled={openWheel.Handled}, selected={choice.SelectedIndex}, expected={selected})");
             choice.IsDropDownOpen = false;
         }
     }
