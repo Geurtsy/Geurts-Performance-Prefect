@@ -6,7 +6,8 @@ core-parking control, optional Downloads cleanup and optional startup with Windo
 
 Settings dropdowns use mouse or keyboard selection. The mouse wheel scrolls the
 page over a closed dropdown and browses the list when it is open. A wide scrollbar
-stays visible on the right side of Settings for easier dragging and navigation.
+stays visible on the right side of Settings for easier dragging and navigation,
+with a dark green track and an emerald thumb that matches the app's theme.
 
 The primary icon is an emerald-accented suit. It appears on the executable,
 taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%20Performance%20Prefect/Assets/Branding)

@@ -84,7 +84,7 @@ public sealed class SettingsWindow : Window
         footer.Children.Add(new TextBlock { Text = "Overlay changes save automatically. Performance changes may require administrator approval.", TextWrapping = TextWrapping.Wrap, Foreground = Palette.Muted, FontSize = 11, Margin = new Thickness(0,0,0,10) });
         footer.Children.Add(footerButtons); DockPanel.SetDock(footer, Dock.Bottom); dock.Children.Add(footer);
         var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Visible, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        scroll.Resources[SystemParameters.VerticalScrollBarWidthKey] = 30d;
+        scroll.Style = (Style)FindResource("SettingsScrollViewer");
         var stack = new StackPanel { Margin = new Thickness(0,0,12,0) }; scroll.Content = stack; dock.Children.Add(scroll);
         stack.Children.Add(new TextBlock { Text = "Make it yours", FontSize = 26, FontWeight = FontWeights.SemiBold });
         stack.Children.Add(Note("Choose the readings you want at a glance."));
