@@ -5,7 +5,8 @@ configurable sensors, minimise-to-tray, automatic cursor avoidance and an option
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
 Settings dropdowns use mouse or keyboard selection. The mouse wheel scrolls the
-page over a closed dropdown and browses the list when it is open.
+page over a closed dropdown and browses the list when it is open. A wide scrollbar
+stays visible on the right side of Settings for easier dragging and navigation.
 
 The primary icon is an emerald-accented suit. It appears on the executable,
 taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%20Performance%20Prefect/Assets/Branding)

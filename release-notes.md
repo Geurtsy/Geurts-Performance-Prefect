@@ -1,8 +1,8 @@
-# Geurts Performance Prefect 1.13.1
+# Geurts Performance Prefect 1.13.2
 
-- Removed mouse-wheel selection from all Settings dropdowns to prevent accidental changes while scrolling.
-- Scrolling over a closed dropdown now scrolls the Settings page. Open dropdown lists still scroll normally; choose items with the mouse or keyboard.
-- Validated wheel handling in both directions across all five dropdowns and open-list behavior using isolated settings fixtures.
+- Added a large, always-visible scrollbar on the right side of Settings, with a 30-pixel logical width that scales with Windows display settings.
+- Retains page scrolling over closed dropdowns and normal scrolling within open dropdown lists.
+- Validated the packaged application with isolated preferences and reviewed normal and narrow Settings previews.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

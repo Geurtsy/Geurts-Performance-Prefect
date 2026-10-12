@@ -83,7 +83,8 @@ public sealed class SettingsWindow : Window
         var done = new Button { Content = "Done", MinWidth = 90 }; done.Click += (_, _) => Close(); Grid.SetColumn(done, 1); footerButtons.Children.Add(done);
         footer.Children.Add(new TextBlock { Text = "Overlay changes save automatically. Performance changes may require administrator approval.", TextWrapping = TextWrapping.Wrap, Foreground = Palette.Muted, FontSize = 11, Margin = new Thickness(0,0,0,10) });
         footer.Children.Add(footerButtons); DockPanel.SetDock(footer, Dock.Bottom); dock.Children.Add(footer);
-        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Visible, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        scroll.Resources[SystemParameters.VerticalScrollBarWidthKey] = 30d;
         var stack = new StackPanel { Margin = new Thickness(0,0,12,0) }; scroll.Content = stack; dock.Children.Add(scroll);
         stack.Children.Add(new TextBlock { Text = "Make it yours", FontSize = 26, FontWeight = FontWeights.SemiBold });
         stack.Children.Add(Note("Choose the readings you want at a glance."));
