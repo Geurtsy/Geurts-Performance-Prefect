@@ -114,6 +114,7 @@ public sealed class OverlayWindow : Window
     readonly Border surface;
     readonly Grid header;
     readonly Func<Point> cursorPosition;
+    readonly Func<ProcessStartInfo, bool>? restartStart;
     readonly DispatcherTimer saveTimer, staleTimer;
     readonly CancellationTokenSource stop = new();
     readonly Forms.NotifyIcon? tray;
@@ -121,6 +122,7 @@ public sealed class OverlayWindow : Window
     readonly Forms.ContextMenuStrip trayMenu = new();
     readonly MenuItem autoAvoidMenuItem;
     public Forms.ToolStripMenuItem AutoAvoidTrayItem { get; }
+    internal Forms.ToolStripMenuItem RestartTrayItem { get; }
     Task? worker;
     SettingsWindow? settingsWindow;
     int refreshMilliseconds;
@@ -130,9 +132,10 @@ public sealed class OverlayWindow : Window
     bool restoringOverlay;
     bool placingAutoAvoid, autoAvoidSnapPending, draggingOverlay;
     public Button MinimiseButton { get; }
-    public OverlayWindow(SettingsStore store, OverlaySettings settings, bool verification = false, Func<Point>? cursorPosition = null, DownloadsCleanup? downloads = null, PowerOptionsController? powerOptions = null)
+    public OverlayWindow(SettingsStore store, OverlaySettings settings, bool verification = false, Func<Point>? cursorPosition = null, DownloadsCleanup? downloads = null, PowerOptionsController? powerOptions = null, Func<ProcessStartInfo, bool>? restartStart = null)
     {
         Store = store; Settings = settings;
+        this.restartStart = restartStart;
         PowerOptions = powerOptions ?? new PowerOptionsController(settings, store);
         Downloads = downloads ?? new DownloadsCleanup();
         this.cursorPosition = cursorPosition ?? (() => { var cursor = Forms.Cursor.Position; return new Point(cursor.X, cursor.Y); });
@@ -206,6 +209,9 @@ public sealed class OverlayWindow : Window
         trayMenu.Items.Add(AutoAvoidTrayItem);
         trayMenu.Items.Add("Settings", null, (_, _) => Dispatcher.Invoke(OpenSettings));
         trayMenu.Items.Add("Open Installation Folder", null, (_, _) => Dispatcher.Invoke(OpenInstallationFolder));
+        RestartTrayItem = new Forms.ToolStripMenuItem("Restart application");
+        RestartTrayItem.Click += (_, _) => Dispatcher.Invoke(() => RestartApplication());
+        trayMenu.Items.Add(RestartTrayItem);
         trayMenu.Items.Add("Exit", null, (_, _) => Dispatcher.Invoke(Close));
         if (!verification)
         {
@@ -322,10 +328,14 @@ public sealed class OverlayWindow : Window
     void UpdateEmpty() => empty.Visibility = rows.Values.Concat(DriveRows.Values).Any(r => r.Visibility == Visibility.Visible) ? Visibility.Collapsed : Visibility.Visible;
     public void SaveSettings()
     {
+        UpdateSavedPosition();
+        if (!Store.Save(Settings)) { status.Text = "Settings could not be saved"; status.ToolTip = Store.LastError; }
+    }
+    void UpdateSavedPosition()
+    {
         var bounds = RestoreBounds;
         Settings.Left = WindowState != WindowState.Normal && !bounds.IsEmpty ? bounds.Left : Left;
         Settings.Top = WindowState != WindowState.Normal && !bounds.IsEmpty ? bounds.Top : Top;
-        if (!Store.Save(Settings)) { status.Text = "Settings could not be saved"; status.ToolTip = Store.LastError; }
     }
     public void ResetPosition()
     {
@@ -495,6 +505,19 @@ public sealed class OverlayWindow : Window
         if (!restoreSettingsAfterMinimise || settingsWindow == null) return;
         restoreSettingsAfterMinimise = false;
         settingsWindow.WindowState = WindowState.Normal; settingsWindow.Show(); settingsWindow.Activate();
+    }
+    internal bool RestartApplication()
+    {
+        if (closing) return false;
+        UpdateSavedPosition();
+        var result = ApplicationRestart.Relaunch(Store, Settings, restartStart);
+        if (!result.Started)
+        {
+            MessageBox.Show(this, result.Error, "Could not restart", MessageBoxButton.OK, MessageBoxImage.Information);
+            return false;
+        }
+        Close();
+        return true;
     }
     public void RestartElevated()
     {

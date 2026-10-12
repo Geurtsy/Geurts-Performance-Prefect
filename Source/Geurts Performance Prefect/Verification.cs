@@ -25,6 +25,7 @@ public static class Verification
         DownloadsCleanupVerification.Run(folder, Check);
         WindowsStartupVerification.Run(folder, Check);
         AdministratorStartupVerification.Run(folder, Check);
+        ApplicationRestartVerification.Run(folder, Check);
         ForegroundFpsVerification.Run(folder, Check);
         var iconFrames = new IconBitmapDecoder(Branding.IconUri, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames;
         Check(new[] { 16, 20, 24, 32, 40, 48, 64, 96, 128, 256 }.All(size =>

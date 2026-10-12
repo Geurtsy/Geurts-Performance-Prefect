@@ -9,6 +9,11 @@ taskbar, Settings window and notification tray. The [icon assets](Source/Geurts%
 include the approved master, PNG exports from 1024 down to 16 pixels and a
 Windows ICO containing ten sizes for different display scales.
 
+Right-click the notification tray icon and choose **Restart application** to save
+your preferences, close Prefect and reopen it. The replacement waits for the old
+session to exit. If saving preferences or launching fails, the app stays open
+and explains the problem. Your administrator startup preference still applies.
+
 Under **Settings → Window → Overlay monitor**, choose which display hosts the
 overlay. Choices show the Windows display name, resolution and primary display.
 The selection saves automatically and applies to dragging, Reset position and
