@@ -25,6 +25,7 @@ public sealed class SettingsWindow : Window
     public CheckBox CoreParkingToggle { get; } = new() { Content = "Remove Core Parking", IsEnabled = false };
     public Dictionary<Metric, CheckBox> MetricToggles { get; } = new();
     public Dictionary<string, CheckBox> DriveToggles { get; } = new();
+    public TabControl Sections { get; } = new();
     readonly StackPanel driveToggles = new();
     readonly TextBlock driveStatus = Note("Detecting drives…");
     string driveSignature = "";
@@ -83,12 +84,9 @@ public sealed class SettingsWindow : Window
         var done = new Button { Content = "Done", MinWidth = 90 }; done.Click += (_, _) => Close(); Grid.SetColumn(done, 1); footerButtons.Children.Add(done);
         footer.Children.Add(new TextBlock { Text = "Overlay changes save automatically. Performance changes may require administrator approval.", TextWrapping = TextWrapping.Wrap, Foreground = Palette.Muted, FontSize = 11, Margin = new Thickness(0,0,0,10) });
         footer.Children.Add(footerButtons); DockPanel.SetDock(footer, Dock.Bottom); dock.Children.Add(footer);
-        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Visible, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        scroll.Resources[SystemParameters.VerticalScrollBarWidthKey] = 30d;
-        var stack = new StackPanel { Margin = new Thickness(0,0,12,0) }; scroll.Content = stack; dock.Children.Add(scroll);
-        stack.Children.Add(new TextBlock { Text = "Make it yours", FontSize = 26, FontWeight = FontWeights.SemiBold });
-        stack.Children.Add(Note("Choose the readings you want at a glance."));
-        stack.Children.Add(Heading("STARTUP"));
+        System.Windows.Automation.AutomationProperties.SetName(Sections, "Settings sections");
+        dock.Children.Add(Sections);
+        var stack = AddTab("Startup");
         stack.Children.Add(StartWithWindowsToggle);
         stack.Children.Add(Note("Off by default. Open the overlay automatically when you sign in to Windows. Applies to your Windows account and saves immediately; administrator approval is not needed."));
         stack.Children.Add(StartupStatus);
@@ -104,7 +102,7 @@ public sealed class SettingsWindow : Window
         RefreshAdministratorStartup();
         StartAsAdministratorToggle.Checked += (_, _) => ChangeAdministratorStartup(true);
         StartAsAdministratorToggle.Unchecked += (_, _) => ChangeAdministratorStartup(false);
-        stack.Children.Add(Heading("APPLICATION UPDATES"));
+        stack = AddTab("Application updates");
         stack.Children.Add(Note("Installed version: " + AppUpdates.CurrentVersion));
         var installationFolder = new Button { Content = "Open Installation Folder", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,8) };
         installationFolder.Click += (_, _) => overlay.OpenInstallationFolder();
@@ -125,7 +123,7 @@ public sealed class SettingsWindow : Window
         CheckUpdatesButton.Click += (_, _) => CheckUpdates();
         InstallUpdateButton.Click += (_, _) => InstallUpdate();
         Closed += (_, _) => updateStop.Cancel();
-        stack.Children.Add(Heading("DOWNLOADS CLEANUP"));
+        stack = AddTab("Downloads cleanup");
         stack.Children.Add(Note("Permanently deletes files and subfolders from your Windows Downloads folder. Deleted items do not go to the Recycle Bin. Locked, protected and linked items are skipped."));
         stack.Children.Add(DownloadsPath);
         AutoWipeDownloadsToggle.IsChecked = overlay.Settings.AutoWipeDownloadsOnStartup;
@@ -139,7 +137,7 @@ public sealed class SettingsWindow : Window
         overlay.Downloads.Changed += UpdateDownloads;
         Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
         UpdateDownloads();
-        stack.Children.Add(Heading("PERFORMANCE"));
+        stack = AddTab("Performance");
         AddPowerOptions(stack);
         stack.Children.Add(CoreParkingToggle);
         stack.Children.Add(Note("Keep cores unparked while plugged in by setting the active power plan to 100%. Turning this off restores the value saved by this app. This may increase power use and heat."));
@@ -150,7 +148,7 @@ public sealed class SettingsWindow : Window
         CoreParkingToggle.Unchecked += (_, _) => ChangeParking(false);
         RefreshParking();
         Activated += (_, _) => { if (!parkingBusy) RefreshParking(); };
-        stack.Children.Add(Heading("OVERLAY READINGS"));
+        stack = AddTab("Overlay readings");
         var toggles = Panel();
         foreach (var metric in MetricInfo.All)
         {
@@ -162,11 +160,11 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(toggles);
         stack.Children.Add(Note("FPS works with desktop apps as well as games. Foreground FPS shows the active process's presented frames when available. Otherwise the row says Desktop FPS and shows Windows' desktop composition cadence, often the display refresh rate. This fallback is desktop-wide, not that app's own render rate or its monitor's measured FPS."));
         stack.Children.Add(Note("App frames use PresentMon for DirectX, Vulkan and OpenGL and may need administrator access. Desktop FPS needs no administrator access and covers static windows, traditional desktop apps and apps that render in separate worker processes. Hiding the FPS reading stops capture."));
-        stack.Children.Add(Heading("HARD DRIVE USAGE"));
+        stack = AddTab("Hard drive usage");
         stack.Children.Add(Note("Show activity (%) for each physical drive, including SSDs. Choices save automatically."));
         var drivesPanel = Panel(); drivesPanel.Child = driveToggles; stack.Children.Add(drivesPanel);
         stack.Children.Add(driveStatus);
-        stack.Children.Add(Heading("TOP APPLICATIONS"));
+        stack = AddTab("Top applications");
         stack.Children.Add(Note("Each usage reading shows the application with the highest average over the selected window. Processes with the same executable name are combined."));
         var averageCaption = Label($"Average over · {overlay.Settings.ApplicationAverageSeconds} seconds");
         stack.Children.Add(averageCaption);
@@ -181,8 +179,8 @@ public sealed class SettingsWindow : Window
         };
         stack.Children.Add(ApplicationAverageSlider);
         stack.Children.Add(Note("Default: 60 seconds. Range: 5 seconds to 10 minutes. While starting, averages use the samples collected so far. CPU and GPU show average usage; RAM shows average physical working set; drives show average read/write throughput."));
-        stack.Children.Add(Note("Per-drive application tracking needs administrator access. Use Restart as administrator below if it is unavailable. GPU attribution follows your graphics card choice and requires supported Windows counters."));
-        stack.Children.Add(Heading("WINDOW"));
+        stack.Children.Add(Note("Per-drive application tracking needs administrator access. Use Restart as administrator in Sensor sources if it is unavailable. GPU attribution follows your graphics card choice and requires supported Windows counters."));
+        stack = AddTab("Window");
         stack.Children.Add(Label("Overlay monitor"));
         System.Windows.Automation.AutomationProperties.SetName(OverlayMonitorSelector, "Overlay monitor");
         stack.Children.Add(OverlayMonitorSelector);
@@ -241,7 +239,7 @@ public sealed class SettingsWindow : Window
         var reset = new Button { Content = "Reset overlay position", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,12,0,0) };
         reset.Click += (_, _) => overlay.ResetPosition(); stack.Children.Add(reset);
         stack.Children.Add(Note("Drag the application header to move the overlay. Right-click the overlay or use the tray icon for Settings and Exit."));
-        stack.Children.Add(Heading("SENSOR SOURCES"));
+        stack = AddTab("Sensor sources");
         stack.Children.Add(Label("Graphics card"));
         graphics.DisplayMemberPath = "Name"; graphics.SelectedValuePath = "Id";
         graphics.SelectionChanged += (_, _) => { if (!updatingChoices && graphics.SelectedItem is DeviceChoice c) { overlay.Settings.GraphicsId = c.Id; overlay.Changed(); } };
@@ -600,7 +598,18 @@ public sealed class SettingsWindow : Window
         driveStatus.Text = snapshot.DriveError ?? (snapshot.Drives.Count == 0 ? "No physical drives detected." :
             snapshot.Drives.Any(d => !d.Activity.HasValue) ? "Waiting for drive activity readings. Disconnected or unsupported drives show unavailable." : "Drive activity readings are available.");
     }
-    static TextBlock Heading(string text) => new() { Text = text, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Palette.Accent, Margin = new Thickness(0,24,0,9) };
+    StackPanel AddTab(string title)
+    {
+        var stack = new StackPanel { Margin = new Thickness(0,0,12,0) };
+        var scroll = new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Visible,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        scroll.Resources[SystemParameters.VerticalScrollBarWidthKey] = 30d;
+        var tab = new TabItem { Header = title, Content = scroll };
+        System.Windows.Automation.AutomationProperties.SetName(tab, title);
+        Sections.Items.Add(tab);
+        if (Sections.Items.Count == 1) Sections.SelectedIndex = 0;
+        return stack;
+    }
     static TextBlock Label(string text) => new() { Text = text, Margin = new Thickness(0,12,0,7) };
     static TextBlock Note(string text) => new() { Text = text, Foreground = Palette.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,7,0,0), LineHeight = 18 };
     static Border Panel() => new() { Background = Palette.Panel, CornerRadius = new CornerRadius(10), Padding = new Thickness(14,8,10,8), Child = new StackPanel() };

@@ -291,12 +291,15 @@ public static class Verification
         // Render our own WPF content off screen for layout review; no desktop automation.
         Render((FrameworkElement)overlay.Content, Path.Combine(folder, "overlay-preview.png"), 318, 1000);
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-preview.png"), 490, 790);
-        var settingsScroll = ((DockPanel)panel.Content).Children.OfType<ScrollViewer>().Single();
+        SettingsTabVerification.Run(panel, folder, Check);
+        var settingsScroll = SettingsTabVerification.Select(panel, panel.DownloadsPath);
         settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.DownloadsPath.TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 100));
         settingsScroll.UpdateLayout();
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-downloads-preview.png"), 490, 790);
+        settingsScroll = SettingsTabVerification.Select(panel, panel.DriveToggles[driveA.Id]);
         settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.DriveToggles[driveA.Id].TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 110)); settingsScroll.UpdateLayout();
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-drives-preview.png"), 490, 790);
+        settingsScroll = SettingsTabVerification.Select(panel, panel.AutoAvoidToggle);
         settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.AutoAvoidToggle.TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 40)); settingsScroll.UpdateLayout();
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-window-preview.png"), 490, 790);
         panel.Close();
@@ -439,7 +442,7 @@ public static class Verification
         overlay.SaveSettings();
         Check(store.Load().AutoAvoidAvailableCorners.SetEquals(new[] { ScreenCorner.TopRight }) && store.Load().AutoAvoidCorner == ScreenCorner.TopRight,
             "Available corners and current destination survive saving and reload");
-        var cornerScroll = ((DockPanel)activePanel.Content).Children.OfType<ScrollViewer>().Single();
+        var cornerScroll = SettingsTabVerification.Select(activePanel, activePanel.AutoAvoidToggle);
         var cornerGrid = (FrameworkElement)activePanel.AutoAvoidCornerToggles[ScreenCorner.TopLeft].Parent;
         cornerScroll.ScrollToVerticalOffset(cornerGrid.TransformToAncestor((Visual)cornerScroll.Content).Transform(new Point()).Y - 180);
         cornerScroll.UpdateLayout();

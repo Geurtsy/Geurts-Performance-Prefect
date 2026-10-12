@@ -173,7 +173,7 @@ public static class PowerOptionsVerification
                 "The standalone core-parking control cannot modify an active managed preset");
             managedPanel.Close(); overlay.Settings.ManagedPowerScheme = Guid.Empty;
             panel.Show(); panel.UpdateLayout();
-            var scroll = ((DockPanel)panel.Content).Children.OfType<ScrollViewer>().Single();
+            var scroll = SettingsTabVerification.Select(panel, panel.PowerPresetSelector);
             scroll.ScrollToVerticalOffset(panel.PowerPresetSelector.TransformToAncestor((Visual)scroll.Content).Transform(new Point()).Y - 30);
             scroll.UpdateLayout();
             Verification.Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-power-options.png"), 490, 790);

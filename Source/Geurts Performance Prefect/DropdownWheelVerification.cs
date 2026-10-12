@@ -10,12 +10,13 @@ public static class DropdownWheelVerification
 {
     public static void Run(SettingsWindow panel, Action<bool, string> check)
     {
-        var scroll = ((DockPanel)panel.Content).Children.OfType<ScrollViewer>().Single();
-        var choices = ((StackPanel)scroll.Content).Children.OfType<ComboBox>().ToArray();
+        var choices = panel.Sections.Items.Cast<TabItem>().SelectMany(tab =>
+            ((StackPanel)((ScrollViewer)tab.Content).Content).Children.OfType<ComboBox>()).ToArray();
         panel.UpdateLayout();
         check(choices.Length == 5, "Wheel verification covers all five Settings dropdowns");
         foreach (var choice in choices)
         {
+            var scroll = SettingsTabVerification.Select(panel, choice);
             choice.ApplyTemplate();
             var selected = choice.SelectedIndex;
             foreach (var delta in new[] { 120, -120 })
@@ -32,7 +33,7 @@ public static class DropdownWheelVerification
                 scroll.UpdateLayout();
                 scroll.RemoveHandler(UIElement.MouseWheelEvent, observe);
                 check(wheel.Handled && choice.SelectedIndex == selected && forwarded == 1 &&
-                    (delta > 0 ? scroll.VerticalOffset < before : scroll.VerticalOffset > before),
+                    (scroll.ScrollableHeight == 0 || (delta > 0 ? scroll.VerticalOffset < before : scroll.VerticalOffset > before)),
                     "Closed dropdown blocks wheel selection and forwards page scrolling: " + choices.ToList().IndexOf(choice) + "/" + delta);
             }
             choice.IsDropDownOpen = true;
