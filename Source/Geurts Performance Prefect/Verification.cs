@@ -25,6 +25,7 @@ public static class Verification
         DownloadsCleanupVerification.Run(folder, Check);
         BoringApplicationsVerification.Run(folder, Check);
         DiskCheckVerification.Run(folder, Check);
+        DiskCleanupVerification.Run(folder, Check);
         WindowsStartupVerification.Run(folder, Check);
         AdministratorStartupVerification.Run(folder, Check);
         ApplicationRestartVerification.Run(folder, Check);

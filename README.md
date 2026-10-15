@@ -10,6 +10,19 @@ controls, Top applications averaging settings and Window controls.
 Each tab has its own scrollable page, while Done and Exit application stay visible.
 Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
 
+Under **Settings → Performance → Disk Cleanup**, choose a local drive and click
+**Open Disk Cleanup…**. Windows opens its Disk Cleanup window for that drive so
+you can review file categories and estimated space before confirming deletion.
+Use **Refresh drives** after connecting or unlocking a drive. Nothing runs on
+startup or when changing the drive selection. Windows may request administrator
+approval when you choose to clean up system files.
+
+Deletion can be permanent. Review categories such as Recycle Bin and previous
+Windows installations carefully. Prefect opens Windows' review dialog and does
+not track cleanup progress, deleted files or reclaimed space. If Disk Cleanup
+is unavailable, use **Windows Settings → System → Storage**. See
+[Microsoft's Disk Cleanup reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cleanmgr).
+
 Under **Settings → Performance → Check disk for errors…**, open a Prefect console
 window, choose a local drive, and click **Start check**. Windows requests
 administrator approval for this separate window when needed. CHKDSK output

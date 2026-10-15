@@ -32,6 +32,9 @@ public static class SettingsTabVerification
         Select(panel, panel.CheckDiskButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
             "Check disk for errors opens from the Performance settings tab");
+        Select(panel, panel.DiskCleanupPanel.OpenButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
+            "Disk Cleanup drive selection and launch are in Performance settings");
         var readings = Select(panel, panel.MetricToggles.Values.First());
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Overlay" &&
             Select(panel, panel.ApplicationAverageSlider) == readings &&
