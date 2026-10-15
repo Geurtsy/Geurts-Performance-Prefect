@@ -1,9 +1,9 @@
-# Geurts Performance Prefect 1.18.0
+# Geurts Performance Prefect 1.19.0
 
-- Added **Disk Cleanup** under **Settings → Performance** with a local drive selector, refresh and **Open Disk Cleanup…** action.
-- Opens Windows Disk Cleanup for the chosen drive. Review file categories and space estimates, then confirm deletion in the Windows window. Nothing runs automatically or on drive selection.
-- Reports unavailable Disk Cleanup, launch errors and cancelled approval. Windows handles system-file elevation; Prefect does not track deletion or reclaimed space.
-- Validated drive selection, refresh, invalid targets, missing utilities and launch failures with isolated fixtures. Tests do not delete real files; the native Windows cleanup/deletion flow requires manual validation.
+- Added **Windows aesthetics** under **Settings → Performance**, with a one-click **Adjust for best performance** action for your Windows account.
+- Reduces animations, fades, shadows, font smoothing, thumbnails, Peek, translucent selection and window contents while dragging. Saves and verifies settings; some desktop/taskbar effects may need a sign-out to refresh.
+- **Restore previous appearance** recovers the original settings even after repeated Apply clicks or an app restart. Applying errors trigger rollback, with the backup retained if recovery needs retrying. Nothing applies on startup.
+- Validated application, exact restoration, durable backups, repeated use, partial failures and UI error recovery with isolated fixtures, plus read-only native getters. Tests preserve the user's Windows appearance; live visual changes and Windows-version-specific shell refresh require manual validation.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

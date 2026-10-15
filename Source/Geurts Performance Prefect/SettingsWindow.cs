@@ -63,6 +63,7 @@ public sealed class SettingsWindow : Window
     public TextBlock PowerOptionsStatus { get; } = Note("");
     public Button CheckDiskButton { get; } = new() { Content = "Check disk for errors…", HorizontalAlignment = HorizontalAlignment.Left };
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
+    public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     readonly TextBlock batteryCpuCaption = Label("");
     bool updatingPowerOptions;
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null)
@@ -140,6 +141,7 @@ public sealed class SettingsWindow : Window
         Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
         UpdateDownloads();
         stack = AddTab("Performance");
+        stack.Children.Add(VisualEffectsPanel);
         stack.Children.Add(Label("Disk check"));
         stack.Children.Add(CheckDiskButton);
         stack.Children.Add(Note("Open a console inside a Prefect window to check a local drive for file-system errors. Windows may ask for administrator approval. Choose a drive and start a read-only check; repairs are not applied."));

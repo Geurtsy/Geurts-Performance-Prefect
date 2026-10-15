@@ -10,6 +10,25 @@ controls, Top applications averaging settings and Window controls.
 Each tab has its own scrollable page, while Done and Exit application stay visible.
 Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
 
+Under **Settings → Performance → Windows aesthetics**, click **Adjust for best
+performance** to reduce Windows visual effects for your current account. This
+disables animations, fades, shadows, font smoothing, translucent selection,
+thumbnail previews, Peek and window contents while dragging. Text edges and the
+desktop can look simpler. Settings are saved and checked after applying;
+some desktop/taskbar effects may require signing out and back in to refresh.
+Prefect does not restart Explorer or sign you out automatically.
+
+**Restore previous appearance** returns to the settings saved before your first
+application of the preset. The backup survives app restarts and repeated Apply
+clicks; it is removed after a successful Restore. Nothing applies on startup.
+If applying fails, Prefect attempts to roll back and reports any recovery errors.
+The backup is stored at `%LOCALAPPDATA%\GeurtsPerformancePrefect\visual-effects-backup.json`.
+Windows policies or unsupported preferences can prevent changes. Font, animation
+and other desktop effects use [Microsoft's SystemParametersInfo API](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow);
+Explorer and DWM preferences also use account-specific registry settings that
+can vary between Windows versions. A successful save confirms settings, not an
+FPS increase or that every running application has refreshed its appearance.
+
 Under **Settings → Performance → Disk Cleanup**, choose a local drive and click
 **Open Disk Cleanup…**. Windows opens its Disk Cleanup window for that drive so
 you can review file categories and estimated space before confirming deletion.

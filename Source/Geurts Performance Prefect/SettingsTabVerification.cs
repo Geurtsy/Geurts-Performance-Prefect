@@ -35,6 +35,9 @@ public static class SettingsTabVerification
         Select(panel, panel.DiskCleanupPanel.OpenButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
             "Disk Cleanup drive selection and launch are in Performance settings");
+        Select(panel, panel.VisualEffectsPanel.ApplyButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
+            "Windows aesthetics and its one-click best performance action are in Performance settings");
         var readings = Select(panel, panel.MetricToggles.Values.First());
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Overlay" &&
             Select(panel, panel.ApplicationAverageSlider) == readings &&
