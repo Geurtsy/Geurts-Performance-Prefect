@@ -10,6 +10,21 @@ controls, Top applications averaging settings and Window controls.
 Each tab has its own scrollable page, while Done and Exit application stay visible.
 Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
 
+Under **Settings → Performance → Check disk for errors…**, open a Prefect console
+window, choose a local drive, and click **Start check**. Windows requests
+administrator approval for this separate window when needed. CHKDSK output
+streams inside the window; **Stop check** stops only its check process. Closing
+the window waits for that process to stop. Results remain visible until you
+start another check or close the window. The console keeps the most recent output
+when a check produces a large history.
+
+This runs `chkdsk X:` with no repair flags. It does not repair errors, dismount a
+drive, or schedule a restart. A drive in use can report temporary inconsistencies;
+review the full result before deciding on repairs. This is a file-system check,
+not a physical drive health test. See [Microsoft's CHKDSK reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/chkdsk).
+No check starts automatically, and the diagnostic window does not load or change
+your overlay preferences, startup settings or drivers.
+
 Under **Settings → Performance → Close Boring Applications**, search the installed
 desktop application list and select apps you want to close. Your list saves
 automatically. **Close Boring Applications** terminates all matching running

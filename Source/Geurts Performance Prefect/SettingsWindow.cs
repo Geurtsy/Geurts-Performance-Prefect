@@ -61,6 +61,7 @@ public sealed class SettingsWindow : Window
     public Button ApplyPowerOptionsButton { get; } = new() { Content = "Apply preset now", HorizontalAlignment = HorizontalAlignment.Left };
     public Button RestorePowerOptionsButton { get; } = new() { Content = "Restore previous power plan", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
     public TextBlock PowerOptionsStatus { get; } = Note("");
+    public Button CheckDiskButton { get; } = new() { Content = "Check disk for errors…", HorizontalAlignment = HorizontalAlignment.Left };
     readonly TextBlock batteryCpuCaption = Label("");
     bool updatingPowerOptions;
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null)
@@ -138,6 +139,11 @@ public sealed class SettingsWindow : Window
         Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
         UpdateDownloads();
         stack = AddTab("Performance");
+        stack.Children.Add(Label("Disk check"));
+        stack.Children.Add(CheckDiskButton);
+        stack.Children.Add(Note("Open a console inside a Prefect window to check a local drive for file-system errors. Windows may ask for administrator approval. Choose a drive and start a read-only check; repairs are not applied."));
+        var diskCheckStatus = Note(""); stack.Children.Add(diskCheckStatus);
+        CheckDiskButton.Click += (_, _) => diskCheckStatus.Text = DiskCheck.OpenWindow();
         stack.Children.Add(new BoringApplicationsPanel(overlay.Settings, () => overlay.Store.Save(overlay.Settings)));
         AddPowerOptions(stack);
         stack.Children.Add(CoreParkingToggle);

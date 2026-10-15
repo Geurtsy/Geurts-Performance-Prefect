@@ -29,6 +29,9 @@ public static class SettingsTabVerification
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
         check(tabs.Length == 6 && tabs.Select(t => t.Header).Distinct().Count() == 6,
             "All six Settings sections have distinct tabs");
+        Select(panel, panel.CheckDiskButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
+            "Check disk for errors opens from the Performance settings tab");
         var readings = Select(panel, panel.MetricToggles.Values.First());
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Overlay" &&
             Select(panel, panel.ApplicationAverageSlider) == readings &&

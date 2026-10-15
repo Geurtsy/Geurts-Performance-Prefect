@@ -26,6 +26,13 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 1 && e.Args[0] == "--check-disk")
+        {
+            // A separate diagnostic window bypasses the overlay mutex and all startup side effects.
+            try { MainWindow = new DiskCheckWindow(); MainWindow.Show(); }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "Geurts Performance Prefect · Check disk"); Shutdown(1); }
+            return;
+        }
         if (e.Args.Length > 0 && e.Args[0] is "--power-options" or "--restore-power-options")
         {
             try
