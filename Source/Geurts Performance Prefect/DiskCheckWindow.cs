@@ -16,7 +16,16 @@ public sealed class DiskCheckWindow : Window
     readonly TextBlock description = Note("");
     readonly TextBlock guidance = Note("");
     readonly Func<Action<string>, CancellationToken, Task<int>> integrityRun;
+    readonly Func<string, Action<string>, Action<Func<string, Task>?>, Task<int>> repairRun;
+    readonly Func<string, bool> confirmRepair;
     bool Integrity => CheckType.SelectedIndex == 1;
+    bool Repair => CheckType.SelectedIndex == 2;
+    bool activeRepair;
+    Func<string, Task>? reply;
+    readonly StackPanel responsePanel = new() { Visibility = Visibility.Collapsed };
+    internal TextBox Response { get; } = new() { MaxLength = 1, MinWidth = 70, Background = Palette.Panel,
+        Foreground = Palette.Text, CaretBrush = Palette.Accent, Padding = new Thickness(7), VerticalContentAlignment = VerticalAlignment.Center };
+    internal Button SendResponseButton { get; } = new() { Content = "Send response", IsEnabled = false, Margin = new Thickness(8,0,0,0) };
     internal ComboBox Drive { get; } = new() { MinWidth = 180, HorizontalAlignment = HorizontalAlignment.Stretch };
     internal Button StartButton { get; } = new() { Content = "Start check", MinWidth = 110 };
     internal Button StopButton { get; } = new() { Content = "Stop check", IsEnabled = false, Margin = new Thickness(8,0,0,0) };
@@ -33,14 +42,20 @@ public sealed class DiskCheckWindow : Window
     bool closing;
     internal Task? ActiveCheck { get; private set; }
 
-    public DiskCheckWindow(bool integrity = false) : this(DiskCheck.Volumes(), DiskCheck.RunAsync, null, integrity) { }
+    public DiskCheckWindow(bool integrity = false, bool repair = false) : this(DiskCheck.Volumes(), DiskCheck.RunAsync, null, integrity, repair: repair) { }
 
     internal DiskCheckWindow(IReadOnlyList<DiskCheckVolume> volumes,
         Func<string, Action<string>, CancellationToken, Task<int>> run,
-        Func<Action<string>, CancellationToken, Task<int>>? integrityRun = null, bool integrity = false)
+        Func<Action<string>, CancellationToken, Task<int>>? integrityRun = null, bool integrity = false,
+        Func<string, Action<string>, Action<Func<string, Task>?>, Task<int>>? repairRun = null,
+        Func<string, bool>? confirmRepair = null, bool repair = false)
     {
         this.run = run;
         this.integrityRun = integrityRun ?? SystemIntegrity.RunAsync;
+        this.repairRun = repairRun ?? DiskRepair.RunAsync;
+        this.confirmRepair = confirmRepair ?? (root => MessageBox.Show(this, DiskRepair.Confirmation(root),
+            "Geurts Performance Prefect · Fix disk", MessageBoxButton.YesNo, MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes);
         Title = "Geurts Performance Prefect · Diagnostic console"; Icon = Branding.WindowIcon;
         Width = 850; Height = 640; MinWidth = 560; MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -50,6 +65,7 @@ public sealed class DiskCheckWindow : Window
         header.Children.Add(new TextBlock { Text = "Diagnostic console", FontSize = 21, FontWeight = FontWeights.SemiBold });
         CheckType.Items.Add("Check disk for errors");
         CheckType.Items.Add("System integrity scan");
+        CheckType.Items.Add("Fix disk errors");
         header.Children.Add(CheckType);
         header.Children.Add(description);
         var controls = new DockPanel { Margin = new Thickness(0,6,0,6) };
@@ -65,28 +81,48 @@ public sealed class DiskCheckWindow : Window
         if (volumes.Count == 0) Status.Text = "No ready local drives are available. Reopen this window after connecting or unlocking a drive.";
         var footer = new StackPanel(); DockPanel.SetDock(footer, Dock.Bottom); dock.Children.Add(footer);
         footer.Children.Add(Status);
+        responsePanel.Children.Add(Note("When CHKDSK asks a question, enter the response letter shown by Windows, then Send. Yes may dismount the drive or schedule repair at restart."));
+        var responseRow = new DockPanel();
+        DockPanel.SetDock(SendResponseButton, Dock.Right); responseRow.Children.Add(SendResponseButton); responseRow.Children.Add(Response);
+        responsePanel.Children.Add(responseRow); footer.Children.Add(responsePanel);
+        System.Windows.Automation.AutomationProperties.SetName(Response, "Response letter to CHKDSK prompt");
+        Response.IsEnabled = false;
+        SendResponseButton.Click += async (_, _) => await SendResponseAsync();
         footer.Children.Add(guidance);
         var close = new Button { Content = "Close", HorizontalAlignment = HorizontalAlignment.Right, MinWidth = 90 };
         close.Click += (_, _) => Close(); footer.Children.Add(close);
         dock.Children.Add(ConsoleOutput);
         CheckType.SelectionChanged += (_, _) => UpdateCheckType();
-        CheckType.SelectedIndex = integrity ? 1 : 0;
+        CheckType.SelectedIndex = repair ? 2 : integrity ? 1 : 0;
         StartButton.Click += (_, _) => { if (cancellation == null) ActiveCheck = StartAsync(); };
         StopButton.Click += (_, _) => Stop();
-        Closing += (_, e) => { if (cancellation != null) { e.Cancel = true; closing = true; Stop(); } };
+        Closing += (_, e) =>
+        {
+            if (cancellation == null) return;
+            e.Cancel = true;
+            if (activeRepair) Status.Text = "Repair is still running. Answer any CHKDSK prompt below and let it finish before closing.";
+            else { closing = true; Stop(); }
+        };
     }
 
     void UpdateCheckType()
     {
+        if (cancellation != null) return;
+        MinHeight = Repair ? 650 : 520;
+        responsePanel.Visibility = Repair ? Visibility.Visible : Visibility.Collapsed;
+        StartButton.Content = Repair ? "Start repair" : "Start check";
         Drive.IsEnabled = !Integrity;
         StartButton.IsEnabled = Integrity || Drive.SelectedItem != null;
-        description.Text = Integrity
+        description.Text = Repair ? "Fix file-system errors with CHKDSK /f. Select a drive and confirm before starting. Administrator access is required. Keep this window open until the repair finishes."
+            : Integrity
             ? "Scan protected Windows system files using SFC /verifyonly. No repairs or restart are requested. Administrator access is required; scanning can take several minutes."
             : "Run a read-only CHKDSK file-system check. This does not repair errors or schedule a restart. Checks can take several minutes.";
-        guidance.Text = Integrity
+        guidance.Text = Repair ? "Read the console before replying. Prefect does not answer prompts, force a dismount or restart Windows automatically. Let the repair finish before closing; Stop is unavailable during repairs."
+            : Integrity
             ? "This scans the running Windows installation; the drive selection does not apply. Review Windows Resource Protection's full findings below. Detailed results are recorded by Windows in Logs\\CBS\\CBS.log under the Windows folder."
             : "Read-only checks on a drive in use can report temporary inconsistencies. Review CHKDSK's full output before deciding on repairs. This checks the file system, not the drive's physical health.";
-        Status.Text = Integrity ? "Choose Start check to scan Windows system integrity."
+        Status.Text = Repair && Drive.SelectedItem != null ? "Choose a drive, then Start repair to review the confirmation."
+            : Integrity ? "Choose Start check to scan Windows system integrity."
             : Drive.SelectedItem != null ? "Choose a drive, then start the check."
             : "No ready local drives are available. Reopen this window after connecting or unlocking a drive.";
     }
@@ -96,7 +132,33 @@ public sealed class DiskCheckWindow : Window
 
     void Stop()
     {
+        if (activeRepair) return;
         StopButton.IsEnabled = false; Status.Text = "Stopping the check…"; cancellation?.Cancel();
+    }
+
+    void InputReady(Func<string, Task>? send) => Dispatcher.Invoke(() =>
+    {
+        reply = send; Response.IsEnabled = SendResponseButton.IsEnabled = send != null; Response.Clear();
+    });
+
+    internal async Task SendResponseAsync()
+    {
+        var send = reply;
+        var text = Response.Text.Trim();
+        if (send == null || !SendResponseButton.IsEnabled) return;
+        if (text.Length != 1 || !char.IsLetter(text[0])) { Status.Text = "Enter the response letter requested by CHKDSK."; return; }
+        SendResponseButton.IsEnabled = false;
+        try
+        {
+            await send(text);
+            if (ReferenceEquals(reply, send))
+            {
+                AppendOutput("\n> " + text + "\n"); Response.Clear();
+                Status.Text = "Response sent. Review CHKDSK's output and let the repair finish.";
+            }
+        }
+        catch (Exception ex) { if (ReferenceEquals(reply, send)) Status.Text = "Could not send the response: " + ex.Message; }
+        finally { if (ReferenceEquals(reply, send)) SendResponseButton.IsEnabled = true; }
     }
 
     internal void AppendOutput(string text)
@@ -114,16 +176,21 @@ public sealed class DiskCheckWindow : Window
     {
         if (cancellation != null || (!Integrity && Drive.SelectedItem is not DiskCheckVolume)) return;
         var integrity = Integrity;
+        var repair = Repair;
         var volume = Drive.SelectedItem as DiskCheckVolume;
+        if (repair && !confirmRepair(volume!.Root)) { Status.Text = "Repair cancelled. No repair command was started."; return; }
+        activeRepair = repair;
         cancellation = new CancellationTokenSource();
-        CheckType.IsEnabled = Drive.IsEnabled = StartButton.IsEnabled = false; StopButton.IsEnabled = true;
-        ConsoleOutput.Text = integrity ? "> sfc /verifyonly\n\n" : $"> chkdsk {DiskCheck.VolumeArgument(volume!.Root)}\n\n";
-        Status.Text = integrity ? "Scanning Windows system integrity · output appears below…" : "Checking " + volume!.Root + " · output appears below…";
+        CheckType.IsEnabled = Drive.IsEnabled = StartButton.IsEnabled = false; StopButton.IsEnabled = !repair;
+        ConsoleOutput.Text = integrity ? "> sfc /verifyonly\n\n" : $"> chkdsk {DiskCheck.VolumeArgument(volume!.Root)}{(repair ? " /f" : "")}\n\n";
+        Status.Text = repair ? "Repairing " + volume!.Root + " · read and answer any CHKDSK prompts below…"
+            : integrity ? "Scanning Windows system integrity · output appears below…" : "Checking " + volume!.Root + " · output appears below…";
         try
         {
-            var code = integrity ? await integrityRun(AppendOutput, cancellation.Token)
+            var code = repair ? await repairRun(volume!.Root, AppendOutput, InputReady)
+                : integrity ? await integrityRun(AppendOutput, cancellation.Token)
                 : await run(volume!.Root, AppendOutput, cancellation.Token);
-            Status.Text = integrity ? SystemIntegrity.Result(code) : DiskCheck.Result(code);
+            Status.Text = repair ? DiskRepair.Result(code) : integrity ? SystemIntegrity.Result(code) : DiskCheck.Result(code);
             AppendOutput($"\n\n[Process exited with code {code}]\n");
         }
         catch (OperationCanceledException) { Status.Text = "Check stopped. Results are incomplete."; AppendOutput("\n[Check stopped]\n"); }
@@ -131,6 +198,7 @@ public sealed class DiskCheckWindow : Window
         finally
         {
             cancellation.Dispose(); cancellation = null;
+            activeRepair = false; InputReady(null);
             CheckType.IsEnabled = true; Drive.IsEnabled = !integrity;
             StartButton.IsEnabled = integrity || Drive.SelectedItem != null; StopButton.IsEnabled = false;
             if (closing) Close();

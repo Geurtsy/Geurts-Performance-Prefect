@@ -1,10 +1,10 @@
-# Geurts Performance Prefect 1.20.0
+# Geurts Performance Prefect 1.21.0
 
-- Added **System integrity scan** inside the diagnostic console, also available from **Settings → Performance → System integrity → Scan Windows system integrity**.
-- Runs Windows System File Checker with `/verifyonly` to scan protected Windows system files without requesting repairs or a restart. Requires administrator approval when needed; nothing scans automatically.
-- Streams Windows' findings in the console with Stop support. Check type and drive controls are locked while a check runs, and closing waits for its worker to stop. The drive selection does not apply to the Windows integrity scan.
-- Keeps the recent findings and exit code visible without treating a zero exit code as proof of system health. Windows' CBS log contains further detail.
-- Validated command construction, real SFC help output decoding, live console findings, cancellation, duplicate-start prevention, minimum layout and existing application checks using isolated fixtures. A complete elevated system scan remains a manual validation step; tests do not scan or repair the host Windows installation.
+- Added **Fix disk errors…** under **Settings → Performance**, also available from the diagnostic console's check selector.
+- Select a local drive and confirm before starting CHKDSK `/f` to repair file-system errors. Requires administrator approval when needed; opening the console never starts a repair automatically.
+- Added a prompt response field so you can answer Windows' localized questions about dismounting a drive or scheduling repair at restart. No automatic replies, forced dismounts or immediate Windows restarts.
+- Stop is disabled and Close keeps the console open until a repair command finishes. Results preserve the exit code and distinguish command completion from a repair scheduled for a later restart.
+- Existing read-only disk checks and system integrity scans remain available. Validated confirmation, drive selection, prompt streaming/input, repair lifetime and minimum layout with inert process and UI fixtures. Tests do not repair, dismount or schedule repairs on real disks; actual elevated repairs and restart-time repair remain manual validation steps.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

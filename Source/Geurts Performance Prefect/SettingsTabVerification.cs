@@ -32,6 +32,9 @@ public static class SettingsTabVerification
         Select(panel, panel.CheckDiskButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
             "Check disk for errors opens from the Performance settings tab");
+        Select(panel, panel.FixDiskButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
+            "Fix disk errors opens from Performance settings beside the read-only disk check");
         Select(panel, panel.DiskCleanupPanel.OpenButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
             "Disk Cleanup drive selection and launch are in Performance settings");

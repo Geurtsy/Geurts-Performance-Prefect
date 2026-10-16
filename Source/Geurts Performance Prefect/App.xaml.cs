@@ -26,10 +26,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        if (e.Args.Length == 1 && e.Args[0] is "--check-disk" or "--system-integrity")
+        if (e.Args.Length == 1 && e.Args[0] is "--check-disk" or "--system-integrity" or "--fix-disk")
         {
             // A separate diagnostic window bypasses the overlay mutex and all startup side effects.
-            try { MainWindow = new DiskCheckWindow(e.Args[0] == "--system-integrity"); MainWindow.Show(); }
+            try { MainWindow = new DiskCheckWindow(e.Args[0] == "--system-integrity", e.Args[0] == "--fix-disk"); MainWindow.Show(); }
             catch (Exception ex) { MessageBox.Show(ex.Message, "Geurts Performance Prefect · Diagnostic console"); Shutdown(1); }
             return;
         }
