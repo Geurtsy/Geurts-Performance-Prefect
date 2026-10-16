@@ -313,6 +313,7 @@ public static class Verification
         overlay.Show(); overlay.OpenSettings();
         var activePanel = Application.Current.Windows.OfType<SettingsWindow>().Single(w => w.IsVisible);
         DropdownWheelVerification.Run(activePanel, Check);
+        DropdownThemeVerification.Run(folder, Check);
         ScrollbarVerification.Run(activePanel, Check);
         activePanel.MinimiseToTrayToggle.IsChecked = false;
         Check(!overlay.Settings.MinimiseToTray && overlay.ShowInTaskbar, "Disabling tray mode immediately makes the overlay available on the taskbar");
