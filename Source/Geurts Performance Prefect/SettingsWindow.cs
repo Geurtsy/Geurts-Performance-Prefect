@@ -78,24 +78,28 @@ public sealed class SettingsWindow : Window
     public Button ApplyPowerOptionsButton { get; } = new() { Content = "Apply preset now", HorizontalAlignment = HorizontalAlignment.Left };
     public Button RestorePowerOptionsButton { get; } = new() { Content = "Restore previous power plan", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
     public TextBlock PowerOptionsStatus { get; } = Note("");
-    public Button CheckDiskButton { get; } = new() { Content = "Check disk for errors…", HorizontalAlignment = HorizontalAlignment.Left };
-    public Button FixDiskButton { get; } = new() { Content = "Fix disk errors…", HorizontalAlignment = HorizontalAlignment.Left };
+    public DiagnosticConsole Console { get; }
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     readonly TextBlock batteryCpuCaption = Label("");
     bool updatingPowerOptions;
-    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null)
+    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null)
     {
         this.overlay = overlay;
+        Console = console ?? new DiagnosticConsole();
         this.parking = parking ?? new CoreParking();
         this.startup = startup ?? new WindowsStartup();
         this.confirmDownloads = confirmDownloads ?? (message => MessageBox.Show(this, message,
             "Geurts Performance Prefect · Downloads", MessageBoxButton.YesNo, MessageBoxImage.Warning,
             MessageBoxResult.No) == MessageBoxResult.Yes);
         Foreground = Palette.Text; Background = Palette.Background; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
-        Title = "Geurts Performance Prefect · Settings"; Width = 500; Height = 820; MinWidth = 430; MinHeight = 440;
+        Title = "Geurts Performance Prefect · Settings";
+        var workArea = SystemParameters.WorkArea;
+        MaxWidth = Math.Max(1, workArea.Width - 32); MaxHeight = Math.Max(1, workArea.Height - 32);
+        MinWidth = Math.Min(600, MaxWidth); MinHeight = Math.Min(700, MaxHeight);
+        Width = Math.Min(1000, MaxWidth); Height = Math.Min(920, MaxHeight);
         Icon = Branding.WindowIcon;
-        MaxHeight = SystemParameters.WorkArea.Height - 32; WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Topmost = overlay.Settings.AlwaysOnTop;
         var dock = new DockPanel { Margin = new Thickness(24), Background = Palette.Background }; Content = dock;
         var footer = new StackPanel { Margin = new Thickness(0,16,0,0) };
@@ -172,26 +176,24 @@ public sealed class SettingsWindow : Window
         CoreParkingToggle.Unchecked += (_, _) => ChangeParking(false);
         RefreshParking();
         Activated += (_, _) => { if (!parkingBusy) RefreshParking(); };
-        stack = AddTab("Repair tools");
-        stack.Children.Add(Label("Disk check"));
-        stack.Children.Add(CheckDiskButton);
-        stack.Children.Add(Note("Open a console inside a Prefect window to check a local drive for file-system errors. Windows may ask for administrator approval. Choose a drive and start a read-only check; repairs are not applied."));
-        var diskCheckStatus = Note(""); stack.Children.Add(diskCheckStatus);
-        CheckDiskButton.Click += (_, _) => diskCheckStatus.Text = DiskCheck.OpenWindow();
-        stack.Children.Add(FixDiskButton);
-        stack.Children.Add(Note("Open the console in repair mode. Select a drive and confirm before CHKDSK repairs its file system. Windows may ask to dismount the drive or schedule repair at restart; you answer those prompts. Back up important files first."));
-        FixDiskButton.Click += (_, _) => diskCheckStatus.Text = DiskCheck.OpenWindow(repair: true);
-        stack.Children.Add(Label("System integrity"));
-        var integrityButton = new Button { Content = "Scan Windows system integrity", HorizontalAlignment = HorizontalAlignment.Left };
-        stack.Children.Add(integrityButton);
-        stack.Children.Add(Note("Open the diagnostic console to scan protected Windows system files. Requires administrator approval. The scan reports issues without applying repairs."));
-        var integrityStatus = Note(""); stack.Children.Add(integrityStatus);
-        integrityButton.Click += (_, _) => integrityStatus.Text = DiskCheck.OpenWindow(integrity: true);
-        var imageButton = new Button { Content = "Fix Windows image (DISM)…", HorizontalAlignment = HorizontalAlignment.Left };
-        stack.Children.Add(imageButton);
-        stack.Children.Add(Note("Check, scan or repair the Windows component store in the built-in diagnostic console. Repair requires confirmation and may use Windows Update."));
-        var imageStatus = Note(""); stack.Children.Add(imageStatus);
-        imageButton.Click += (_, _) => imageStatus.Text = DiskCheck.OpenWindow(windowsImage: true);
+        stack = AddTab("Console");
+        var consoleScroll = (ScrollViewer)stack.Parent;
+        var administratorPanel = new StackPanel { Visibility = HardwareSampler.IsAdministrator ? Visibility.Collapsed : Visibility.Visible };
+        administratorPanel.Children.Add(Note("Restart Prefect as administrator to run checks and repairs here. Opening this tab does not start a command."));
+        var restartAdministrator = new Button { Content = "Restart as administrator", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,12) };
+        restartAdministrator.Click += (_, _) => overlay.RestartElevated(openConsole: true);
+        administratorPanel.Children.Add(restartAdministrator); stack.Children.Add(administratorPanel);
+        Console.Height = 500; stack.Children.Add(Console);
+        void SizeConsole() => Console.Height = Math.Max(500, consoleScroll.ViewportHeight - administratorPanel.ActualHeight);
+        administratorPanel.SizeChanged += (_, _) => SizeConsole();
+        consoleScroll.ScrollChanged += (_, e) =>
+        {
+            if (e.ViewportHeightChange != 0) SizeConsole();
+        };
+        Closing += (_, e) =>
+        {
+            if (!Console.RequestClose(Close)) { e.Cancel = true; ShowConsole(); }
+        };
         stack = AddTab("Overlay");
         var toggles = Panel();
         foreach (var metric in MetricInfo.All)
@@ -311,6 +313,21 @@ public sealed class SettingsWindow : Window
         if (overlay.Latest != null) UpdateSensors(overlay.Latest);
         Closed += (_, _) => { overlay.SnapshotReceived -= UpdateSensors; overlay.AutoAvoidChanged -= UpdateAutoAvoid; overlay.SaveSettings(); };
         StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) overlay.Minimise(); };
+    }
+    internal void ShowConsole()
+    {
+        Sections.SelectedItem = Sections.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "Console");
+    }
+    internal bool RequestApplicationExit()
+    {
+        if (Console.RequestClose(overlay.Close)) return true;
+        ShowConsole(); ShowInForeground(); return false;
+    }
+    internal bool AllowRestart()
+    {
+        if (!Console.IsRunning) return true;
+        Console.Status.Text = "Let the active diagnostic command finish before restarting or updating Prefect.";
+        ShowConsole(); ShowInForeground(); return false;
     }
     void UpdateDownloads()
     {
@@ -458,15 +475,16 @@ public sealed class SettingsWindow : Window
     }
     async void InstallUpdate()
     {
-        if (availableRelease == null) return;
+        if (availableRelease == null || !AllowRestart()) return;
         if (MessageBox.Show(this, $"Download and install version {availableRelease.Version}? The application will save your preferences, close and reopen. Windows may request administrator approval if this folder is protected.",
             "Geurts Performance Prefect · Update", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
-        CheckUpdatesButton.IsEnabled = false; InstallUpdateButton.IsEnabled = false;
+        CheckUpdatesButton.IsEnabled = false; InstallUpdateButton.IsEnabled = false; Console.IsEnabled = false;
         try
         {
             var plan = await AppUpdates.PrepareAsync(availableRelease, new Progress<string>(message => UpdateStatus.Text = message), updateStop.Token);
             overlay.SaveSettings();
             if (overlay.Store.LastError != null) throw new InvalidOperationException("Save your preferences before installing. " + overlay.Store.LastError);
+            if (!AllowRestart()) throw new InvalidOperationException("A diagnostic command is still running.");
             UpdateStatus.Text = "Starting the installer…";
             await AppUpdates.LaunchInstallerAsync(plan, updateStop.Token);
             overlay.Close();
@@ -474,7 +492,7 @@ public sealed class SettingsWindow : Window
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { UpdateStatus.Text = "Administrator approval cancelled. Your application was not changed."; }
         catch (OperationCanceledException) { }
         catch (Exception ex) { UpdateStatus.Text = "Could not install the update. " + ex.Message; }
-        finally { CheckUpdatesButton.IsEnabled = true; InstallUpdateButton.IsEnabled = true; }
+        finally { CheckUpdatesButton.IsEnabled = true; InstallUpdateButton.IsEnabled = true; Console.IsEnabled = true; }
     }
     void AddPowerOptions(StackPanel stack)
     {

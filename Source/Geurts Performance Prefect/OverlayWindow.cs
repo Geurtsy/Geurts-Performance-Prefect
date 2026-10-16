@@ -470,6 +470,10 @@ public sealed class OverlayWindow : Window
         }
         settingsWindow.ShowInForeground();
     }
+    internal void OpenConsole()
+    {
+        OpenSettings(); settingsWindow!.ShowConsole();
+    }
     public void Minimise()
     {
         if (closing) return;
@@ -511,6 +515,7 @@ public sealed class OverlayWindow : Window
     internal bool RestartApplication()
     {
         if (closing) return false;
+        if (settingsWindow != null && !settingsWindow.AllowRestart()) return false;
         UpdateSavedPosition();
         var result = ApplicationRestart.Relaunch(Store, Settings, restartStart);
         if (!result.Started)
@@ -521,13 +526,14 @@ public sealed class OverlayWindow : Window
         Close();
         return true;
     }
-    public void RestartElevated()
+    public void RestartElevated(bool openConsole = false)
     {
         if (HardwareSampler.IsAdministrator) return;
+        if (settingsWindow != null && !settingsWindow.AllowRestart()) return;
         SaveSettings();
         try
         {
-            Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--wait-for " + Environment.ProcessId) { UseShellExecute = true, Verb = "runas" });
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--wait-for " + Environment.ProcessId + (openConsole ? " --console" : "")) { UseShellExecute = true, Verb = "runas" });
             Close();
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { /* User cancelled; keep this instance running. */ }
@@ -536,6 +542,7 @@ public sealed class OverlayWindow : Window
     void OnClosing(object? sender, CancelEventArgs e)
     {
         if (closing) return;
+        if (settingsWindow != null && !settingsWindow.RequestApplicationExit()) { e.Cancel = true; return; }
         closing = true; saveTimer.Stop(); staleTimer.Stop(); stop.Cancel();
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
         settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();

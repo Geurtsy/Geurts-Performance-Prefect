@@ -85,58 +85,58 @@ public static class DiskRepairVerification
             try
             {
                 window.Show();
-                check(starts == 0 && confirmations == 0 && window.CheckType.SelectedIndex == 2 && !window.SendResponseButton.IsEnabled,
+                check(starts == 0 && confirmations == 0 && window.Console.CheckType.SelectedIndex == 2 && !window.Console.SendResponseButton.IsEnabled,
                     "Opening Fix disk selects repair mode without starting, confirming or sending input");
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Await(window.ActiveCheck!);
-                check(starts == 0 && confirmations == 1 && window.Status.Text.Contains("cancelled") && window.StartButton.IsEnabled,
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Await(window.Console.ActiveCheck!);
+                check(starts == 0 && confirmations == 1 && window.Console.Status.Text.Contains("cancelled") && window.Console.StartButton.IsEnabled,
                     "Declining repair confirmation starts no process and permits a later retry");
                 consent = true;
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 check(starts == 1 && target == "D:\\" && confirmations == 2 && replies.Count == 0 &&
-                    window.ConsoleOutput.Text.Contains("chkdsk D: /f") && !window.CheckType.IsEnabled && !window.Drive.IsEnabled && !window.StopButton.IsEnabled,
+                    window.Console.ConsoleOutput.Text.Contains("chkdsk D: /f") && !window.Console.CheckType.IsEnabled && !window.Console.Drive.IsEnabled && !window.Console.StopButton.IsEnabled,
                     "Confirmed repair runs once for the selected drive and disables overlap, drive changes and Stop without auto-answering");
-                window.StopButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); window.Close();
-                check(window.IsVisible && !window.ActiveCheck!.IsCompleted && window.Status.Text.Contains("still running"),
+                window.Console.StopButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); window.Close();
+                check(window.IsVisible && !window.Console.ActiveCheck!.IsCompleted && window.Console.Status.Text.Contains("still running"),
                     "Stop and Close do not terminate an active repair or orphan its console");
-                window.Response.Text = ""; Await(window.SendResponseAsync());
-                check(replies.Count == 0 && window.Status.Text.Contains("response letter"), "A blank repair prompt response is rejected");
-                denyReply = true; window.Response.Text = "N"; Await(window.SendResponseAsync());
-                check(window.Status.Text.Contains("input denied") && window.SendResponseButton.IsEnabled,
+                window.Console.Response.Text = ""; Await(window.Console.SendResponseAsync());
+                check(replies.Count == 0 && window.Console.Status.Text.Contains("response letter"), "A blank repair prompt response is rejected");
+                denyReply = true; window.Console.Response.Text = "N"; Await(window.Console.SendResponseAsync());
+                check(window.Console.Status.Text.Contains("input denied") && window.Console.SendResponseButton.IsEnabled,
                     "Failed prompt input is visible and can be retried without ending the repair");
-                denyReply = false; Await(window.SendResponseAsync());
-                check(replies.SequenceEqual(new[] { "N" }) && window.Response.Text == "", "Only an explicit Send action forwards the user's chosen prompt letter");
+                denyReply = false; Await(window.Console.SendResponseAsync());
+                check(replies.SequenceEqual(new[] { "N" }) && window.Console.Response.Text == "", "Only an explicit Send action forwards the user's chosen prompt letter");
                 emit!("Fixture repair progress: 50%\n");
                 window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
                 DiskCheckVerification.Capture(window, Path.Combine(folder, "disk-repair-running-minimum.png"));
                 var content = (FrameworkElement)window.Content;
-                var responseBounds = window.SendResponseButton.TransformToAncestor(content).TransformBounds(new Rect(window.SendResponseButton.RenderSize));
-                check(window.ConsoleOutput.ActualHeight > 70 && responseBounds.Right <= content.ActualWidth && responseBounds.Bottom <= content.ActualHeight,
+                var responseBounds = window.Console.SendResponseButton.TransformToAncestor(content).TransformBounds(new Rect(window.Console.SendResponseButton.RenderSize));
+                check(window.Console.ConsoleOutput.ActualHeight > 70 && responseBounds.Right <= content.ActualWidth && responseBounds.Bottom <= content.ActualHeight,
                     "Repair console and prompt response controls remain usable at the minimum window size");
-                completion.SetResult(0); Await(window.ActiveCheck!);
-                check(window.IsVisible && window.StartButton.IsEnabled && !window.SendResponseButton.IsEnabled && !window.Response.IsEnabled &&
-                    window.Status.Text.Contains("scheduled") && window.Status.Text.Contains("code 0"),
+                completion.SetResult(0); Await(window.Console.ActiveCheck!);
+                check(window.IsVisible && window.Console.StartButton.IsEnabled && !window.Console.SendResponseButton.IsEnabled && !window.Console.Response.IsEnabled &&
+                    window.Console.Status.Text.Contains("scheduled") && window.Console.Status.Text.Contains("code 0"),
                     "Repair completion leaves the full result visible, clears input and does not claim a scheduled repair already finished");
                 DiskCheckVerification.Capture(window, Path.Combine(folder, "disk-repair-result.png"));
                 completion = new TaskCompletionSource<int>(); pendingReply = new TaskCompletionSource<int>();
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                window.Response.Text = "N"; var sending = window.SendResponseAsync();
-                completion.SetResult(3); Await(window.ActiveCheck!); var finalStatus = window.Status.Text;
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.Console.Response.Text = "N"; var sending = window.Console.SendResponseAsync();
+                completion.SetResult(3); Await(window.Console.ActiveCheck!); var finalStatus = window.Console.Status.Text;
                 pendingReply.SetException(new IOException("fixture exited during input")); Await(sending); pendingReply = null;
-                check(window.Status.Text == finalStatus && !window.SendResponseButton.IsEnabled,
+                check(window.Console.Status.Text == finalStatus && !window.Console.SendResponseButton.IsEnabled,
                     "A late prompt-input failure cannot overwrite the completed repair result or re-enable stale input");
                 completion = new TaskCompletionSource<int>();
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                completion.SetException(new IOException("fixture repair unavailable")); Await(window.ActiveCheck!);
-                check(window.StartButton.IsEnabled && !window.SendResponseButton.IsEnabled && window.Status.Text.Contains("unavailable"),
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                completion.SetException(new IOException("fixture repair unavailable")); Await(window.Console.ActiveCheck!);
+                check(window.Console.StartButton.IsEnabled && !window.Console.SendResponseButton.IsEnabled && window.Console.Status.Text.Contains("unavailable"),
                     "Repair failure restores the console controls and clears stale input");
-                window.CheckType.SelectedIndex = 0;
-                check((string)window.StartButton.Content == "Start check" && window.MinHeight == 520,
+                window.Console.CheckType.SelectedIndex = 0;
+                check((string)window.Console.StartButton.Content == "Start check" && window.MinHeight == 520,
                     "Returning to read-only checks restores the check controls and normal layout");
             }
             finally { if (!completion.Task.IsCompleted) completion.TrySetResult(3); window.Close(); }
             var empty = new DiskCheckWindow(Array.Empty<DiskCheckVolume>(), (_, _, _) => throw new Exception("Must not run"), repair: true);
-            check(!empty.StartButton.IsEnabled && empty.Status.Text.Contains("No ready"), "Fix disk requires a selected ready local drive"); empty.Close();
+            check(!empty.Console.StartButton.IsEnabled && empty.Console.Status.Text.Contains("No ready"), "Fix disk requires a selected ready local drive"); empty.Close();
         }
         finally { Application.Current.ShutdownMode = previous; }
     }

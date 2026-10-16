@@ -62,42 +62,42 @@ public static class WindowsImageVerification
         var window = new DiskCheckWindow(Array.Empty<DiskCheckVolume>(), (_, _, _) => throw new Exception("Disk worker must not run"),
             imageRun: (action, emit) => { starts++; selected = action; output = emit; return complete.Task; },
             confirmImageRepair: () => { confirmations++; return consent; }, windowsImage: true);
-        void Select(WindowsImageAction action) => window.CheckType.SelectedItem = window.CheckType.Items.OfType<ComboBoxItem>().Single(i => Equals(i.Tag, action));
-        void Start() => window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        void Select(WindowsImageAction action) => window.Console.CheckType.SelectedItem = window.Console.CheckType.Items.OfType<ComboBoxItem>().Single(i => Equals(i.Tag, action));
+        void Start() => window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         try
         {
             window.Show();
-            check(starts == 0 && window.StartButton.IsEnabled && !window.Drive.IsEnabled && window.StartButton.Content.Equals("Start repair"),
+            check(starts == 0 && window.Console.StartButton.IsEnabled && !window.Console.Drive.IsEnabled && window.Console.StartButton.Content.Equals("Start repair"),
                 "Windows image console opens on repair without starting it or requiring a selectable disk");
             Start();
-            check(starts == 0 && confirmations == 1 && window.Status.Text.Contains("cancelled") && window.StartButton.IsEnabled,
+            check(starts == 0 && confirmations == 1 && window.Console.Status.Text.Contains("cancelled") && window.Console.StartButton.IsEnabled,
                 "Declining image repair confirmation starts no DISM process");
             consent = true; Start(); Start();
             output!("Deployment Image Servicing and Management tool\n[==== 52.0% ====]\r");
-            check(starts == 1 && selected == WindowsImageAction.RestoreHealth && !window.CheckType.IsEnabled &&
-                !window.StopButton.IsEnabled && window.ConsoleOutput.Text.Contains("/RestoreHealth /NoRestart") && window.ConsoleOutput.Text.Contains("52.0%"),
+            check(starts == 1 && selected == WindowsImageAction.RestoreHealth && !window.Console.CheckType.IsEnabled &&
+                !window.Console.StopButton.IsEnabled && window.Console.ConsoleOutput.Text.Contains("/RestoreHealth /NoRestart") && window.Console.ConsoleOutput.Text.Contains("52.0%"),
                 "Image repair displays live progress in the built-in console and blocks concurrent starts and stopping");
             window.Close();
-            check(window.IsVisible && !window.ActiveCheck!.IsCompleted && window.Status.Text.Contains("still running"),
+            check(window.IsVisible && !window.Console.ActiveCheck!.IsCompleted && window.Console.Status.Text.Contains("still running"),
                 "Closing waits for DISM servicing to finish without terminating it");
-            complete.SetResult(3010); Await(window.ActiveCheck!);
-            check(window.IsVisible && window.Status.Text.Contains("restart manually") && window.StartButton.IsEnabled && !window.Drive.IsEnabled,
+            complete.SetResult(3010); Await(window.Console.ActiveCheck!);
+            check(window.IsVisible && window.Console.Status.Text.Contains("restart manually") && window.Console.StartButton.IsEnabled && !window.Console.Drive.IsEnabled,
                 "Restart-required DISM result remains visible without restarting Windows or closing the console");
             foreach (var action in new[] { WindowsImageAction.CheckHealth, WindowsImageAction.ScanHealth })
             {
                 Select(action); complete = new TaskCompletionSource<int>(); Start();
-                output!("The component store is repairable.\n"); complete.SetResult(0); Await(window.ActiveCheck!);
-                check(selected == action && confirmations == 2 && window.Status.Text.Contains("Review") &&
-                    window.ConsoleOutput.Text.Contains("repairable"), "Image " + action + " preserves health findings without requesting repair confirmation");
+                output!("The component store is repairable.\n"); complete.SetResult(0); Await(window.Console.ActiveCheck!);
+                check(selected == action && confirmations == 2 && window.Console.Status.Text.Contains("Review") &&
+                    window.Console.ConsoleOutput.Text.Contains("repairable"), "Image " + action + " preserves health findings without requesting repair confirmation");
             }
             Select(WindowsImageAction.RestoreHealth); complete = new TaskCompletionSource<int>(); Start();
             output!("Error: 0x800f081f\nThe source files could not be found.\n");
-            complete.SetResult(unchecked((int)0x800f081f)); Await(window.ActiveCheck!);
-            check(window.Status.Text.Contains("800F081F") && window.ConsoleOutput.Text.Contains("source files"),
+            complete.SetResult(unchecked((int)0x800f081f)); Await(window.Console.ActiveCheck!);
+            check(window.Console.Status.Text.Contains("800F081F") && window.Console.ConsoleOutput.Text.Contains("source files"),
                 "Image repair source failure and raw output remain visible for follow-up");
             window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-            check(window.ConsoleOutput.ActualHeight > 80 && window.StartButton.IsVisible && window.Status.IsVisible,
+            check(window.Console.ConsoleOutput.ActualHeight > 80 && window.Console.StartButton.IsVisible && window.Console.Status.IsVisible,
                 "Windows image console remains usable at minimum window size");
             var content = (FrameworkElement)window.Content;
             var bitmap = new RenderTargetBitmap((int)Math.Ceiling(content.ActualWidth), (int)Math.Ceiling(content.ActualHeight), 96, 96, PixelFormats.Pbgra32);
@@ -105,11 +105,11 @@ public static class WindowsImageVerification
             using (var context = visual.RenderOpen()) context.DrawRectangle(new VisualBrush(content), null, new Rect(content.RenderSize));
             bitmap.Render(visual); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
             using (var stream = File.Create(Path.Combine(folder, "windows-image-minimum.png"))) encoder.Save(stream);
-            complete = new TaskCompletionSource<int>(); Start(); complete.SetException(new IOException("fixture DISM unavailable")); Await(window.ActiveCheck!);
-            check(window.Status.Text.Contains("DISM unavailable") && window.StartButton.IsEnabled && window.CheckType.IsEnabled,
+            complete = new TaskCompletionSource<int>(); Start(); complete.SetException(new IOException("fixture DISM unavailable")); Await(window.Console.ActiveCheck!);
+            check(window.Console.Status.Text.Contains("DISM unavailable") && window.Console.StartButton.IsEnabled && window.Console.CheckType.IsEnabled,
                 "Image tool launch failures show an error and allow retry");
-            window.CheckType.SelectedIndex = 0;
-            check(!window.StartButton.IsEnabled && window.Drive.IsEnabled && window.StartButton.Content.Equals("Start check"),
+            window.Console.CheckType.SelectedIndex = 0;
+            check(!window.Console.StartButton.IsEnabled && window.Console.Drive.IsEnabled && window.Console.StartButton.Content.Equals("Start check"),
                 "Returning from DISM to CHKDSK restores drive requirements and check label");
         }
         finally { window.Close(); Application.Current.ShutdownMode = previous; }

@@ -28,18 +28,12 @@ public static class SettingsTabVerification
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
         check(tabs.Length == 7 && tabs.Select(t => t.Header).Distinct().Count() == 7,
-            "All seven Settings sections have distinct tabs");
-        Select(panel, panel.CheckDiskButton);
-        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Repair tools",
-            "Check disk for errors opens from the Repair tools settings tab");
-        Select(panel, panel.FixDiskButton);
-        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Repair tools",
-            "Fix disk errors opens from Repair tools beside the read-only disk check");
-        var repairTab = tabs.Single(t => (string)t.Header == "Repair tools");
-        var repairControls = (StackPanel)((ScrollViewer)repairTab.Content).Content;
-        check(repairControls.Children.OfType<Button>().Select(b => (string)b.Content).SequenceEqual(new[]
-            { "Check disk for errors…", "Fix disk errors…", "Scan Windows system integrity", "Fix Windows image (DISM)…" }),
-            "Repair tools contains all four disk and Windows diagnostic/repair actions together");
+            "All seven Settings sections have distinct tabs including Console");
+        check(panel.Width == Math.Min(1000, panel.MaxWidth) && panel.Height == Math.Min(920, panel.MaxHeight),
+            "Settings opens at its expanded default size within the screen work area");
+        Select(panel, panel.Console.CheckType);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Console" && panel.Console.CheckType.Items.Count == 6,
+            "Console tab embeds all disk, system integrity and Windows image modes");
         Select(panel, panel.DiskCleanupPanel.OpenButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
             "Disk Cleanup drive selection and launch are in Performance settings");
@@ -55,13 +49,13 @@ public static class SettingsTabVerification
             Select(panel, panel.TopmostToggle) == readings &&
             panel.DriveToggles.Values.All(toggle => Select(panel, toggle) == readings),
             "Overlay contains the metric, hard drive, top application and window controls");
-        foreach (var width in new[] { 500d, 430d })
+        foreach (var width in new[] { 1000d, 600d })
         {
             foreach (var tab in tabs)
             {
                 var peer = new TabItemAutomationPeer(tab, new TabControlAutomationPeer(panel.Sections));
                 ((ISelectionItemProvider)peer.GetPattern(PatternInterface.SelectionItem)).Select();
-                Capture(panel, Path.Combine(folder, "settings-tab-" + tabs.ToList().IndexOf(tab) + "-" + width + ".png"), width, 820);
+                Capture(panel, Path.Combine(folder, "settings-tab-" + tabs.ToList().IndexOf(tab) + "-" + width + ".png"), width, 920);
                 var selected = (ScrollViewer)tab.Content;
                 check(tab.IsSelected && selected.IsVisible && tabs.Where(t => t != tab).All(t => !((ScrollViewer)t.Content).IsVisible),
                     "Selecting " + tab.Header + " exposes only its own controls at width " + width);
@@ -71,15 +65,15 @@ public static class SettingsTabVerification
                 {
                     selected.ScrollToVerticalOffset(panel.OverlayMonitorSelector.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 50);
                     selected.UpdateLayout();
-                    Capture(panel, Path.Combine(folder, "settings-overlay-window-" + width + ".png"), width, 820);
+                    Capture(panel, Path.Combine(folder, "settings-overlay-window-" + width + ".png"), width, 920);
                     selected.ScrollToBottom(); selected.UpdateLayout();
-                    Capture(panel, Path.Combine(folder, "settings-overlay-details-" + width + ".png"), width, 820);
+                    Capture(panel, Path.Combine(folder, "settings-overlay-details-" + width + ".png"), width, 920);
                     selected.ScrollToTop(); selected.UpdateLayout();
                 }
             }
         }
         panel.Sections.SelectedIndex = 0;
-        Capture(panel, Path.Combine(folder, "settings-tabs-minimum.png"), 430, 440);
+        Capture(panel, Path.Combine(folder, "settings-tabs-minimum.png"), 600, 700);
         check(((ScrollViewer)tabs[0].Content).ViewportHeight > 30,
             "Minimum Settings height retains scrollable content below every tab");
         var root = (DockPanel)panel.Content;
@@ -87,10 +81,10 @@ public static class SettingsTabVerification
         var bounds = footer.TransformToAncestor(root).TransformBounds(new Rect(footer.RenderSize));
         check(bounds.Bottom <= root.ActualHeight + 1 && bounds.Top >= panel.Sections.ActualHeight,
             "Done and Exit remain fully visible below the tabs at minimum window size");
-        panel.Width = 500; panel.Height = 820; panel.UpdateLayout();
+        panel.Width = Math.Min(1000, panel.MaxWidth); panel.Height = Math.Min(920, panel.MaxHeight); panel.UpdateLayout();
     }
 
-    static void Capture(SettingsWindow panel, string path, double width, double height)
+    internal static void Capture(SettingsWindow panel, string path, double width, double height)
     {
         panel.Width = width; panel.Height = height;
         panel.UpdateLayout();

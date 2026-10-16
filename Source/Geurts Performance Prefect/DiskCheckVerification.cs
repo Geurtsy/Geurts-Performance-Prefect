@@ -95,52 +95,52 @@ public static class DiskCheckVerification
             try
             {
                 window.Show();
-                check(starts == 0 && window.StartButton.IsEnabled && !window.StopButton.IsEnabled && window.ConsoleOutput.IsReadOnly,
+                check(starts == 0 && window.Console.StartButton.IsEnabled && !window.Console.StopButton.IsEnabled && window.Console.ConsoleOutput.IsReadOnly,
                     "Opening the disk-check prompt does not start a check and console text is read-only");
-                window.Drive.SelectedIndex = 1;
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                check(starts == 1 && window.ConsoleOutput.Text.Contains("chkdsk D:") && !window.Drive.IsEnabled && !window.StartButton.IsEnabled,
+                window.Console.Drive.SelectedIndex = 1;
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                check(starts == 1 && window.Console.ConsoleOutput.Text.Contains("chkdsk D:") && !window.Console.Drive.IsEnabled && !window.Console.StartButton.IsEnabled,
                     "Start checks the selected drive and prevents overlapping checks or selection changes");
                 output!("Stage 1: Examining file system structure…\nProgress: 50%\rProgress: 100%\n");
-                check(window.ConsoleOutput.Text.Contains("Progress: 100%") && !window.ActiveCheck!.IsCompleted,
+                check(window.Console.ConsoleOutput.Text.Contains("Progress: 100%") && !window.Console.ActiveCheck!.IsCompleted,
                     "The embedded Prefect console displays progress before the check finishes");
                 Capture(window, Path.Combine(folder, "disk-check-running.png"));
-                completion.SetResult(3); Await(window.ActiveCheck!);
-                check(window.StartButton.IsEnabled && !window.StopButton.IsEnabled && window.Status.Text.Contains("errors remain") &&
-                    window.ConsoleOutput.Text.Contains("code 3"), "Disk errors remain visible after completion and a new check can be started");
+                completion.SetResult(3); Await(window.Console.ActiveCheck!);
+                check(window.Console.StartButton.IsEnabled && !window.Console.StopButton.IsEnabled && window.Console.Status.Text.Contains("errors remain") &&
+                    window.Console.ConsoleOutput.Text.Contains("code 3"), "Disk errors remain visible after completion and a new check can be started");
                 Capture(window, Path.Combine(folder, "disk-check-result.png"));
                 window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
-                check(window.ConsoleOutput.ActualHeight > 80 && window.StartButton.IsVisible && window.Status.IsVisible,
+                check(window.Console.ConsoleOutput.ActualHeight > 80 && window.Console.StartButton.IsVisible && window.Console.Status.IsVisible,
                     "Disk-check controls and console retain usable space at the minimum window size");
                 Capture(window, Path.Combine(folder, "disk-check-minimum.png"));
                 var content = (FrameworkElement)window.Content;
-                var startBounds = window.StartButton.TransformToAncestor(content).TransformBounds(new Rect(window.StartButton.RenderSize));
-                var stopBounds = window.StopButton.TransformToAncestor(content).TransformBounds(new Rect(window.StopButton.RenderSize));
+                var startBounds = window.Console.StartButton.TransformToAncestor(content).TransformBounds(new Rect(window.Console.StartButton.RenderSize));
+                var stopBounds = window.Console.StopButton.TransformToAncestor(content).TransformBounds(new Rect(window.Console.StopButton.RenderSize));
                 check(startBounds.Left >= 0 && stopBounds.Right <= content.ActualWidth &&
-                    window.Drive.ActualWidth >= 180 && window.Status.ActualWidth <= content.ActualWidth,
+                    window.Console.Drive.ActualWidth >= 180 && window.Console.Status.ActualWidth <= content.ActualWidth,
                     "Drive choice, both check buttons and result fit inside the minimum disk-check width");
-                window.AppendOutput(new string('x', 250000));
-                check(window.ConsoleOutput.Text.Length <= 200000, "Console history is bounded during large checks");
+                window.Console.AppendOutput(new string('x', 250000));
+                check(window.Console.ConsoleOutput.Text.Length <= 200000, "Console history is bounded during large checks");
                 completion = new TaskCompletionSource<int>();
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                window.StopButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                check(token.IsCancellationRequested && !window.StopButton.IsEnabled, "Stop requests cancellation and prevents repeated stop actions");
-                completion.SetCanceled(); Await(window.ActiveCheck!);
-                check(window.Status.Text.Contains("incomplete") && window.StartButton.IsEnabled, "Cancelled checks report incomplete results and allow retry");
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.Console.StopButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                check(token.IsCancellationRequested && !window.Console.StopButton.IsEnabled, "Stop requests cancellation and prevents repeated stop actions");
+                completion.SetCanceled(); Await(window.Console.ActiveCheck!);
+                check(window.Console.Status.Text.Contains("incomplete") && window.Console.StartButton.IsEnabled, "Cancelled checks report incomplete results and allow retry");
                 completion = new TaskCompletionSource<int>();
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                completion.SetException(new IOException("fixture drive disconnected")); Await(window.ActiveCheck!);
-                check(window.Status.Text.Contains("disconnected") && window.StartButton.IsEnabled, "A disconnected or inaccessible drive leaves an actionable error and allows retry");
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                completion.SetException(new IOException("fixture drive disconnected")); Await(window.Console.ActiveCheck!);
+                check(window.Console.Status.Text.Contains("disconnected") && window.Console.StartButton.IsEnabled, "A disconnected or inaccessible drive leaves an actionable error and allows retry");
                 completion = new TaskCompletionSource<int>();
-                window.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); window.Close();
+                window.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); window.Close();
                 check(window.IsVisible && token.IsCancellationRequested, "Closing a running disk-check window stops its worker before closing");
-                completion.SetCanceled(); Await(window.ActiveCheck!);
+                completion.SetCanceled(); Await(window.Console.ActiveCheck!);
                 check(!window.IsVisible, "The disk-check window closes after its worker finishes stopping");
             }
             finally { window.Close(); }
             var empty = new DiskCheckWindow(Array.Empty<DiskCheckVolume>(), (_, _, _) => throw new Exception("Must not run"));
-            check(!empty.StartButton.IsEnabled && empty.Status.Text.Contains("No ready"), "No ready drives disables checking and explains how to recover");
+            check(!empty.Console.StartButton.IsEnabled && empty.Console.Status.Text.Contains("No ready"), "No ready drives disables checking and explains how to recover");
             empty.Close();
             var integrityCompletion = new TaskCompletionSource<int>();
             Action<string>? integrityOutput = null; CancellationToken integrityStop = default; int integrityStarts = 0;
@@ -150,40 +150,40 @@ public static class DiskCheckVerification
             try
             {
                 integrityWindow.Show();
-                check(integrityStarts == 0 && integrityWindow.StartButton.IsEnabled && !integrityWindow.Drive.IsEnabled,
+                check(integrityStarts == 0 && integrityWindow.Console.StartButton.IsEnabled && !integrityWindow.Console.Drive.IsEnabled,
                     "System integrity is explicitly started and works without any selectable disk");
-                integrityWindow.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                integrityWindow.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                integrityWindow.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                integrityWindow.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 integrityOutput!("Verification 50% complete.\rWindows Resource Protection found integrity violations.\n");
-                check(integrityStarts == 1 && !integrityWindow.CheckType.IsEnabled &&
-                    integrityWindow.ConsoleOutput.Text.Contains("sfc /verifyonly") && integrityWindow.ConsoleOutput.Text.Contains("integrity violations"),
+                check(integrityStarts == 1 && !integrityWindow.Console.CheckType.IsEnabled &&
+                    integrityWindow.Console.ConsoleOutput.Text.Contains("sfc /verifyonly") && integrityWindow.Console.ConsoleOutput.Text.Contains("integrity violations"),
                     "System integrity streams findings and prevents overlapping checks and mode changes");
                 Capture(integrityWindow, Path.Combine(folder, "system-integrity-running.png"));
-                integrityCompletion.SetResult(0); Await(integrityWindow.ActiveCheck!);
-                check(integrityWindow.Status.Text.Contains("Review") && integrityWindow.ConsoleOutput.Text.Contains("integrity violations") &&
-                    integrityWindow.CheckType.IsEnabled && !integrityWindow.Drive.IsEnabled,
+                integrityCompletion.SetResult(0); Await(integrityWindow.Console.ActiveCheck!);
+                check(integrityWindow.Console.Status.Text.Contains("Review") && integrityWindow.Console.ConsoleOutput.Text.Contains("integrity violations") &&
+                    integrityWindow.Console.CheckType.IsEnabled && !integrityWindow.Console.Drive.IsEnabled,
                     "SFC findings remain visible even when exit code is zero and the console permits another scan");
                 integrityWindow.Width = integrityWindow.MinWidth; integrityWindow.Height = integrityWindow.MinHeight;
                 Capture(integrityWindow, Path.Combine(folder, "system-integrity-minimum.png"));
-                check(integrityWindow.ConsoleOutput.ActualHeight > 80 && integrityWindow.StartButton.IsVisible,
+                check(integrityWindow.Console.ConsoleOutput.ActualHeight > 80 && integrityWindow.Console.StartButton.IsVisible,
                     "System integrity console and controls remain usable at minimum window size");
-                integrityWindow.CheckType.SelectedIndex = 0;
-                check(!integrityWindow.StartButton.IsEnabled && integrityWindow.Drive.IsEnabled,
+                integrityWindow.Console.CheckType.SelectedIndex = 0;
+                check(!integrityWindow.Console.StartButton.IsEnabled && integrityWindow.Console.Drive.IsEnabled,
                     "Switching to disk checks requires a drive even after an integrity scan");
-                integrityWindow.CheckType.SelectedIndex = 1;
+                integrityWindow.Console.CheckType.SelectedIndex = 1;
                 integrityCompletion = new TaskCompletionSource<int>();
-                integrityWindow.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                integrityCompletion.SetException(new IOException("fixture SFC unavailable")); Await(integrityWindow.ActiveCheck!);
-                check(integrityWindow.Status.Text.Contains("SFC unavailable") && integrityWindow.StartButton.IsEnabled &&
-                    integrityWindow.CheckType.IsEnabled && !integrityWindow.StopButton.IsEnabled,
+                integrityWindow.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                integrityCompletion.SetException(new IOException("fixture SFC unavailable")); Await(integrityWindow.Console.ActiveCheck!);
+                check(integrityWindow.Console.Status.Text.Contains("SFC unavailable") && integrityWindow.Console.StartButton.IsEnabled &&
+                    integrityWindow.Console.CheckType.IsEnabled && !integrityWindow.Console.StopButton.IsEnabled,
                     "System integrity launch failures remain visible and permit retry or a different check");
                 integrityCompletion = new TaskCompletionSource<int>();
-                integrityWindow.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                integrityWindow.Console.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 integrityWindow.Close();
                 check(integrityStop.IsCancellationRequested && integrityWindow.IsVisible,
                     "Closing a system integrity scan cancels its worker and waits for it to stop");
-                integrityCompletion.SetCanceled(); Await(integrityWindow.ActiveCheck!);
-                check(!integrityWindow.IsVisible && integrityWindow.Status.Text.Contains("incomplete"),
+                integrityCompletion.SetCanceled(); Await(integrityWindow.Console.ActiveCheck!);
+                check(!integrityWindow.IsVisible && integrityWindow.Console.Status.Text.Contains("incomplete"),
                     "Cancelled system integrity scans report incomplete results before the console closes");
             }
             finally { integrityWindow.Close(); }

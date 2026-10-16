@@ -4,10 +4,11 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses seven tabs: Startup, Application updates, Downloads cleanup, Performance, Repair tools,
+Settings uses seven tabs: Startup, Application updates, Downloads cleanup, Performance, Console,
 Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
 controls, Top applications averaging settings and Window controls.
-Each tab has its own scrollable page, while Done and Exit application stay visible.
+Settings opens at 1000 × 920 logical pixels, capped to fit the screen work area.
+Tabs have scrollable content, while Done and Exit application stay visible.
 Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
 
 Under **Settings → Performance → Windows aesthetics**, click **Adjust for best
@@ -42,39 +43,36 @@ not track cleanup progress, deleted files or reclaimed space. If Disk Cleanup
 is unavailable, use **Windows Settings → System → Storage**. See
 [Microsoft's Disk Cleanup reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cleanmgr).
 
-Under **Settings → Repair tools → Check disk for errors…**, open a Prefect console
-window, choose a local drive, and click **Start check**. Windows requests
-administrator approval for this separate window when needed. CHKDSK output
-streams inside the window; **Stop check** stops only its check process. Closing
-the window waits for that process to stop. Results remain visible until you
-start another check or close the window. The console keeps the most recent output
-when a check produces a large history.
+Under **Settings → Console**, choose **Check disk for errors**, select a local
+drive, and click **Start check**. The diagnostic console is embedded in Settings.
+If Prefect is not elevated, **Restart as administrator** requests Windows approval
+and reopens the Console tab. Opening the tab or choosing a mode starts no command.
+Output continues collecting when you switch tabs or minimise Settings. Results
+remain until the next check or until Settings closes; long output is bounded.
+**Stop check** cancels a read-only check. Closing Settings or exiting Prefect waits
+for that worker to stop. Restart and update installation wait for active commands.
 
 This runs `chkdsk X:` with no repair flags. It does not repair errors, dismount a
 drive, or schedule a restart. A drive in use can report temporary inconsistencies;
 review the full result before deciding on repairs. This is a file-system check,
 not a physical drive health test. See [Microsoft's CHKDSK reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/chkdsk).
-No check starts automatically, and the diagnostic window does not load or change
-your overlay preferences, startup settings or drivers.
+No check starts automatically.
 
-Under **Settings → Repair tools → System integrity → Scan Windows system integrity**,
-open the same diagnostic console with **System integrity scan** selected. You can
-also select this check from the console's check selector. Click **Start check**
+Under **Settings → Console**, select **System integrity scan** and click **Start check**
 to run `sfc /verifyonly` against the running Windows installation; the drive
-selection does not apply. Administrator approval is requested when needed.
+selection does not apply. Run Prefect as administrator first.
 Protected Windows system files are checked without requesting repairs or a restart.
 Live output, stopping, and result history work as with disk checks. Review Windows
 Resource Protection's findings in the console; an exit code alone does not prove
 system integrity. Windows records details in `%WINDIR%\Logs\CBS\CBS.log`.
 See [Microsoft's SFC reference](https://learn.microsoft.com/windows-server/administration/windows-commands/sfc).
 
-Under **Settings → Repair tools → System integrity → Fix Windows image (DISM)…**,
-open the built-in diagnostic console with image repair selected. The console also
+Under **Settings → Console**, select **Windows image: Repair (DISM)**. The console also
 offers **Check health** (previously flagged corruption) and **Scan health** (a full
 component-store scan). These checks do not repair the image. **Start repair** asks
 for confirmation before running `DISM /Online /Cleanup-Image /RestoreHealth /NoRestart`.
 It repairs the running Windows installation and may download files from Windows
-Update. Administrator approval is requested when needed; drive selection does not
+Update. Run Prefect as administrator first; drive selection does not
 apply. Progress, findings, errors and exit codes remain in the console. Let DISM
 finish before closing: Stop and Close do not terminate Windows servicing.
 Automatic restart is suppressed; a restart-required result asks you to restart
@@ -82,8 +80,7 @@ manually. If repair files are missing, review the console and
 `%WINDIR%\Logs\DISM\dism.log`; a matching Windows repair source may be required.
 See [Microsoft's Windows image repair guidance](https://learn.microsoft.com/windows-hardware/manufacture/desktop/repair-a-windows-image).
 
-Under **Settings → Repair tools → Fix disk errors…**, open the diagnostic console
-with **Fix disk errors** selected. Choose a local drive, click **Start repair**,
+Under **Settings → Console**, select **Fix disk errors**. Choose a local drive, click **Start repair**,
 then confirm the target drive. This runs `chkdsk X: /f` with administrator access
 to repair file-system errors. Back up important files and close apps using that
 drive first. The console does not start repairs just by opening or selecting a drive.
@@ -98,8 +95,8 @@ system files. The scan-only disk and system integrity options remain available.
 
 Let a repair finish: **Stop check** is disabled and Close keeps the repair console
 open while CHKDSK runs. Answer any pending prompt to let it proceed or decline the
-requested operation. Once the command exits, you can review results or close the
-window. The prompt response field accepts one letter at a time, including the
+requested operation. Once the command exits, you can review results or close
+Settings. The prompt response field accepts one letter at a time, including the
 letters shown on localized Windows installations.
 
 Under **Settings → Performance → Close Boring Applications**, search the installed

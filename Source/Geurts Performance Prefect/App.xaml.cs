@@ -127,7 +127,8 @@ public partial class App : Application
         MainWindow = new OverlayWindow(store, settings);
         MainWindow.Show();
         _ = ApplyStartupPowerOptionsAsync((OverlayWindow)MainWindow);
-        if (e.Args.Contains("--settings")) ((OverlayWindow)MainWindow).OpenSettings();
+        if (e.Args.Contains("--console")) ((OverlayWindow)MainWindow).OpenConsole();
+        else if (e.Args.Contains("--settings")) ((OverlayWindow)MainWindow).OpenSettings();
         _ = ((OverlayWindow)MainWindow).Downloads.RunOnStartupAsync(((OverlayWindow)MainWindow).Settings);
         _ = PawnIOInstaller.InstallIfMissingAsync();
     }
