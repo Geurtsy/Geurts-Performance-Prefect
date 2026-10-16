@@ -4,7 +4,7 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses six tabs: Startup, Application updates, Downloads cleanup, Performance,
+Settings uses seven tabs: Startup, Application updates, Downloads cleanup, Performance, Repair tools,
 Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
 controls, Top applications averaging settings and Window controls.
 Each tab has its own scrollable page, while Done and Exit application stay visible.
@@ -42,7 +42,7 @@ not track cleanup progress, deleted files or reclaimed space. If Disk Cleanup
 is unavailable, use **Windows Settings → System → Storage**. See
 [Microsoft's Disk Cleanup reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cleanmgr).
 
-Under **Settings → Performance → Check disk for errors…**, open a Prefect console
+Under **Settings → Repair tools → Check disk for errors…**, open a Prefect console
 window, choose a local drive, and click **Start check**. Windows requests
 administrator approval for this separate window when needed. CHKDSK output
 streams inside the window; **Stop check** stops only its check process. Closing
@@ -57,7 +57,7 @@ not a physical drive health test. See [Microsoft's CHKDSK reference](https://lea
 No check starts automatically, and the diagnostic window does not load or change
 your overlay preferences, startup settings or drivers.
 
-Under **Settings → Performance → System integrity → Scan Windows system integrity**,
+Under **Settings → Repair tools → System integrity → Scan Windows system integrity**,
 open the same diagnostic console with **System integrity scan** selected. You can
 also select this check from the console's check selector. Click **Start check**
 to run `sfc /verifyonly` against the running Windows installation; the drive
@@ -68,7 +68,7 @@ Resource Protection's findings in the console; an exit code alone does not prove
 system integrity. Windows records details in `%WINDIR%\Logs\CBS\CBS.log`.
 See [Microsoft's SFC reference](https://learn.microsoft.com/windows-server/administration/windows-commands/sfc).
 
-Under **Settings → Performance → System integrity → Fix Windows image (DISM)…**,
+Under **Settings → Repair tools → System integrity → Fix Windows image (DISM)…**,
 open the built-in diagnostic console with image repair selected. The console also
 offers **Check health** (previously flagged corruption) and **Scan health** (a full
 component-store scan). These checks do not repair the image. **Start repair** asks
@@ -82,7 +82,7 @@ manually. If repair files are missing, review the console and
 `%WINDIR%\Logs\DISM\dism.log`; a matching Windows repair source may be required.
 See [Microsoft's Windows image repair guidance](https://learn.microsoft.com/windows-hardware/manufacture/desktop/repair-a-windows-image).
 
-Under **Settings → Performance → Fix disk errors…**, open the diagnostic console
+Under **Settings → Repair tools → Fix disk errors…**, open the diagnostic console
 with **Fix disk errors** selected. Choose a local drive, click **Start repair**,
 then confirm the target drive. This runs `chkdsk X: /f` with administrator access
 to repair file-system errors. Back up important files and close apps using that

@@ -27,14 +27,19 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 6 && tabs.Select(t => t.Header).Distinct().Count() == 6,
-            "All six Settings sections have distinct tabs");
+        check(tabs.Length == 7 && tabs.Select(t => t.Header).Distinct().Count() == 7,
+            "All seven Settings sections have distinct tabs");
         Select(panel, panel.CheckDiskButton);
-        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
-            "Check disk for errors opens from the Performance settings tab");
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Repair tools",
+            "Check disk for errors opens from the Repair tools settings tab");
         Select(panel, panel.FixDiskButton);
-        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
-            "Fix disk errors opens from Performance settings beside the read-only disk check");
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Repair tools",
+            "Fix disk errors opens from Repair tools beside the read-only disk check");
+        var repairTab = tabs.Single(t => (string)t.Header == "Repair tools");
+        var repairControls = (StackPanel)((ScrollViewer)repairTab.Content).Content;
+        check(repairControls.Children.OfType<Button>().Select(b => (string)b.Content).SequenceEqual(new[]
+            { "Check disk for errors…", "Fix disk errors…", "Scan Windows system integrity", "Fix Windows image (DISM)…" }),
+            "Repair tools contains all four disk and Windows diagnostic/repair actions together");
         Select(panel, panel.DiskCleanupPanel.OpenButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
             "Disk Cleanup drive selection and launch are in Performance settings");

@@ -143,6 +143,19 @@ public sealed class SettingsWindow : Window
         UpdateDownloads();
         stack = AddTab("Performance");
         stack.Children.Add(VisualEffectsPanel);
+        stack.Children.Add(DiskCleanupPanel);
+        stack.Children.Add(new BoringApplicationsPanel(overlay.Settings, () => overlay.Store.Save(overlay.Settings)));
+        AddPowerOptions(stack);
+        stack.Children.Add(CoreParkingToggle);
+        stack.Children.Add(Note("Keep cores unparked while plugged in by setting the active power plan to 100%. Turning this off restores the value saved by this app. This may increase power use and heat."));
+        stack.Children.Add(parkingStatus);
+        parkingRefresh.Margin = new Thickness(0,8,0,0); stack.Children.Add(parkingRefresh);
+        parkingRefresh.Click += (_, _) => RefreshParking();
+        CoreParkingToggle.Checked += (_, _) => ChangeParking(true);
+        CoreParkingToggle.Unchecked += (_, _) => ChangeParking(false);
+        RefreshParking();
+        Activated += (_, _) => { if (!parkingBusy) RefreshParking(); };
+        stack = AddTab("Repair tools");
         stack.Children.Add(Label("Disk check"));
         stack.Children.Add(CheckDiskButton);
         stack.Children.Add(Note("Open a console inside a Prefect window to check a local drive for file-system errors. Windows may ask for administrator approval. Choose a drive and start a read-only check; repairs are not applied."));
@@ -162,18 +175,6 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(Note("Check, scan or repair the Windows component store in the built-in diagnostic console. Repair requires confirmation and may use Windows Update."));
         var imageStatus = Note(""); stack.Children.Add(imageStatus);
         imageButton.Click += (_, _) => imageStatus.Text = DiskCheck.OpenWindow(windowsImage: true);
-        stack.Children.Add(DiskCleanupPanel);
-        stack.Children.Add(new BoringApplicationsPanel(overlay.Settings, () => overlay.Store.Save(overlay.Settings)));
-        AddPowerOptions(stack);
-        stack.Children.Add(CoreParkingToggle);
-        stack.Children.Add(Note("Keep cores unparked while plugged in by setting the active power plan to 100%. Turning this off restores the value saved by this app. This may increase power use and heat."));
-        stack.Children.Add(parkingStatus);
-        parkingRefresh.Margin = new Thickness(0,8,0,0); stack.Children.Add(parkingRefresh);
-        parkingRefresh.Click += (_, _) => RefreshParking();
-        CoreParkingToggle.Checked += (_, _) => ChangeParking(true);
-        CoreParkingToggle.Unchecked += (_, _) => ChangeParking(false);
-        RefreshParking();
-        Activated += (_, _) => { if (!parkingBusy) RefreshParking(); };
         stack = AddTab("Overlay");
         var toggles = Panel();
         foreach (var metric in MetricInfo.All)
