@@ -12,6 +12,23 @@ namespace GeurtsPerformancePrefect;
 
 public sealed class SettingsWindow : Window
 {
+    internal void ShowInForeground()
+    {
+        WindowState = WindowState.Normal;
+        Show();
+        // Raise Settings above the overlay and other windows for this explicit open action.
+        // Restore the saved preference immediately so Settings does not stay pinned.
+        Topmost = true;
+        Topmost = overlay.Settings.AlwaysOnTop;
+        Activate();
+        Focus();
+        // Tray/context menus can restore their previous focus as they close.
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (IsVisible && WindowState == WindowState.Normal) { Activate(); Focus(); }
+        }, System.Windows.Threading.DispatcherPriority.Input);
+    }
+
     readonly OverlayWindow overlay;
     readonly ComboBox graphics = new(), board = new();
     readonly TextBlock sensorStatus;

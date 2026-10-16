@@ -312,6 +312,7 @@ public static class Verification
         // Exercise real WPF window state changes using isolated preferences and no sensor worker.
         overlay.Show(); overlay.OpenSettings();
         var activePanel = Application.Current.Windows.OfType<SettingsWindow>().Single(w => w.IsVisible);
+        SettingsForegroundVerification.Run(overlay, activePanel, Check);
         DropdownWheelVerification.Run(activePanel, Check);
         DropdownThemeVerification.Run(folder, Check);
         ScrollbarVerification.Run(activePanel, Check);

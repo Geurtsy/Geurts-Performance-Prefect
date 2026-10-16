@@ -125,6 +125,9 @@ and some applications may restart themselves after being closed.
 Dropdown fields and open lists use the dark green and emerald theme, with visible
 selection, hover, keyboard focus and disabled states. Long lists use a matching scrollbar.
 
+Opening Settings brings its window to the foreground, including when it is already
+open or the application is minimised. Your Always on top preference is preserved.
+
 Settings dropdowns use mouse or keyboard selection. The mouse wheel scrolls the
 page over a closed dropdown and browses the list when it is open. A wide scrollbar
 stays visible on the right side of Settings for easier dragging and navigation,

@@ -1,9 +1,8 @@
-# Geurts Performance Prefect 1.22.2
+# Geurts Performance Prefect 1.22.3
 
-- Themed dropdowns throughout Settings, Disk Cleanup and the diagnostic console with dark green fields, light text, emerald arrows and matching open lists.
-- Added selected, highlighted, keyboard-focus and disabled states, rounded borders and themed scrolling for long lists.
-- Preserved device labels, keyboard selection and the existing mouse-wheel behavior: closed dropdowns scroll the page without changing the selected value.
-- Validated isolated dropdown interactions and reviewed rendered closed, open and scrolled lists alongside the existing application checks.
+- Settings comes to the foreground when opened, reopened, or restored from the tray or taskbar.
+- Preserved the Always on top preference; opening Settings does not leave it permanently pinned when that preference is off.
+- Added isolated checks of native window activation for first opening, reopening over another test window, and restoring after minimising with Always on top both on and off.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

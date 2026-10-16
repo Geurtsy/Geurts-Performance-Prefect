@@ -467,9 +467,8 @@ public sealed class OverlayWindow : Window
         {
             settingsWindow = new SettingsWindow(this);
             settingsWindow.Closed += (_, _) => settingsWindow = null;
-            settingsWindow.Show();
         }
-        else { settingsWindow.WindowState = WindowState.Normal; settingsWindow.Activate(); }
+        settingsWindow.ShowInForeground();
     }
     public void Minimise()
     {
@@ -507,7 +506,7 @@ public sealed class OverlayWindow : Window
     {
         if (!restoreSettingsAfterMinimise || settingsWindow == null) return;
         restoreSettingsAfterMinimise = false;
-        settingsWindow.WindowState = WindowState.Normal; settingsWindow.Show(); settingsWindow.Activate();
+        settingsWindow.ShowInForeground();
     }
     internal bool RestartApplication()
     {
