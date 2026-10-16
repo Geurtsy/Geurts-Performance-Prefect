@@ -172,6 +172,54 @@
     </ControlTemplate>
    </Setter.Value></Setter>
   </Style>
+  <Style x:Key="SliderPage" TargetType="RepeatButton">
+   <Setter Property="Focusable" Value="False"/>
+   <Setter Property="Background" Value="Transparent"/>
+   <Setter Property="Template"><Setter.Value>
+    <ControlTemplate TargetType="RepeatButton">
+     <Grid Background="Transparent">
+      <Border Height="6" VerticalAlignment="Center" Background="{TemplateBinding Background}" CornerRadius="3"/>
+     </Grid>
+    </ControlTemplate>
+   </Setter.Value></Setter>
+  </Style>
+  <Style x:Key="SliderHandle" TargetType="Thumb">
+   <Setter Property="Width" Value="22"/>
+   <Setter Property="Height" Value="26"/>
+   <Setter Property="Template"><Setter.Value>
+    <ControlTemplate TargetType="Thumb">
+     <Border x:Name="Grip" Background="#64B983" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" CornerRadius="6">
+      <Border Width="2" Height="10" Background="#284B37" CornerRadius="1" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+     </Border>
+     <ControlTemplate.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Background" Value="{StaticResource AccentBrush}"/></Trigger>
+      <Trigger Property="IsDragging" Value="True"><Setter TargetName="Grip" Property="Background" Value="#B0F4CA"/></Trigger>
+      <DataTrigger Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=Slider}}" Value="True">
+       <Setter TargetName="Grip" Property="BorderBrush" Value="White"/><Setter TargetName="Grip" Property="BorderThickness" Value="2"/>
+      </DataTrigger>
+     </ControlTemplate.Triggers>
+    </ControlTemplate>
+   </Setter.Value></Setter>
+  </Style>
+  <Style TargetType="Slider">
+   <Setter Property="MinHeight" Value="32"/>
+   <Setter Property="Cursor" Value="Hand"/>
+   <Setter Property="Template"><Setter.Value>
+    <ControlTemplate TargetType="Slider">
+     <Grid x:Name="Surface" Background="Transparent" SnapsToDevicePixels="True">
+      <Border Height="6" Margin="11,0" VerticalAlignment="Center" Background="{StaticResource PanelBrush}" BorderBrush="#3C5347" BorderThickness="1" CornerRadius="3"/>
+      <Track x:Name="PART_Track" IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+       <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource SliderPage}" Background="#64B983" Command="Slider.DecreaseLarge"/></Track.DecreaseRepeatButton>
+       <Track.Thumb><Thumb Style="{StaticResource SliderHandle}"/></Track.Thumb>
+       <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource SliderPage}" Command="Slider.IncreaseLarge"/></Track.IncreaseRepeatButton>
+      </Track>
+     </Grid>
+     <ControlTemplate.Triggers>
+      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.45"/></Trigger>
+     </ControlTemplate.Triggers>
+    </ControlTemplate>
+   </Setter.Value></Setter>
+  </Style>
   <Style TargetType="ComboBoxItem">
    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
    <Setter Property="Background" Value="Transparent"/>

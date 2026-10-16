@@ -124,6 +124,9 @@ and some applications may restart themselves after being closed.
 
 Dropdown fields and open lists use the dark green and emerald theme, with visible
 selection, hover, keyboard focus and disabled states. Long lists use a matching scrollbar.
+Sliders use matching dark tracks, emerald fill and rounded handles, with hover,
+drag, keyboard-focus and disabled states. Dragging, track clicks and keyboard steps
+retain their existing ranges and increments.
 
 Settings dropdowns use mouse or keyboard selection. The mouse wheel scrolls the
 page over a closed dropdown and browses the list when it is open. A wide scrollbar
