@@ -82,6 +82,26 @@ manually. If repair files are missing, review the console and
 `%WINDIR%\Logs\DISM\dism.log`; a matching Windows repair source may be required.
 See [Microsoft's Windows image repair guidance](https://learn.microsoft.com/windows-hardware/manufacture/desktop/repair-a-windows-image).
 
+Under **Settings → Performance → Fix disk errors…**, open the diagnostic console
+with **Fix disk errors** selected. Choose a local drive, click **Start repair**,
+then confirm the target drive. This runs `chkdsk X: /f` with administrator access
+to repair file-system errors. Back up important files and close apps using that
+drive first. The console does not start repairs just by opening or selecting a drive.
+
+CHKDSK may ask to dismount a drive or schedule repair for the next restart. Read
+its prompt, enter the response letter it shows, and click **Send response**.
+Prefect sends no automatic replies and does not restart Windows. Agreeing to
+schedule a repair means it will run on a later restart; it has not completed yet.
+The final command exit code alone does not prove repair success; review Windows'
+full output. This repairs file-system errors, not failing hardware or Windows
+system files. The scan-only disk and system integrity options remain available.
+
+Let a repair finish: **Stop check** is disabled and Close keeps the repair console
+open while CHKDSK runs. Answer any pending prompt to let it proceed or decline the
+requested operation. Once the command exits, you can review results or close the
+window. The prompt response field accepts one letter at a time, including the
+letters shown on localized Windows installations.
+
 Under **Settings → Performance → Close Boring Applications**, search the installed
 desktop application list and select apps you want to close. Your list saves
 automatically. **Close Boring Applications** terminates all matching running

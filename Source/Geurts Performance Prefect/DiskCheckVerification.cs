@@ -192,7 +192,7 @@ public static class DiskCheckVerification
         }
         finally { Application.Current.ShutdownMode = previous; }
     }
-    static void Capture(DiskCheckWindow window, string path)
+    internal static void Capture(DiskCheckWindow window, string path)
     {
         window.UpdateLayout();
         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);

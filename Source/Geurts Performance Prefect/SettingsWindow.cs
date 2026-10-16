@@ -62,6 +62,7 @@ public sealed class SettingsWindow : Window
     public Button RestorePowerOptionsButton { get; } = new() { Content = "Restore previous power plan", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
     public TextBlock PowerOptionsStatus { get; } = Note("");
     public Button CheckDiskButton { get; } = new() { Content = "Check disk for errors…", HorizontalAlignment = HorizontalAlignment.Left };
+    public Button FixDiskButton { get; } = new() { Content = "Fix disk errors…", HorizontalAlignment = HorizontalAlignment.Left };
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     readonly TextBlock batteryCpuCaption = Label("");
@@ -147,6 +148,9 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(Note("Open a console inside a Prefect window to check a local drive for file-system errors. Windows may ask for administrator approval. Choose a drive and start a read-only check; repairs are not applied."));
         var diskCheckStatus = Note(""); stack.Children.Add(diskCheckStatus);
         CheckDiskButton.Click += (_, _) => diskCheckStatus.Text = DiskCheck.OpenWindow();
+        stack.Children.Add(FixDiskButton);
+        stack.Children.Add(Note("Open the console in repair mode. Select a drive and confirm before CHKDSK repairs its file system. Windows may ask to dismount the drive or schedule repair at restart; you answer those prompts. Back up important files first."));
+        FixDiskButton.Click += (_, _) => diskCheckStatus.Text = DiskCheck.OpenWindow(repair: true);
         stack.Children.Add(Label("System integrity"));
         var integrityButton = new Button { Content = "Scan Windows system integrity", HorizontalAlignment = HorizontalAlignment.Left };
         stack.Children.Add(integrityButton);
