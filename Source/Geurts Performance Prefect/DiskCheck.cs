@@ -64,7 +64,7 @@ public static class DiskCheck
     {
         stop.ThrowIfCancellationRequested();
         using var process = new Process { StartInfo = info };
-        if (!process.Start()) throw new IOException("Windows did not start the disk check.");
+        if (!process.Start()) throw new IOException("Windows did not start the diagnostic process.");
         process.StandardInput.Close();
         using var registration = stop.Register(() =>
         {
@@ -100,28 +100,28 @@ public static class DiskCheck
         _ => $"CHKDSK exited with code {code}. Review the console output."
     };
 
-    internal static ProcessStartInfo WindowInfo(bool administrator)
+    internal static ProcessStartInfo WindowInfo(bool administrator, bool integrity = false)
     {
         var info = new ProcessStartInfo(Environment.ProcessPath ?? throw new IOException("The application executable is unavailable."))
         { UseShellExecute = true, WorkingDirectory = AppContext.BaseDirectory };
         if (!administrator) info.Verb = "runas";
-        info.ArgumentList.Add("--check-disk");
+        info.ArgumentList.Add(integrity ? "--system-integrity" : "--check-disk");
         return info;
     }
 
-    public static string OpenWindow(Func<ProcessStartInfo, bool>? launch = null)
+    public static string OpenWindow(Func<ProcessStartInfo, bool>? launch = null, bool integrity = false)
     {
         try
         {
-            var info = WindowInfo(HardwareSampler.IsAdministrator);
+            var info = WindowInfo(HardwareSampler.IsAdministrator, integrity);
             bool started;
             if (launch != null) started = launch(info);
             else { using var child = Process.Start(info); started = child != null; }
-            return started ? "Disk check window opened. Select a drive and choose Start check." : "Windows did not open the disk check window.";
+            return started ? "Diagnostic console opened. Choose Start check when ready." : "Windows did not open the diagnostic console.";
         }
-        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { return "Administrator approval cancelled. No disk check was started."; }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { return "Administrator approval cancelled. No check was started."; }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException)
-        { return "Could not open the disk check window: " + ex.Message; }
+        { return "Could not open the diagnostic console: " + ex.Message; }
     }
 
     [DllImport("kernel32.dll")] static extern uint GetOEMCP();

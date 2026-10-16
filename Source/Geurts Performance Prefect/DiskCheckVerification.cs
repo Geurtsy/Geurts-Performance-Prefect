@@ -42,6 +42,24 @@ public static class DiskCheckVerification
         Await(help);
         check(text.Length > 100, "The real Windows CHKDSK help streams through embedded console pipes without checking a disk");
 
+        var sfc = SystemIntegrity.ScanInfo();
+        check(sfc.FileName == Path.Combine(Environment.SystemDirectory, "sfc.exe") &&
+            sfc.ArgumentList.SequenceEqual(new[] { "/verifyonly" }) && !sfc.UseShellExecute &&
+            sfc.RedirectStandardOutput && sfc.RedirectStandardError && sfc.RedirectStandardInput &&
+            sfc.StandardOutputEncoding == Encoding.Unicode,
+            "System integrity uses the Windows SFC executable with only the scan-only switch and Unicode embedded pipes");
+        check(DiskCheck.WindowInfo(false, true).Verb == "runas" &&
+            DiskCheck.WindowInfo(true, true).ArgumentList.SequenceEqual(new[] { "--system-integrity" }),
+            "System integrity opens a separate elevated diagnostic console without overlay startup");
+        check(new[] { 0, 1, 2, 77 }.All(code => SystemIntegrity.Result(code).Contains($"code {code}") &&
+            SystemIntegrity.Result(code).Contains("Review") && !SystemIntegrity.Result(code).Contains("no errors")),
+            "SFC status preserves exit codes and asks users to review findings instead of assuming integrity from exit code zero");
+        text.Clear(); sfc.ArgumentList.Clear(); sfc.ArgumentList.Add("/?");
+        Await(DiskCheck.RunProcessAsync(sfc, chunk => { lock (sync) text.Append(chunk); }, CancellationToken.None));
+        File.WriteAllText(Path.Combine(folder, "sfc-help-output.txt"), text.ToString());
+        check(text.Length > 20 && !text.ToString().Contains('\0') && !text.ToString().Contains('\uFFFD'),
+            "Real SFC help or administrator-required response decodes through Unicode pipes without a system scan");
+
         ProcessStartInfo Fixture(string command)
         {
             var fixture = DiskCheck.ScanInfo("C:\\");
@@ -124,6 +142,51 @@ public static class DiskCheckVerification
             var empty = new DiskCheckWindow(Array.Empty<DiskCheckVolume>(), (_, _, _) => throw new Exception("Must not run"));
             check(!empty.StartButton.IsEnabled && empty.Status.Text.Contains("No ready"), "No ready drives disables checking and explains how to recover");
             empty.Close();
+            var integrityCompletion = new TaskCompletionSource<int>();
+            Action<string>? integrityOutput = null; CancellationToken integrityStop = default; int integrityStarts = 0;
+            var integrityWindow = new DiskCheckWindow(Array.Empty<DiskCheckVolume>(),
+                (_, _, _) => throw new Exception("Disk worker must not run"), (emit, stop) =>
+                { integrityStarts++; integrityOutput = emit; integrityStop = stop; return integrityCompletion.Task; }, true);
+            try
+            {
+                integrityWindow.Show();
+                check(integrityStarts == 0 && integrityWindow.StartButton.IsEnabled && !integrityWindow.Drive.IsEnabled,
+                    "System integrity is explicitly started and works without any selectable disk");
+                integrityWindow.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                integrityWindow.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                integrityOutput!("Verification 50% complete.\rWindows Resource Protection found integrity violations.\n");
+                check(integrityStarts == 1 && !integrityWindow.CheckType.IsEnabled &&
+                    integrityWindow.ConsoleOutput.Text.Contains("sfc /verifyonly") && integrityWindow.ConsoleOutput.Text.Contains("integrity violations"),
+                    "System integrity streams findings and prevents overlapping checks and mode changes");
+                Capture(integrityWindow, Path.Combine(folder, "system-integrity-running.png"));
+                integrityCompletion.SetResult(0); Await(integrityWindow.ActiveCheck!);
+                check(integrityWindow.Status.Text.Contains("Review") && integrityWindow.ConsoleOutput.Text.Contains("integrity violations") &&
+                    integrityWindow.CheckType.IsEnabled && !integrityWindow.Drive.IsEnabled,
+                    "SFC findings remain visible even when exit code is zero and the console permits another scan");
+                integrityWindow.Width = integrityWindow.MinWidth; integrityWindow.Height = integrityWindow.MinHeight;
+                Capture(integrityWindow, Path.Combine(folder, "system-integrity-minimum.png"));
+                check(integrityWindow.ConsoleOutput.ActualHeight > 80 && integrityWindow.StartButton.IsVisible,
+                    "System integrity console and controls remain usable at minimum window size");
+                integrityWindow.CheckType.SelectedIndex = 0;
+                check(!integrityWindow.StartButton.IsEnabled && integrityWindow.Drive.IsEnabled,
+                    "Switching to disk checks requires a drive even after an integrity scan");
+                integrityWindow.CheckType.SelectedIndex = 1;
+                integrityCompletion = new TaskCompletionSource<int>();
+                integrityWindow.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                integrityCompletion.SetException(new IOException("fixture SFC unavailable")); Await(integrityWindow.ActiveCheck!);
+                check(integrityWindow.Status.Text.Contains("SFC unavailable") && integrityWindow.StartButton.IsEnabled &&
+                    integrityWindow.CheckType.IsEnabled && !integrityWindow.StopButton.IsEnabled,
+                    "System integrity launch failures remain visible and permit retry or a different check");
+                integrityCompletion = new TaskCompletionSource<int>();
+                integrityWindow.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                integrityWindow.Close();
+                check(integrityStop.IsCancellationRequested && integrityWindow.IsVisible,
+                    "Closing a system integrity scan cancels its worker and waits for it to stop");
+                integrityCompletion.SetCanceled(); Await(integrityWindow.ActiveCheck!);
+                check(!integrityWindow.IsVisible && integrityWindow.Status.Text.Contains("incomplete"),
+                    "Cancelled system integrity scans report incomplete results before the console closes");
+            }
+            finally { integrityWindow.Close(); }
             var discovered = DiskCheck.Volumes();
             check(discovered.All(v => DiskCheck.VolumeArgument(v.Root).Length == 2), "Read-only drive discovery returns local drive roots");
         }

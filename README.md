@@ -57,6 +57,17 @@ not a physical drive health test. See [Microsoft's CHKDSK reference](https://lea
 No check starts automatically, and the diagnostic window does not load or change
 your overlay preferences, startup settings or drivers.
 
+Under **Settings → Performance → System integrity → Scan Windows system integrity**,
+open the same diagnostic console with **System integrity scan** selected. You can
+also select this check from the console's check selector. Click **Start check**
+to run `sfc /verifyonly` against the running Windows installation; the drive
+selection does not apply. Administrator approval is requested when needed.
+Protected Windows system files are checked without requesting repairs or a restart.
+Live output, stopping, and result history work as with disk checks. Review Windows
+Resource Protection's findings in the console; an exit code alone does not prove
+system integrity. Windows records details in `%WINDIR%\Logs\CBS\CBS.log`.
+See [Microsoft's SFC reference](https://learn.microsoft.com/windows-server/administration/windows-commands/sfc).
+
 Under **Settings → Performance → Close Boring Applications**, search the installed
 desktop application list and select apps you want to close. Your list saves
 automatically. **Close Boring Applications** terminates all matching running

@@ -147,6 +147,12 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(Note("Open a console inside a Prefect window to check a local drive for file-system errors. Windows may ask for administrator approval. Choose a drive and start a read-only check; repairs are not applied."));
         var diskCheckStatus = Note(""); stack.Children.Add(diskCheckStatus);
         CheckDiskButton.Click += (_, _) => diskCheckStatus.Text = DiskCheck.OpenWindow();
+        stack.Children.Add(Label("System integrity"));
+        var integrityButton = new Button { Content = "Scan Windows system integrity", HorizontalAlignment = HorizontalAlignment.Left };
+        stack.Children.Add(integrityButton);
+        stack.Children.Add(Note("Open the diagnostic console to scan protected Windows system files. Requires administrator approval. The scan reports issues without applying repairs."));
+        var integrityStatus = Note(""); stack.Children.Add(integrityStatus);
+        integrityButton.Click += (_, _) => integrityStatus.Text = DiskCheck.OpenWindow(integrity: true);
         stack.Children.Add(DiskCleanupPanel);
         stack.Children.Add(new BoringApplicationsPanel(overlay.Settings, () => overlay.Store.Save(overlay.Settings)));
         AddPowerOptions(stack);
