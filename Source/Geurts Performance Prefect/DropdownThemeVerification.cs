@@ -32,11 +32,12 @@ public static class DropdownThemeVerification
             window.Show(); Pump();
             var selection = (ContentPresenter)named.Template.FindName("Selection", named);
             Capture(stack, Path.Combine(folder, "dropdowns-initial.png"));
-            check(named.Text == "Automatic graphics card",
-                "Themed dropdown preserves DisplayMemberPath labels: " + named.Text + " / " + selection.Content);
+            check(HasText(selection, "Automatic graphics card"),
+                "Themed dropdown renders DisplayMemberPath labels instead of object descriptions");
             named.Focus();
             named.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(named), Environment.TickCount, Key.Down) { RoutedEvent = Keyboard.KeyDownEvent });
-            check(named.SelectedIndex == 1, "Themed closed dropdown retains keyboard selection");
+            Pump();
+            check(named.SelectedIndex == 1 && HasText(selection, "Dedicated graphics card"), "Themed closed dropdown retains keyboard selection and updates its label");
             Capture(stack, Path.Combine(folder, "dropdowns-closed.png"));
             var toggle = (ToggleButton)choice.Template.FindName("DropDownToggle", choice);
             ((IToggleProvider)new ToggleButtonAutomationPeer(toggle).GetPattern(PatternInterface.Toggle)).Toggle(); Pump();
@@ -61,6 +62,13 @@ public static class DropdownThemeVerification
     }
 
     static void Pump() => Application.Current.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+    static bool HasText(DependencyObject element, string text)
+    {
+        if (element is TextBlock label && label.Text == text) return true;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(element); index++)
+            if (HasText(VisualTreeHelper.GetChild(element, index), text)) return true;
+        return false;
+    }
     static void Capture(FrameworkElement content, string path)
     {
         var drawing = new DrawingVisual();
