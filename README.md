@@ -128,6 +128,9 @@ Sliders use matching dark tracks, emerald fill and rounded handles, with hover,
 drag, keyboard-focus and disabled states. Dragging, track clicks and keyboard steps
 retain their existing ranges and increments.
 
+Opening Settings brings its window to the foreground, including when it is already
+open or the application is minimised. Your Always on top preference is preserved.
+
 Settings dropdowns use mouse or keyboard selection. The mouse wheel scrolls the
 page over a closed dropdown and browses the list when it is open. A wide scrollbar
 stays visible on the right side of Settings for easier dragging and navigation,

@@ -1,4 +1,4 @@
-# Geurts Performance Prefect 1.22.3
+# Geurts Performance Prefect 1.22.4
 
 - Themed all four Settings sliders: application averaging, battery CPU performance limit, overlay opacity and overlay size.
 - Added dark green tracks, emerald value fill and rounded handles with hover, drag, keyboard-focus and disabled states.
