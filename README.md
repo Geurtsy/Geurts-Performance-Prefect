@@ -68,6 +68,20 @@ Resource Protection's findings in the console; an exit code alone does not prove
 system integrity. Windows records details in `%WINDIR%\Logs\CBS\CBS.log`.
 See [Microsoft's SFC reference](https://learn.microsoft.com/windows-server/administration/windows-commands/sfc).
 
+Under **Settings → Performance → System integrity → Fix Windows image (DISM)…**,
+open the built-in diagnostic console with image repair selected. The console also
+offers **Check health** (previously flagged corruption) and **Scan health** (a full
+component-store scan). These checks do not repair the image. **Start repair** asks
+for confirmation before running `DISM /Online /Cleanup-Image /RestoreHealth /NoRestart`.
+It repairs the running Windows installation and may download files from Windows
+Update. Administrator approval is requested when needed; drive selection does not
+apply. Progress, findings, errors and exit codes remain in the console. Let DISM
+finish before closing: Stop and Close do not terminate Windows servicing.
+Automatic restart is suppressed; a restart-required result asks you to restart
+manually. If repair files are missing, review the console and
+`%WINDIR%\Logs\DISM\dism.log`; a matching Windows repair source may be required.
+See [Microsoft's Windows image repair guidance](https://learn.microsoft.com/windows-hardware/manufacture/desktop/repair-a-windows-image).
+
 Under **Settings → Performance → Close Boring Applications**, search the installed
 desktop application list and select apps you want to close. Your list saves
 automatically. **Close Boring Applications** terminates all matching running

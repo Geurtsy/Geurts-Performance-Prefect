@@ -100,24 +100,24 @@ public static class DiskCheck
         _ => $"CHKDSK exited with code {code}. Review the console output."
     };
 
-    internal static ProcessStartInfo WindowInfo(bool administrator, bool integrity = false)
+    internal static ProcessStartInfo WindowInfo(bool administrator, bool integrity = false, bool windowsImage = false)
     {
         var info = new ProcessStartInfo(Environment.ProcessPath ?? throw new IOException("The application executable is unavailable."))
         { UseShellExecute = true, WorkingDirectory = AppContext.BaseDirectory };
         if (!administrator) info.Verb = "runas";
-        info.ArgumentList.Add(integrity ? "--system-integrity" : "--check-disk");
+        info.ArgumentList.Add(windowsImage ? "--windows-image" : integrity ? "--system-integrity" : "--check-disk");
         return info;
     }
 
-    public static string OpenWindow(Func<ProcessStartInfo, bool>? launch = null, bool integrity = false)
+    public static string OpenWindow(Func<ProcessStartInfo, bool>? launch = null, bool integrity = false, bool windowsImage = false)
     {
         try
         {
-            var info = WindowInfo(HardwareSampler.IsAdministrator, integrity);
+            var info = WindowInfo(HardwareSampler.IsAdministrator, integrity, windowsImage);
             bool started;
             if (launch != null) started = launch(info);
             else { using var child = Process.Start(info); started = child != null; }
-            return started ? "Diagnostic console opened. Choose Start check when ready." : "Windows did not open the diagnostic console.";
+            return started ? "Diagnostic console opened. Choose " + (windowsImage ? "Start repair" : "Start check") + " when ready." : "Windows did not open the diagnostic console.";
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { return "Administrator approval cancelled. No check was started."; }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException)

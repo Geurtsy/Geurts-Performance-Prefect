@@ -153,6 +153,11 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(Note("Open the diagnostic console to scan protected Windows system files. Requires administrator approval. The scan reports issues without applying repairs."));
         var integrityStatus = Note(""); stack.Children.Add(integrityStatus);
         integrityButton.Click += (_, _) => integrityStatus.Text = DiskCheck.OpenWindow(integrity: true);
+        var imageButton = new Button { Content = "Fix Windows image (DISM)…", HorizontalAlignment = HorizontalAlignment.Left };
+        stack.Children.Add(imageButton);
+        stack.Children.Add(Note("Check, scan or repair the Windows component store in the built-in diagnostic console. Repair requires confirmation and may use Windows Update."));
+        var imageStatus = Note(""); stack.Children.Add(imageStatus);
+        imageButton.Click += (_, _) => imageStatus.Text = DiskCheck.OpenWindow(windowsImage: true);
         stack.Children.Add(DiskCleanupPanel);
         stack.Children.Add(new BoringApplicationsPanel(overlay.Settings, () => overlay.Store.Save(overlay.Settings)));
         AddPowerOptions(stack);
