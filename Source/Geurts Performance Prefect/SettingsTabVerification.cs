@@ -35,6 +35,9 @@ public static class SettingsTabVerification
         Select(panel, panel.SecurityPanel.DisableUacButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Security",
             "Windows-wide UAC mode and restore controls are in the Security tab");
+        var securityScroll = Select(panel, panel.FirewallPanel.DisableButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Security",
+            "Windows Firewall disable and restore actions are in the Security tab");
         check(panel.Width == Math.Min(1000, panel.MaxWidth) && panel.Height == Math.Min(920, panel.MaxHeight),
             "Settings opens at its expanded default size within the screen work area");
         Select(panel, panel.Console.CheckType);
@@ -74,6 +77,15 @@ public static class SettingsTabVerification
                     Capture(panel, Path.Combine(folder, "settings-overlay-window-" + width + ".png"), width, 920);
                     selected.ScrollToBottom(); selected.UpdateLayout();
                     Capture(panel, Path.Combine(folder, "settings-overlay-details-" + width + ".png"), width, 920);
+                    selected.ScrollToTop(); selected.UpdateLayout();
+                }
+                if (selected == securityScroll)
+                {
+                    selected.ScrollToBottom(); selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-firewall-" + width + ".png"), width, 920);
+                    var buttonBounds = panel.FirewallPanel.DisableButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.FirewallPanel.DisableButton.RenderSize));
+                    check(buttonBounds.Top >= 0 && buttonBounds.Bottom <= selected.ViewportHeight && buttonBounds.Right <= selected.ViewportWidth,
+                        "Firewall action remains reachable and fits the scrolled Security tab at width " + width);
                     selected.ScrollToTop(); selected.UpdateLayout();
                 }
             }

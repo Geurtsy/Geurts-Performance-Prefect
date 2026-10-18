@@ -26,6 +26,23 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length > 0 && e.Args[0] == WindowsFirewall.HelperArgument)
+        {
+            // A fixed firewall operation bypasses all normal startup side effects.
+            try
+            {
+                if (e.Args.Length != 2 || !WindowsFirewall.ValidOperation(e.Args[1]))
+                    throw new ArgumentException("Invalid Windows Firewall operation.");
+                WindowsFirewall.Apply(e.Args[1] == "disable");
+                Shutdown(0);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Geurts Performance Prefect · Windows Firewall", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown(1);
+            }
+            return;
+        }
         if (e.Args.Length > 0 && e.Args[0] == WindowsSecurity.HelperArgument)
         {
             // Fixed operations only; bypass startup settings, sampling, drivers and the overlay mutex.

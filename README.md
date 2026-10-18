@@ -318,6 +318,29 @@ continue directly. Turning the checkbox off affects future launches; an already
 elevated session keeps its permissions until you exit it. Diagnostic, self-test
 and updater helper modes do not use this preference.
 
+## Windows Firewall
+
+Under **Settings → Security → Windows Firewall**, **Disable Windows Firewall…**
+turns off the Domain, Private and Public profiles for this computer after an
+explicit confirmation. This reduces protection against unwanted network access,
+including on public Wi-Fi, and persists until you restore or change the settings.
+Administrator approval may be required; no Windows restart is normally needed.
+Nothing changes merely from opening the tab or starting Prefect.
+
+**Restore / enable Windows Firewall** restores each profile's previous enabled
+or disabled state. If no Prefect backup exists, it enables all three profiles.
+The original states are saved in an administrator-protected machine registry
+value before any profile changes, with readback verification, rollback on
+partial failure, and the backup retained if recovery or restoration fails.
+Repeated disables preserve the original snapshot, including mixed profile states.
+
+Only the local profiles' enabled flags are changed through Windows' firewall API.
+Rules, the firewall service, antivirus and UAC settings are preserved. The status
+shows all three local profile settings; effective protection can differ when
+organization policies or other security products apply. Prefect does not bypass
+those policies. Microsoft's [FirewallEnabled API documentation](https://learn.microsoft.com/en-us/windows/win32/api/netfw/nf-netfw-inetfwpolicy2-get_firewallenabled)
+describes the local setting and the effect of group policy.
+
 ## Windows-wide administrator mode
 
 Under **Settings → Security**, **Run all apps as administrator without prompts…**

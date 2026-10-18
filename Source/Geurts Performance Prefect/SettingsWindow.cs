@@ -82,6 +82,7 @@ public sealed class SettingsWindow : Window
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     public SecurityPanel SecurityPanel { get; } = new();
+    public FirewallPanel FirewallPanel { get; } = new();
     readonly TextBlock batteryCpuCaption = Label("");
     bool updatingPowerOptions;
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null)
@@ -132,6 +133,8 @@ public sealed class SettingsWindow : Window
         StartAsAdministratorToggle.Unchecked += (_, _) => ChangeAdministratorStartup(false);
         stack.Children.Add(SecurityPanel);
         Activated += (_, _) => SecurityPanel.Refresh();
+        stack.Children.Add(FirewallPanel);
+        Activated += (_, _) => FirewallPanel.Refresh();
         stack = AddTab("Application updates");
         stack.Children.Add(Note("Installed version: " + AppUpdates.CurrentVersion));
         var installationFolder = new Button { Content = "Open Installation Folder", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,8) };
