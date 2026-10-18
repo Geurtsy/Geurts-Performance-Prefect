@@ -81,6 +81,7 @@ public sealed class SettingsWindow : Window
     public DiagnosticConsole Console { get; }
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
+    public SecurityPanel SecurityPanel { get; } = new();
     readonly TextBlock batteryCpuCaption = Label("");
     bool updatingPowerOptions;
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null)
@@ -120,6 +121,8 @@ public sealed class SettingsWindow : Window
         StartWithWindowsToggle.Unchecked += (_, _) => ChangeStartup(false);
         RefreshStartup();
         Activated += (_, _) => RefreshStartup();
+        stack = AddTab("Security");
+        stack.Children.Add(Label("Administrator access"));
         stack.Children.Add(StartAsAdministratorToggle);
         stack.Children.Add(Note("Off by default. Applies on the next launch, including Start with Windows. Windows may ask for administrator approval. Cancelling approval keeps the app running with normal permissions."));
         stack.Children.Add(AdministratorStartupStatus);
@@ -127,6 +130,8 @@ public sealed class SettingsWindow : Window
         RefreshAdministratorStartup();
         StartAsAdministratorToggle.Checked += (_, _) => ChangeAdministratorStartup(true);
         StartAsAdministratorToggle.Unchecked += (_, _) => ChangeAdministratorStartup(false);
+        stack.Children.Add(SecurityPanel);
+        Activated += (_, _) => SecurityPanel.Refresh();
         stack = AddTab("Application updates");
         stack.Children.Add(Note("Installed version: " + AppUpdates.CurrentVersion));
         var installationFolder = new Button { Content = "Open Installation Folder", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,8) };

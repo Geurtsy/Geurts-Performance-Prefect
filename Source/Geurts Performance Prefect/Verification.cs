@@ -32,6 +32,7 @@ public static class Verification
         VisualEffectsVerification.Run(folder, Check);
         WindowsStartupVerification.Run(folder, Check);
         AdministratorStartupVerification.Run(folder, Check);
+        SecurityVerification.Run(folder, Check);
         ApplicationRestartVerification.Run(folder, Check);
         ForegroundFpsVerification.Run(folder, Check);
         var iconFrames = new IconBitmapDecoder(Branding.IconUri, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames;

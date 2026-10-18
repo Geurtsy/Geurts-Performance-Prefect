@@ -66,6 +66,7 @@ public static class AdministratorStartupVerification
             panel.StartAsAdministratorToggle.IsChecked = true;
             check(store.Load().StartAsAdministrator && panel.AdministratorStartupStatus.Text.Contains("next launch") && entry.Writes == 0,
                 "Checking administrator mode immediately saves for the next launch without registering startup");
+            SettingsTabVerification.Select(panel, panel.StartAsAdministratorToggle);
             Verification.Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-administrator-startup.png"), 490, 790);
         }
         finally { panel.Close(); overlay.Close(); }

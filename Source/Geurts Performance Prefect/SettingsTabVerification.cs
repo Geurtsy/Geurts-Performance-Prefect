@@ -27,8 +27,14 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 7 && tabs.Select(t => t.Header).Distinct().Count() == 7,
-            "All seven Settings sections have distinct tabs including Console");
+        check(tabs.Length == 8 && tabs.Select(t => t.Header).Distinct().Count() == 8,
+            "All eight Settings sections have distinct tabs including Security and Console");
+        Select(panel, panel.StartAsAdministratorToggle);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Security",
+            "Administrator startup is in the Security tab");
+        Select(panel, panel.SecurityPanel.DisableUacButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Security",
+            "Windows-wide UAC mode and restore controls are in the Security tab");
         check(panel.Width == Math.Min(1000, panel.MaxWidth) && panel.Height == Math.Min(920, panel.MaxHeight),
             "Settings opens at its expanded default size within the screen work area");
         Select(panel, panel.Console.CheckType);

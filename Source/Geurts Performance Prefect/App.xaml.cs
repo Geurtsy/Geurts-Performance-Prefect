@@ -26,6 +26,23 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length > 0 && e.Args[0] == WindowsSecurity.HelperArgument)
+        {
+            // Fixed operations only; bypass startup settings, sampling, drivers and the overlay mutex.
+            try
+            {
+                if (e.Args.Length != 2 || !WindowsSecurity.ValidOperation(e.Args[1]))
+                    throw new ArgumentException("Invalid Windows security operation.");
+                WindowsSecurity.Apply(e.Args[1] == "disable");
+                Shutdown(0);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Geurts Performance Prefect · Windows security", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown(1);
+            }
+            return;
+        }
         if (e.Args.Length == 1 && e.Args[0] is "--check-disk" or "--system-integrity" or "--windows-image" or "--fix-disk")
         {
             // A separate diagnostic window bypasses the overlay mutex and all startup side effects.

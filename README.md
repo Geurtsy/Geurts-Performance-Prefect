@@ -4,7 +4,7 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses seven tabs: Startup, Application updates, Downloads cleanup, Performance, Console,
+Settings uses eight tabs: Startup, Security, Application updates, Downloads cleanup, Performance, Console,
 Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
 controls, Top applications averaging settings and Window controls.
 Settings opens at 1000 × 920 logical pixels, capped to fit the screen work area.
@@ -203,7 +203,7 @@ name and process ID. It uses the bundled official PresentMon 2.6.0 collector for
 DirectX, Vulkan and OpenGL applications. Restart Prefect as administrator if the
 row reports that frame tracing needs access. No service, driver or internet
 connection is needed for FPS capture. Administrator startup is optional and off
-by default; enable it under **Settings → Startup → Start as administrator**.
+by default; enable it under **Settings → Security → Start as administrator**.
 
 The **Foreground FPS** number is **presented FPS**: the rate of application frame presents on the
 busiest swap chain over the last two seconds. Multiple swap chains and other
@@ -304,7 +304,7 @@ the checkbox shows whether its entry is registered. Startup launches use normal
 overlay preferences and exit quietly if the application is already running.
 If Downloads auto-wipe is enabled, it also runs on Windows startup launches.
 
-**Start as administrator** is a separate checkbox in the same section. It is
+**Start as administrator** is a separate checkbox under **Settings → Security**. It is
 off by default, saves immediately, and applies the next time you launch Prefect,
 including when **Start with Windows** is enabled. It does not restart the current
 session or turn on Windows startup. The status shows the current session's
@@ -317,6 +317,40 @@ permissions, retaining the preference for next time. Already elevated launches
 continue directly. Turning the checkbox off affects future launches; an already
 elevated session keeps its permissions until you exit it. Diagnostic, self-test
 and updater helper modes do not use this preference.
+
+## Windows-wide administrator mode
+
+Under **Settings → Security**, **Run all apps as administrator without prompts…**
+disables Windows User Account Control (UAC) for the entire computer. After a
+Windows restart, applications launched by administrator accounts can run with
+full administrator permissions without UAC approval prompts. Standard accounts
+do not become administrators, and apps can still deliberately run with restricted
+permissions. This reduces protection against malicious or unwanted system
+changes and can affect application or Windows feature compatibility.
+
+The action requires an explicit confirmation explaining that scope and risk,
+then Windows administrator approval when needed. It is never applied on startup
+or merely by opening Settings. Prefect does not restart Windows; restart it
+yourself after applying or restoring the policy. Status displays the configured
+policy, which may not yet match the current session before restarting.
+
+**Restore / enable UAC protection** restores the exact previous `EnableLUA`
+value saved by Prefect, including an originally absent value. If UAC was already
+disabled outside Prefect and no backup exists, Restore enables it. Original
+settings are saved in an administrator-protected machine registry value before
+any policy write, retained across application updates, and removed only after
+verified restoration. Repeated application preserves the original backup.
+Failures attempt rollback and retain recovery information if recovery fails.
+
+Only `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableLUA`
+is changed. Other UAC prompt policies are preserved, so enabling UAC restores
+their existing prompt behavior. Organization policies may prevent or override
+the change. Microsoft documents this policy and its security implications in
+[User Account Control settings](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/user-account-control/settings-and-configuration).
+
+The Security tab also contains Prefect's existing **Start as administrator**
+preference. That preference applies only to this app and remains independent
+of the Windows-wide UAC control.
 
 ## Downloads cleanup
 
