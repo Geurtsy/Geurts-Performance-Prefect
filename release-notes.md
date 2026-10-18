@@ -1,10 +1,10 @@
-# Geurts Performance Prefect 1.25.0
+# Geurts Performance Prefect 1.26.0
 
-- Added Windows Firewall controls under Settings → Security: Disable Windows Firewall, Restore / enable Windows Firewall, and status for the Domain, Private and Public profiles.
-- Disabling requires confirmation explaining the computer-wide scope and reduced network protection, then administrator approval when needed. The change normally applies without restarting Windows. No firewall changes run automatically on startup or from opening Settings.
-- Saves each profile's original enabled/disabled state in an administrator-protected backup before changing profiles. Restore recovers those exact states, or enables all three profiles without a backup. Includes readback verification, rollback on partial failure and retained recovery data for retries.
-- Preserves firewall rules, the firewall service, antivirus and UAC settings. Status reports local settings; organization policies and other security products can override them.
-- Validated every original profile-state combination, confirmation/elevation cancellation, backup failures, partial and ignored writes, recovery retries, helper arguments, and the scrolled Security tab at normal and narrow widths. Native firewall getters were read only; real firewall changes and elevated helpers were not run during validation.
+- Added BitLocker drive decryption under Settings → Security: explicit drive selection, Turn off BitLocker and decrypt drive, conversion status, remaining encrypted percentage and resume for paused decryption.
+- Requires administrator access, checks the selected volume identity and current status again before starting, and confirms the drive and loss of encryption protection. Normal sessions offer an administrator restart that reopens Security without starting decryption.
+- Windows owns the background conversion; closing Prefect after acceptance does not cancel it. The visible tab refreshes an actively decrypting selected drive every 15 seconds. App close/restart/update waits while Windows acknowledges the initial request. Percentage and suspended protection alone never imply completion.
+- Locked drives require authorized Windows unlocking. No recovery keys are collected or auto-unlock keys cleared; organization policy and Windows errors are respected. Separate EFS file encryption is unaffected. Re-enabling BitLocker requires a separate setup through Windows management.
+- Validated supported conversion states, locked/unknown/unreadable drives, identity changes, confirmation cancellation, partial status failures, progress, completion, privilege gating, request lifecycle and normal/narrow layouts using isolated fixtures. No real drive decryption, key-protector changes, unlocking or administrator restart was run during validation.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

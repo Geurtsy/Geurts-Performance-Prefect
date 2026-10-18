@@ -1,9 +1,23 @@
-GEURTS PERFORMANCE PREFECT 1.25.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.26.0 — WINDOWS x64
 
 Open Geurts Performance Prefect\GeurtsPerformancePrefect.exe, then click Settings.
 The existing HardwareOverlay.exe launcher also opens the updated application.
 
 SECURITY
+Settings > Security > BitLocker drive decryption can turn off BitLocker and
+decrypt one selected drive and its contents. Run Prefect as administrator, load
+the drive list, choose the drive explicitly and confirm before starting. Normal
+sessions offer an administrator restart that reopens Security without decrypting.
+Keep a current backup and recovery key available until Windows finishes. The
+drive loses BitLocker protection; files stay in place. Closing Prefect after the
+request is accepted does not stop Windows' background decryption. Keep the drive
+connected and power available. Refresh for conversion status and percent still
+encrypted; active decryption refreshes every 15 seconds while the tab is visible.
+Locked drives must first be unlocked in Windows. Paused decryption can be resumed.
+Turning encryption back on requires a separate setup in Windows. Separate EFS
+file encryption is not removed. No decryption happens on startup or from opening
+Settings. Organization policy and auto-unlock dependencies are respected.
+
 Settings > Security > Windows Firewall offers Disable Windows Firewall for all
 three network profiles: Domain, Private and Public. Confirm before applying;
 administrator approval may be needed. This reduces protection against unwanted

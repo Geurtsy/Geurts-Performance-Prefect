@@ -318,6 +318,44 @@ continue directly. Turning the checkbox off affects future launches; an already
 elevated session keeps its permissions until you exit it. Diagnostic, self-test
 and updater helper modes do not use this preference.
 
+## BitLocker drive decryption
+
+Under **Settings → Security → BitLocker drive decryption**, load the drive list,
+explicitly select a drive, then choose **Turn off BitLocker and decrypt drive…**.
+Administrator permissions are required to read the protected BitLocker status
+and start decryption. In a normal session, **Restart as administrator for
+BitLocker** requests Windows approval and reopens Security. That restart does
+not select a drive or request decryption. Only local volumes with drive letters
+and valid volume identities are eligible; drive identity and current conversion
+state are checked again before starting.
+
+The confirmation names the drive and volume, explains the loss of protection
+against offline access, and recommends retaining a current backup and recovery
+key until Windows finishes. Windows keeps files in place and decrypts the drive
+and its contents in the background. Closing Prefect after Windows acknowledges
+the request does not cancel conversion. Keep the drive connected and power
+available. While the tab is visible, a selected actively decrypting drive refreshes
+every 15 seconds; **Load / refresh BitLocker drives** also updates status manually.
+Status shows the remaining encrypted percentage and the conversion state. A
+zero percentage or suspended protection alone is not treated as completion.
+
+Locked drives must first be unlocked through Windows with authorized credentials.
+Paused decryption offers **Resume BitLocker decryption…**; encryption in progress
+can be reversed into decryption after the same confirmation. Existing active
+decryption cannot be started again. App closing, restart and update installation
+wait only while Windows is acknowledging the initial request; afterward Windows
+owns the background work.
+
+This uses Windows' [BitLocker Decrypt method](https://learn.microsoft.com/en-us/windows/win32/secprov/decrypt-win32-encryptablevolume),
+which removes the volume's key protectors when decryption completes. Re-enabling
+BitLocker requires a separate encryption setup through Windows management;
+there is no one-click restoration of the previous encryption configuration.
+The feature does not collect recovery keys, clear auto-unlock keys, bypass
+organization policies, or decrypt separately EFS-encrypted files. If Windows
+reports auto-unlock dependencies or unavailable BitLocker support, resolve them
+in **Open Windows BitLocker management**. Nothing decrypts automatically on
+startup or merely from opening Settings.
+
 ## Windows Firewall
 
 Under **Settings → Security → Windows Firewall**, **Disable Windows Firewall…**

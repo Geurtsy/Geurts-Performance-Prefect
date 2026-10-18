@@ -83,11 +83,13 @@ public sealed class SettingsWindow : Window
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     public SecurityPanel SecurityPanel { get; } = new();
     public FirewallPanel FirewallPanel { get; } = new();
+    public BitLockerPanel BitLockerPanel { get; }
     readonly TextBlock batteryCpuCaption = Label("");
     bool updatingPowerOptions;
-    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null)
+    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null, BitLockerPanel? bitLocker = null)
     {
         this.overlay = overlay;
+        BitLockerPanel = bitLocker ?? new BitLockerPanel(() => overlay.RestartElevated(openSecurity: true));
         Console = console ?? new DiagnosticConsole();
         this.parking = parking ?? new CoreParking();
         this.startup = startup ?? new WindowsStartup();
@@ -135,6 +137,7 @@ public sealed class SettingsWindow : Window
         Activated += (_, _) => SecurityPanel.Refresh();
         stack.Children.Add(FirewallPanel);
         Activated += (_, _) => FirewallPanel.Refresh();
+        stack.Children.Add(BitLockerPanel);
         stack = AddTab("Application updates");
         stack.Children.Add(Note("Installed version: " + AppUpdates.CurrentVersion));
         var installationFolder = new Button { Content = "Open Installation Folder", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,8) };
@@ -200,6 +203,7 @@ public sealed class SettingsWindow : Window
         };
         Closing += (_, e) =>
         {
+            if (BitLockerPanel.IsChanging) { e.Cancel = true; ShowSecurity(); return; }
             if (!Console.RequestClose(Close)) { e.Cancel = true; ShowConsole(); }
         };
         stack = AddTab("Overlay");
@@ -326,13 +330,19 @@ public sealed class SettingsWindow : Window
     {
         Sections.SelectedItem = Sections.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "Console");
     }
+    internal void ShowSecurity()
+    {
+        Sections.SelectedItem = Sections.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "Security");
+    }
     internal bool RequestApplicationExit()
     {
+        if (BitLockerPanel.IsChanging) { ShowSecurity(); ShowInForeground(); return false; }
         if (Console.RequestClose(overlay.Close)) return true;
         ShowConsole(); ShowInForeground(); return false;
     }
     internal bool AllowRestart()
     {
+        if (BitLockerPanel.IsChanging) { ShowSecurity(); ShowInForeground(); return false; }
         if (!Console.IsRunning) return true;
         Console.Status.Text = "Let the active diagnostic command finish before restarting or updating Prefect.";
         ShowConsole(); ShowInForeground(); return false;

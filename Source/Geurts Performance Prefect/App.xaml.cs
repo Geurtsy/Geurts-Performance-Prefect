@@ -162,6 +162,7 @@ public partial class App : Application
         MainWindow.Show();
         _ = ApplyStartupPowerOptionsAsync((OverlayWindow)MainWindow);
         if (e.Args.Contains("--console")) ((OverlayWindow)MainWindow).OpenConsole();
+        else if (e.Args.Contains("--security")) ((OverlayWindow)MainWindow).OpenSecurity();
         else if (e.Args.Contains("--settings")) ((OverlayWindow)MainWindow).OpenSettings();
         _ = ((OverlayWindow)MainWindow).Downloads.RunOnStartupAsync(((OverlayWindow)MainWindow).Settings);
         _ = PawnIOInstaller.InstallIfMissingAsync();

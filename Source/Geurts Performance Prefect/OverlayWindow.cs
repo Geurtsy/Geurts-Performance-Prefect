@@ -474,6 +474,10 @@ public sealed class OverlayWindow : Window
     {
         OpenSettings(); settingsWindow!.ShowConsole();
     }
+    internal void OpenSecurity()
+    {
+        OpenSettings(); settingsWindow!.ShowSecurity();
+    }
     public void Minimise()
     {
         if (closing) return;
@@ -526,14 +530,14 @@ public sealed class OverlayWindow : Window
         Close();
         return true;
     }
-    public void RestartElevated(bool openConsole = false)
+    public void RestartElevated(bool openConsole = false, bool openSecurity = false)
     {
         if (HardwareSampler.IsAdministrator) return;
         if (settingsWindow != null && !settingsWindow.AllowRestart()) return;
         SaveSettings();
         try
         {
-            Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--wait-for " + Environment.ProcessId + (openConsole ? " --console" : "")) { UseShellExecute = true, Verb = "runas" });
+            Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--wait-for " + Environment.ProcessId + (openConsole ? " --console" : openSecurity ? " --security" : "")) { UseShellExecute = true, Verb = "runas" });
             Close();
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { /* User cancelled; keep this instance running. */ }

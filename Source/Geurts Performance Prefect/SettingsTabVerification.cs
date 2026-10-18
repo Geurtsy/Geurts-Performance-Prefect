@@ -38,6 +38,9 @@ public static class SettingsTabVerification
         var securityScroll = Select(panel, panel.FirewallPanel.DisableButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Security",
             "Windows Firewall disable and restore actions are in the Security tab");
+        Select(panel, panel.BitLockerPanel.DecryptButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Security",
+            "BitLocker drive selection and decryption are in the Security tab");
         check(panel.Width == Math.Min(1000, panel.MaxWidth) && panel.Height == Math.Min(920, panel.MaxHeight),
             "Settings opens at its expanded default size within the screen work area");
         Select(panel, panel.Console.CheckType);
@@ -81,11 +84,16 @@ public static class SettingsTabVerification
                 }
                 if (selected == securityScroll)
                 {
-                    selected.ScrollToBottom(); selected.UpdateLayout();
+                    selected.ScrollToVerticalOffset(panel.FirewallPanel.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 12); selected.UpdateLayout();
                     Capture(panel, Path.Combine(folder, "settings-firewall-" + width + ".png"), width, 920);
                     var buttonBounds = panel.FirewallPanel.DisableButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.FirewallPanel.DisableButton.RenderSize));
                     check(buttonBounds.Top >= 0 && buttonBounds.Bottom <= selected.ViewportHeight && buttonBounds.Right <= selected.ViewportWidth,
                         "Firewall action remains reachable and fits the scrolled Security tab at width " + width);
+                    selected.ScrollToBottom(); selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-bitlocker-" + width + ".png"), width, 920);
+                    buttonBounds = panel.BitLockerPanel.DecryptButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.BitLockerPanel.DecryptButton.RenderSize));
+                    check(buttonBounds.Top >= 0 && buttonBounds.Bottom <= selected.ViewportHeight && buttonBounds.Right <= selected.ViewportWidth,
+                        "BitLocker action remains reachable and fits the scrolled Security tab at width " + width);
                     selected.ScrollToTop(); selected.UpdateLayout();
                 }
             }
