@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.32.0
+
+- Added a Recycle Bin section to Storage Sense with original locations, recycling dates, known sizes and a separate permanent-deletion confirmation. Previewed folders explicitly include their contents; folder sizes may be unavailable.
+- Added an off-by-default option to include the bin in automatic cleanup. The shared age limit applies to time in the bin, independently of original file timestamps. Inclusion requires consent and does not enable the master schedule or clean immediately.
+- Manual cleanup targets only the approved Windows Recycle Bin items. Restored, changed, missing and newly added items are kept or skipped. Deletion is checked through Windows' item-specific Shell operations and a fresh bin enumeration. Turning inclusion off cancels active bin work while preserving temporary-file scheduling.
+- Validated age filtering, preview/confirmation, persistence, scheduling, cancellation, failure/retry and layouts with isolated fixtures. Real Windows tests recycled and removed only marked disposable files/folders, verified restore safety and preserved pre-existing bin items. Local installation remains manual.
+
 # Geurts Performance Prefect 1.31.1
 
 - Programs and Features now loads automatically when its tab opens. Removed the Open button; Retry loading appears only if loading fails.

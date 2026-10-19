@@ -28,6 +28,7 @@ public sealed class OverlaySettings
     public bool AutoAvoid { get; set; }
     public bool AutoWipeDownloadsOnStartup { get; set; }
     public bool StorageSenseEnabled { get; set; }
+    public bool StorageSenseIncludeRecycleBin { get; set; }
     public int StorageSenseAgeDays { get; set; } = 30;
     public StorageSenseSchedule StorageSenseSchedule { get; set; } = StorageSenseSchedule.Weekly;
     public DateTime? StorageSenseLastAttemptUtc { get; set; }

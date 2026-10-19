@@ -214,18 +214,23 @@ internal sealed class StorageSenseController : IDisposable
     readonly OverlaySettings settings;
     readonly SettingsStore store;
     readonly StorageSenseEngine engine;
+    readonly IRecycleBinCleanup recycle;
     readonly Func<DateTime> clock;
     readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMinutes(1) };
     CancellationTokenSource? stop;
     bool disposed;
     public bool IsBusy { get; private set; }
     public StorageSensePreview? Preview { get; private set; }
+    public RecycleBinPreview? RecyclePreview { get; private set; }
+    public string RecycleStatus { get; private set; } = "Preview Recycle Bin items before permanently deleting them.";
     public string Status { get; private set; } = "Preview old temporary files before cleaning.";
+    public string TemporaryStatus { get; private set; } = "Preview old temporary files before cleaning.";
     public event Action? Changed;
-    internal StorageSenseController(OverlaySettings settings, SettingsStore store, StorageSenseEngine? engine = null, Func<DateTime>? clock = null)
+    internal StorageSenseController(OverlaySettings settings, SettingsStore store, StorageSenseEngine? engine = null, Func<DateTime>? clock = null, IRecycleBinCleanup? recycle = null)
     {
         this.settings = settings; this.store = store; this.clock = clock ?? (() => DateTime.UtcNow);
         this.engine = engine ?? new StorageSenseEngine(store.Path);
+        this.recycle = recycle ?? new RecycleBinCleanup();
         timer.Tick += async (_, _) => await RunScheduledAsync();
     }
     public string Root => engine.Root;
@@ -235,29 +240,57 @@ internal sealed class StorageSenseController : IDisposable
     internal bool IsDue => settings.StorageSenseEnabled && (settings.StorageSenseLastAttemptUtc == null || clock() >= NextUtc);
     public void Start() { if (disposed) return; timer.Start(); _ = RunScheduledAsync(); }
     public void Cancel() => stop?.Cancel();
-    public void Invalidate() { Preview = null; Changed?.Invoke(); }
+    public void Invalidate() { Preview = null; RecyclePreview = null; Changed?.Invoke(); }
+    public async Task PreviewRecycleAsync()
+    {
+        if (IsBusy || disposed) return;
+        RecyclePreview = null; RecycleStatus = "Scanning the Recycle Bin…"; Begin(RecycleStatus);
+        try
+        {
+            var cutoff = clock().AddDays(-settings.StorageSenseAgeDays); var token = stop!.Token;
+            RecyclePreview = await StorageSenseSta.Run(() => recycle.Scan(cutoff, token));
+            Status = RecycleStatus = "Preview: " + RecyclePreview.Summary;
+        }
+        catch (OperationCanceledException) { Status = RecycleStatus = "Recycle Bin preview stopped. No items were deleted."; }
+        catch (Exception ex) { Status = RecycleStatus = "Recycle Bin preview failed: " + ex.Message; }
+        finally { End(); }
+    }
+    public async Task CleanRecycleAsync()
+    {
+        if (IsBusy || disposed || RecyclePreview == null) return;
+        var preview = RecyclePreview; RecyclePreview = null;
+        RecycleStatus = "Permanently deleting previewed Recycle Bin items…"; Begin(RecycleStatus);
+        try
+        {
+            var token = stop!.Token;
+            var result = await StorageSenseSta.Run(() => recycle.Clean(preview, token));
+            RecycleStatus = result.Message; Complete(RecycleStatus, recycleOnly: true);
+        }
+        catch (Exception ex) { Status = RecycleStatus = "Recycle Bin cleanup failed: " + ex.Message; }
+        finally { End(); }
+    }
     public async Task PreviewAsync()
     {
         if (IsBusy || disposed) return;
-        Begin("Scanning old temporary files…");
+        TemporaryStatus = "Scanning old temporary files…"; Begin(TemporaryStatus);
         try
         {
             var age = settings.StorageSenseAgeDays; var now = clock(); var token = stop!.Token;
             Preview = await Task.Run(() => engine.Scan(age, now, token));
-            Status = $"Preview: {Preview.Files.Count} file(s), {StorageSenseEngine.Size(Preview.Bytes)} of file data. Skipped {Preview.Skipped}. " +
+            Status = TemporaryStatus = $"Preview: {Preview.Files.Count} file(s), {StorageSenseEngine.Size(Preview.Bytes)} of file data. Skipped {Preview.Skipped}. " +
                 (Preview.Limited ? "Scan limit reached; only these files can be cleaned. " : "") + (Preview.Error ?? "");
         }
-        catch (OperationCanceledException) { Preview = null; Status = "Preview stopped. No files were deleted."; }
-        catch (Exception ex) { Preview = null; Status = "Preview failed: " + ex.Message; }
+        catch (OperationCanceledException) { Preview = null; Status = TemporaryStatus = "Preview stopped. No files were deleted."; }
+        catch (Exception ex) { Preview = null; Status = TemporaryStatus = "Preview failed: " + ex.Message; }
         finally { End(); }
     }
     public async Task CleanAsync()
     {
         if (IsBusy || disposed || Preview == null) return;
         var preview = Preview; Preview = null;
-        Begin("Cleaning previewed temporary files…");
-        try { var token = stop!.Token; Complete(await Task.Run(() => engine.Clean(preview, token))); }
-        catch (Exception ex) { Status = "Cleanup failed: " + ex.Message; }
+        TemporaryStatus = "Cleaning previewed temporary files…"; Begin(TemporaryStatus);
+        try { var token = stop!.Token; var result = await Task.Run(() => engine.Clean(preview, token)); TemporaryStatus = result.Message; Complete(result); }
+        catch (Exception ex) { Status = TemporaryStatus = "Cleanup failed: " + ex.Message; }
         finally { End(); }
     }
     internal async Task RunScheduledAsync()
@@ -267,25 +300,46 @@ internal sealed class StorageSenseController : IDisposable
         var previous = settings.StorageSenseLastAttemptUtc;
         settings.StorageSenseLastAttemptUtc = clock();
         if (!store.Save(settings))
-        { settings.StorageSenseLastAttemptUtc = previous; Status = "Scheduled cleanup did not run. " + store.LastError; Changed?.Invoke(); return; }
-        Preview = null; Begin("Scheduled Storage Sense cleanup…");
+        { settings.StorageSenseLastAttemptUtc = previous; Status = TemporaryStatus = "Scheduled cleanup did not run. " + store.LastError; Changed?.Invoke(); return; }
+        Preview = null; RecyclePreview = null; Begin("Scheduled Storage Sense cleanup…");
+        var summary = "";
+        bool binStarted = false;
         try
         {
             var age = settings.StorageSenseAgeDays; var now = clock(); var token = stop!.Token;
+            var includeRecycle = settings.StorageSenseIncludeRecycleBin;
             var preview = await Task.Run(() => engine.Scan(age, now, token));
             var result = await Task.Run(() => engine.Clean(preview, token));
-            Complete(result);
-            if (preview.Limited) Status += " Scan limit reached; additional files remain for a later run.";
+            TemporaryStatus = result.Message;
+            summary = "Temporary files: " + result.Message;
+            if (preview.Limited) summary += " Scan limit reached; additional files remain for a later run.";
+            if (includeRecycle && !token.IsCancellationRequested)
+            {
+                binStarted = true;
+                var binPreview = await StorageSenseSta.Run(() => recycle.Scan(now.AddDays(-age), token));
+                var binResult = await StorageSenseSta.Run(() => recycle.Clean(binPreview, token));
+                RecycleStatus = binResult.Message;
+                if (binPreview.Limited) RecycleStatus += " Scan limit reached; additional items remain for a later run.";
+                summary += "\nRecycle Bin: " + RecycleStatus;
+            }
+            Complete(summary);
         }
-        catch (OperationCanceledException) { Status = "Scheduled cleanup stopped. Remaining files were kept."; }
-        catch (Exception ex) { Status = "Scheduled cleanup failed: " + ex.Message; }
+        catch (OperationCanceledException) { if (binStarted) RecycleStatus = "Scheduled Recycle Bin cleanup stopped. Remaining items were kept."; Status = summary + "\nScheduled cleanup stopped. Remaining items were kept."; if (summary.Length > 0) Complete(Status); else TemporaryStatus = Status; }
+        catch (Exception ex) { if (binStarted) RecycleStatus = "Scheduled Recycle Bin cleanup failed: " + ex.Message; Status = summary + "\nScheduled cleanup failed: " + ex.Message; if (summary.Length > 0) Complete(Status); else TemporaryStatus = Status; }
         finally { End(); }
     }
     void Complete(StorageSenseResult result)
+        => Complete(result.Message);
+    void Complete(string message, bool recycleOnly = false)
     {
-        Status = result.Message;
+        Status = message;
         settings.StorageSenseLastRunUtc = clock(); settings.StorageSenseLastResult = Status;
-        if (!store.Save(settings)) Status += " Result could not be saved: " + store.LastError;
+        if (!store.Save(settings))
+        {
+            var error = " Result could not be saved: " + store.LastError;
+            Status += error; settings.StorageSenseLastResult = Status;
+            if (recycleOnly) RecycleStatus = Status; else TemporaryStatus += error;
+        }
     }
     void Begin(string status)
     { IsBusy = true; stop = new(); Status = status; Changed?.Invoke(); }

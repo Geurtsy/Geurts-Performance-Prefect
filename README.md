@@ -6,6 +6,23 @@ default 30), click **Preview files**, review the paths and size estimate, then
 click **Clean previewed files…** and confirm. Only those previewed files are
 eligible; files added or changed afterward are kept. Folders remain in place.
 
+In the **Recycle Bin** section, click **Preview Recycle Bin** to review eligible
+items' original locations, recycling dates and known sizes. **Clean previewed
+Recycle Bin items…** asks for confirmation and permanently deletes only those
+items. The same minimum age applies, measured from when an item entered the bin.
+Recently recycled files are kept even when their original files are old. A
+previewed folder includes its contents; folder sizes may be unavailable.
+
+**Include Recycle Bin in automatic cleanup** is a separate, off-by-default opt-in.
+It takes effect only when **Enable automatic cleanup** is also on. Enabling
+inclusion asks for consent, saves the preference and starts a new schedule interval;
+it does not clean immediately. Turning it off stops active bin cleanup after the
+current item while preserving temporary-file scheduling. Manual bin cleanup is
+available with automatic cleanup off. Only the current account's Recycle Bin on
+available drives is used. Unavailable or unidentifiable items are reported and kept.
+Items restored, changed or removed after preview are skipped, and newly added
+items are never included in an approved preview. Permanent deletion cannot be undone.
+
 Automatic cleanup is off by default. Enable it explicitly and choose daily,
 weekly (default), or every 30 days. The first run is one interval after enabling
 or changing the policy. Scheduling works while Prefect is running, including in
@@ -17,12 +34,16 @@ after its current file; disabling automatic cleanup also stops active work.
 Both creation and modification must be older than the age limit. Storage Sense
 keeps open, read-only, system, hard-linked and redirected files; junctions and
 symbolic links are skipped. It refuses a temporary folder overlapping Prefect,
-its settings or protected personal/system folders. Downloads, Recycle Bin, cloud
+its settings or protected personal/system folders. Downloads, cloud
 storage and Windows system temporary files are outside this feature. It leaves
 Windows' own Storage Sense configuration unchanged. Each scan visits at most
 100,000 entries and includes up to 10,000 candidate files; any limit is reported.
 Deletion bypasses the Recycle Bin. Reported file data sizes are estimates, and
-recovered free space can differ. Validation deletes only disposable fixture files.
+recovered free space can differ. Recycle Bin scans also examine at most 100,000
+entries and preview up to 10,000 eligible items. Validation deletes only disposable
+fixtures. `--recycle-bin-test <report-file>` validates the real Windows namespace,
+file/folder deletion and restore with a marked private fixture on a fixed drive
+where recycling is already enabled; Windows recycling settings are never changed.
 
 **Settings → Programs and Features** automatically loads and embeds the
 classic Control Panel **Uninstall or change a program** interface inside Prefect.

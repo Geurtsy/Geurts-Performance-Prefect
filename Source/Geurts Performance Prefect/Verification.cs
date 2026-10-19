@@ -24,6 +24,7 @@ public static class Verification
         ApplicationUsageVerification.Run(folder, Check);
         DownloadsCleanupVerification.Run(folder, Check);
         StorageSenseVerification.Run(folder, Check);
+        RecycleBinPolicyVerification.Run(folder, Check);
         BoringApplicationsVerification.Run(folder, Check);
         DiskCheckVerification.Run(folder, Check);
         DiskRepairVerification.Run(folder, Check);
