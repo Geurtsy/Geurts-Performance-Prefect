@@ -56,13 +56,19 @@ public partial class App : Application
                     panel.Closed += (_, _) => fixture.Dispose();
                 }
                 panel.ShowProgramsFeatures();
+                panel.UpdateLayout();
+                if (e.Args[0] == "--programs-features-uninstall-preview" && panel.ProgramsFeaturesPanel.Host.Handoff is { } handoff)
+                {
+                    handoff.Armed += () => File.AppendAllText(report, "PASS: Native input armed the bounded uninstall handoff.\n");
+                    handoff.Raised += () => File.AppendAllText(report, "PASS: Prefect automatically raised a related dialog.\n");
+                }
                 panel.Closed += (_, _) => { overlay.Close(); Shutdown(); };
                 return;
             }
             try
             {
                 var log = new System.Collections.Generic.List<string>();
-                ProgramsFeaturesVerification.Run(panel, (pass, name) =>
+                ProgramsFeaturesVerification.Run(panel, folder, (pass, name) =>
                 {
                     if (!pass) throw new InvalidOperationException("FAILED: " + name);
                     log.Add("PASS: " + name); File.WriteAllLines(report, log);

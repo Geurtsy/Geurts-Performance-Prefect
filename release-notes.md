@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.31.2
+
+- Added an automatic foreground handoff after native Programs and Features actions, including Uninstall. New Prefect dialogs and dialogs in newly launched uninstaller processes are brought forward without pinning them on top.
+- The handoff lasts up to 30 seconds, handles each new dialog once, ignores existing windows and stops when you switch to an unrelated process. Process creation times guard against reused process IDs. Closing Settings removes the input hook and timer.
+- Validated native hook lifetime, real child-process/window discovery, existing-window exclusions, one-time activation requests, timeout and cancellation using isolated fixtures. Focus requests are captured during automated checks so they do not control the user's desktop. No installed software was removed. Windows retains foreground/elevation restrictions; service-brokered dialogs outside Prefect's process family are not claimed as covered. Local installation remains manual.
+
 # Geurts Performance Prefect 1.31.1
 
 - Programs and Features now loads automatically when its tab opens. Removed the Open button; Retry loading appears only if loading fails.
