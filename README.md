@@ -11,6 +11,12 @@ Settings opens at 1000 × 920 logical pixels, capped to fit the screen work area
 Tabs have scrollable content, while Done and Exit application stay visible.
 Use the mouse or Ctrl+Tab / Ctrl+Shift+Tab to switch sections.
 
+Use **Settings → Application updates → Create desktop shortcut**, or the same
+action in the tray or overlay menu, to add Prefect to your Windows Desktop with
+its emerald icon. The shortcut opens this copy of the application. Keep the
+extracted app folder in its permanent location before creating the shortcut.
+Repeated clicks reuse a matching shortcut; unrelated shortcuts are preserved.
+
 Under **Settings → Performance → Windows aesthetics**, click **Adjust for best
 performance** to reduce Windows visual effects for your current account. This
 disables animations, fades, shadows, font smoothing, translucent selection,

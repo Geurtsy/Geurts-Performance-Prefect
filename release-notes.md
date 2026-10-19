@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.28.0
+
+- Added Create desktop shortcut in Settings → Application updates and the tray and overlay menus, with a success path or a clear error message.
+- Shortcuts use Prefect's emerald icon and open the current app folder's executable with no extra arguments. Redirected Windows Desktop folders and paths with spaces are supported.
+- Repeated clicks reuse matching shortcuts. Existing unrelated shortcuts are preserved by choosing an available numbered name.
+- Validated actual Windows shortcut files in an isolated Desktop fixture, Settings success/error/retry behavior, menus, package integrity and the disposable updater flow. Local installation remains manual.
+
 # Geurts Performance Prefect 1.27.0
 
 - Added disk fragmentation analysis and drive optimization under Settings → Console, with local drive selection, live progress, fragmentation statistics, Windows reports and exit codes.

@@ -57,6 +57,8 @@ public sealed class SettingsWindow : Window
     public Button CheckUpdatesButton { get; } = new() { Content = "Check for updates", HorizontalAlignment = HorizontalAlignment.Left };
     public Button InstallUpdateButton { get; } = new() { Content = "Install update and restart", HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Collapsed, Margin = new Thickness(0,8,0,0) };
     public TextBlock UpdateStatus { get; } = Note("Check GitHub for a newer version.");
+    public Button CreateDesktopShortcutButton { get; } = new() { Content = "Create desktop shortcut", HorizontalAlignment = HorizontalAlignment.Left };
+    public TextBlock DesktopShortcutStatus { get; } = Note("Adds a shortcut to this copy of Prefect on your Windows Desktop.");
     readonly CancellationTokenSource updateStop = new();
     AppRelease? availableRelease;
     public CheckBox AutoWipeDownloadsToggle { get; } = new() { Content = "Auto-wipe Downloads on app startup" };
@@ -86,7 +88,7 @@ public sealed class SettingsWindow : Window
     public BitLockerPanel BitLockerPanel { get; }
     readonly TextBlock batteryCpuCaption = Label("");
     bool updatingPowerOptions;
-    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null, BitLockerPanel? bitLocker = null)
+    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null, BitLockerPanel? bitLocker = null, Func<string>? createDesktopShortcut = null)
     {
         this.overlay = overlay;
         BitLockerPanel = bitLocker ?? new BitLockerPanel(() => overlay.RestartElevated(openSecurity: true));
@@ -143,6 +145,13 @@ public sealed class SettingsWindow : Window
         var installationFolder = new Button { Content = "Open Installation Folder", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,8) };
         installationFolder.Click += (_, _) => overlay.OpenInstallationFolder();
         stack.Children.Add(installationFolder);
+        CreateDesktopShortcutButton.Click += (_, _) =>
+        {
+            try { DesktopShortcutStatus.Text = "Desktop shortcut ready: " + (createDesktopShortcut ?? DesktopShortcut.Create)(); }
+            catch (Exception ex) { DesktopShortcutStatus.Text = "Could not create the desktop shortcut: " + ex.Message; }
+        };
+        stack.Children.Add(CreateDesktopShortcutButton);
+        stack.Children.Add(DesktopShortcutStatus);
         stack.Children.Add(CheckUpdatesButton);
         stack.Children.Add(InstallUpdateButton);
         stack.Children.Add(UpdateStatus);

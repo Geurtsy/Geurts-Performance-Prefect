@@ -190,6 +190,7 @@ public sealed class OverlayWindow : Window
         var minimiseItem = new MenuItem { Header = "Minimise" }; minimiseItem.Click += (_, _) => Minimise(); menu.Items.Add(minimiseItem);
         var settingsItem = new MenuItem { Header = "Settings" }; settingsItem.Click += (_, _) => OpenSettings(); menu.Items.Add(settingsItem);
         var installationItem = new MenuItem { Header = "Open Installation Folder" }; installationItem.Click += (_, _) => OpenInstallationFolder(); menu.Items.Add(installationItem);
+        var shortcutItem = new MenuItem { Header = "Create desktop shortcut" }; shortcutItem.Click += (_, _) => CreateDesktopShortcut(); menu.Items.Add(shortcutItem);
         var exitItem = new MenuItem { Header = "Exit Geurts Performance Prefect" }; exitItem.Click += (_, _) => Close(); menu.Items.Add(exitItem); ContextMenu = menu;
         saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); SaveSettings(); };
@@ -210,6 +211,7 @@ public sealed class OverlayWindow : Window
         trayMenu.Items.Add(AutoAvoidTrayItem);
         trayMenu.Items.Add("Settings", null, (_, _) => Dispatcher.Invoke(OpenSettings));
         trayMenu.Items.Add("Open Installation Folder", null, (_, _) => Dispatcher.Invoke(OpenInstallationFolder));
+        trayMenu.Items.Add("Create desktop shortcut", null, (_, _) => Dispatcher.Invoke(CreateDesktopShortcut));
         RestartTrayItem = new Forms.ToolStripMenuItem("Restart application");
         RestartTrayItem.Click += (_, _) => Dispatcher.Invoke(() => RestartApplication());
         trayMenu.Items.Add(RestartTrayItem);
@@ -459,6 +461,11 @@ public sealed class OverlayWindow : Window
     {
         try { Process.Start(new ProcessStartInfo(AppContext.BaseDirectory) { UseShellExecute = true }); }
         catch (Exception ex) { MessageBox.Show("Could not open the installation folder: " + ex.Message, "Geurts Performance Prefect"); }
+    }
+    public void CreateDesktopShortcut()
+    {
+        try { MessageBox.Show("Desktop shortcut ready: " + DesktopShortcut.Create(), "Geurts Performance Prefect"); }
+        catch (Exception ex) { MessageBox.Show("Could not create the desktop shortcut: " + ex.Message, "Geurts Performance Prefect", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
     public void OpenSettings()
     {
