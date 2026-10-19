@@ -87,13 +87,20 @@ internal static class RecycleBinPolicyVerification
             bin.ScanGate = gate; bin.Started.Reset();
             var preview = controller.PreviewRecycleAsync(); PumpUntil(() => bin.Started.IsSet);
             var heldCalls = bin.ScanCalls; Await(controller.PreviewAsync()); Await(controller.RunScheduledAsync());
-            check(controller.IsBusy && bin.ScanCalls == heldCalls && !panel.PreviewButton.IsEnabled && !panel.PreviewRecycleButton.IsEnabled && panel.StopRecycleButton.IsEnabled,
+            check(controller.IsBusy && controller.IsRecycleBusy && bin.ScanCalls == heldCalls && !panel.PreviewButton.IsEnabled && !panel.PreviewRecycleButton.IsEnabled && panel.StopRecycleButton.IsEnabled,
                 "Temporary previews and scheduled work cannot overlap an active Recycle Bin operation");
             panel.StopRecycleButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Await(preview);
             check(!controller.IsBusy && controller.RecyclePreview == null && controller.RecycleStatus.Contains("stopped") && bin.Items.ContainsKey(retry.Id),
                 "Recycle Bin Stop cancels a blocked preview and preserves all items");
             bin.ScanGate = null;
         }
+
+        panel.IncludeRecycleBin.IsChecked = true;
+        var temporaryPreview = controller.PreviewAsync();
+        check(controller.IsBusy && !controller.IsRecycleBusy, "Temporary-file work is identified separately from Recycle Bin work");
+        panel.IncludeRecycleBin.IsChecked = false; Await(temporaryPreview);
+        check(controller.Preview != null && controller.TemporaryStatus.Contains("Preview:"),
+            "Turning Recycle Bin inclusion off preserves an active temporary-file preview");
 
         // Cancelling the inclusion toggle during scheduled work must stop before bin deletion.
         panel.IncludeRecycleBin.IsChecked = true;

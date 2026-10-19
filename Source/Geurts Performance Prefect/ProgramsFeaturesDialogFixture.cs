@@ -30,11 +30,13 @@ internal sealed class ProgramsFeaturesDialogFixture : IDisposable
         var content = new StackPanel { Margin = new Thickness(24) };
         content.Children.Add(new TextBlock { Text = "Harmless uninstall dialog fixture. No software is removed.", TextWrapping = TextWrapping.Wrap });
         content.Children.Add(close);
-        var window = new Window { Title = "Prefect harmless uninstall dialog", Width = 440, Height = 220,
+        var window = new Window { Title = "Prefect harmless uninstall dialog", Width = 440, Height = 220, ShowActivated = false,
             WindowStartupLocation = WindowStartupLocation.CenterScreen, Content = content };
         Application.Current.MainWindow = window;
         Application.Current.ShutdownMode = ShutdownMode.OnMainWindowClose;
-        window.Activated += (_, _) => File.AppendAllText(report, "PASS: Uninstall fixture dialog activated.\n");
+        window.Loaded += (_, _) => File.AppendAllText(report, "PASS: Uninstall fixture dialog opened without requesting activation.\n");
+        window.Activated += (_, _) => File.AppendAllText(report,
+            (UninstallForegroundHandoff.ForegroundWindow == new System.Windows.Interop.WindowInteropHelper(window).Handle ? "PASS" : "WAIT") + ": Uninstall fixture dialog is the native foreground window.\n");
         window.Closed += (_, _) => File.AppendAllText(report, "PASS: Uninstall fixture dialog closed; no software was removed.\n");
         close.Click += (_, _) => window.Close();
         window.Show();

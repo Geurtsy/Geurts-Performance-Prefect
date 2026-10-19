@@ -5,6 +5,12 @@
 - Manual cleanup targets only the approved Windows Recycle Bin items. Restored, changed, missing and newly added items are kept or skipped. Deletion is checked through Windows' item-specific Shell operations and a fresh bin enumeration. Turning inclusion off cancels active bin work while preserving temporary-file scheduling.
 - Validated age filtering, preview/confirmation, persistence, scheduling, cancellation, failure/retry and layouts with isolated fixtures. Real Windows tests recycled and removed only marked disposable files/folders, verified restore safety and preserved pre-existing bin items. Local installation remains manual.
 
+# Geurts Performance Prefect 1.31.2
+
+- Added an automatic foreground handoff after native Programs and Features actions, including Uninstall. New Prefect dialogs and dialogs in newly launched uninstaller processes are brought forward without pinning them on top.
+- The handoff lasts up to 30 seconds, handles each new dialog once, ignores existing windows and stops when you switch to an unrelated process. Process creation times guard against reused process IDs. Closing Settings removes the input hook and timer.
+- Validated native hook lifetime, real child-process/window discovery, existing-window exclusions, one-time activation requests, timeout and cancellation using isolated fixtures. Focus requests are captured during automated checks so they do not control the user's desktop. No installed software was removed. Windows retains foreground/elevation restrictions; service-brokered dialogs outside Prefect's process family are not claimed as covered. Local installation remains manual.
+
 # Geurts Performance Prefect 1.31.1
 
 - Programs and Features now loads automatically when its tab opens. Removed the Open button; Retry loading appears only if loading fails.

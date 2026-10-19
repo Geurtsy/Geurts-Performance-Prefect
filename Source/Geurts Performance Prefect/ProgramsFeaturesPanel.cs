@@ -48,6 +48,7 @@ internal sealed class ProgramsFeaturesHost : HwndHost
     const string Location = "::{26EE0668-A00A-44D7-9371-BEB064C98683}\\0\\::{7b81be6a-ce2b-4676-a29e-eb907a5126c5}";
     IExplorerBrowser? browser;
     nint container;
+    internal UninstallForegroundHandoff? Handoff { get; private set; }
     bool requested;
     internal bool IsOpen => browser != null;
     internal event Action<string>? Failed;
@@ -56,6 +57,7 @@ internal sealed class ProgramsFeaturesHost : HwndHost
     {
         container = Native.CreateWindowEx(0, "static", "", 0x56000000, 0,0,1,1, parent.Handle,0,0,0);
         if (container == 0) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        Handoff = new UninstallForegroundHandoff(container);
         if (requested) Open();
         return new HandleRef(this, container);
     }
@@ -122,6 +124,7 @@ internal sealed class ProgramsFeaturesHost : HwndHost
     }
     protected override void DestroyWindowCore(HandleRef hwnd)
     {
+        Handoff?.Dispose(); Handoff = null;
         CloseBrowser(); Native.DestroyWindow(hwnd.Handle); container = 0;
     }
 

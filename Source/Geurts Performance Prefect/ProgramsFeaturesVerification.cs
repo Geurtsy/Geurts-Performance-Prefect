@@ -11,13 +11,14 @@ internal static class ProgramsFeaturesVerification
         while (window != 0) { if (window == ancestor) return true; window = Native.GetParent(window); }
         return false;
     }
-    internal static void Run(SettingsWindow window, Action<bool,string> check)
+    internal static void Run(SettingsWindow window, string folder, Action<bool,string> check)
     {
         var panel = window.ProgramsFeaturesPanel;
         check(!panel.Host.IsOpen && !panel.HasOpened, "Opening Settings leaves Programs and Features unloaded until its tab is selected");
         window.ShowProgramsFeatures(); window.UpdateLayout();
         DiskAnalyserVerification.WaitFor(() => panel.Host.ViewWindow != 0, "Programs and Features Shell view: " + panel.Status.Text);
         var view = panel.Host.ViewWindow;
+        check(panel.Host.Handoff is { IsHooked: true, IsArmed: false }, "Automatic loading installs only the scoped input hook and starts no foreground watcher");
         Native.GetWindowThreadProcessId(view, out var pid);
         check(panel.Host.IsOpen && Native.IsWindow(view) && pid == Environment.ProcessId && IsDescendant(view, panel.Host.Handle),
             "Actual Windows Shell view is embedded in the Prefect process");
@@ -49,8 +50,11 @@ internal static class ProgramsFeaturesVerification
         window.Hide(); window.Show(); window.UpdateLayout();
         check(panel.Host.IsOpen, "Hide and restore preserves the embedded Programs and Features interface");
         check(window.AllowRestart(), "Idle Windows uninstall list does not block application restart");
+        UninstallForegroundVerification.Run(panel.Host, window, folder, check);
         var lastView = panel.Host.ViewWindow;
+        var handoff = panel.Host.Handoff!;
         window.Close();
+        check(!handoff.IsHooked && !handoff.IsArmed, "Settings close releases the native input hook and foreground timer");
         check(!panel.Host.IsOpen && !Native.IsWindow(lastView), "Closing Settings releases native browser resources");
     }
 

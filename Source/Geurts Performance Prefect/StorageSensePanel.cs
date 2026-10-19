@@ -48,7 +48,7 @@ public sealed class StorageSensePanel : StackPanel, IDisposable
         Children.Add(Note("Recycle Bin inclusion is off by default and takes effect only when automatic cleanup is enabled. It permanently deletes eligible files and folders, including folder contents, from your current account's bin on available drives."));
         Children.Add(Label("Run every")); Children.Add(Schedule);
         Schedule.ItemsSource = new[] { "Day", "Week", "30 days" };
-        Children.Add(Note("Off by default. Scheduling works while Prefect is running, including in the tray. The first run is one interval after enabling; an overdue run starts when Prefect next opens. Turning this off stops an active run after the current file."));
+        Children.Add(Note("Off by default. Scheduling works while Prefect is running, including in the tray. The first run is one interval after enabling; an overdue run starts when Prefect next opens. Turning this off stops an active run after the current item."));
         Children.Add(Timing);
         Children.Add(Label("Temporary files"));
         PreviewButton.Margin = new Thickness(0,8,0,0); CleanButton.Margin = new Thickness(0,8,0,0); StopButton.Margin = new Thickness(0,8,0,0);
@@ -70,7 +70,7 @@ public sealed class StorageSensePanel : StackPanel, IDisposable
         StyleList(Files); StyleList(RecycleFiles);
         Children.Add(Note("The list includes up to 10,000 eligible files per preview. A scan visits at most 100,000 entries. File sizes are estimates of file data; recovered free space can differ. Files added or changed after the preview are kept."));
         Children.Add(Label("Recycle Bin"));
-        Children.Add(Note("Review each item's original location, recycling date and known size. Folders include their contents; folder sizes may be unavailable. Cleanup cannot be undone. Items restored or removed since preview are kept or skipped. New items are never added to an approved preview."));
+        Children.Add(Note("Review each item's original location, recycling date and known size. Folders include their contents; folder sizes may be unavailable. Cleanup cannot be undone. Items restored or removed since preview are kept or skipped. New items are never added to an approved preview. Stop can leave a folder partly cleaned."));
         Children.Add(PreviewRecycleButton); Children.Add(CleanRecycleButton); Children.Add(StopRecycleButton); Children.Add(RecycleStatus);
         Children.Add(RecycleFiles);
         Children.Add(Note("Recycle Bin previews include up to 10,000 eligible items and examine at most 100,000 entries. Only items with a reliable recycling date and original location are eligible. Unavailable items and Windows access errors are reported."));
@@ -130,7 +130,8 @@ public sealed class StorageSensePanel : StackPanel, IDisposable
             (settings.StorageSenseEnabled, settings.StorageSenseAgeDays, settings.StorageSenseSchedule, settings.StorageSenseLastAttemptUtc, settings.StorageSenseIncludeRecycleBin) = previous;
             Sync(); Status.Text = "Storage Sense preferences were not changed. " + store.LastError; return;
         }
-        if (!enable || (previous.Item5 && !includeRecycle)) controller.Cancel();
+        if (previous.Item1 && !enable) controller.Cancel();
+        else if (previous.Item5 && !includeRecycle) controller.CancelRecycle();
         controller.Invalidate(); Refresh();
     }
     void Refresh()

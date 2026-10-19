@@ -29,7 +29,8 @@ or changing the policy. Scheduling works while Prefect is running, including in
 the tray; an overdue run starts when Prefect next opens. Each automatic attempt
 is checkpointed before deletion to prevent repeated retries. Last cleanup and
 next automatic run appear in the tab. **Stop** cancels a preview or stops cleanup
-after its current file; disabling automatic cleanup also stops active work.
+after its current item; disabling automatic cleanup also stops active work.
+Stopping a folder operation can leave that folder partly cleaned.
 
 Both creation and modification must be older than the age limit. Storage Sense
 keeps open, read-only, system, hard-linked and redirected files; junctions and
@@ -62,6 +63,15 @@ dialogs can come forward, including after switching tabs. Prefect also avoids a
 delayed focus retry over those dialogs. The overlay's **Always on top** behavior
 and saved preference remain unchanged; a new Settings window uses that preference
 again until you open Programs and Features.
+
+Clicking Uninstall also starts a short automatic foreground handoff for newly
+shown dialogs in Prefect or an uninstaller process it launches. This supports
+uninstallers that open their first window in the background. The handoff lasts
+up to 30 seconds, raises each new dialog once, ignores existing windows, and
+stops if you switch to an unrelated app. It does not pin the uninstaller on top.
+Windows still controls foreground permissions and administrator prompts; a
+service or broker that launches a dialog outside Prefect's process family may
+require selecting that window yourself.
 
 Prefect creates its own Windows Shell view; it does not take over an existing
 Control Panel or File Explorer window. Tab switching and hide/restore are supported.

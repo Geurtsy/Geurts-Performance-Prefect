@@ -220,6 +220,7 @@ internal sealed class StorageSenseController : IDisposable
     CancellationTokenSource? stop;
     bool disposed;
     public bool IsBusy { get; private set; }
+    public bool IsRecycleBusy { get; private set; }
     public StorageSensePreview? Preview { get; private set; }
     public RecycleBinPreview? RecyclePreview { get; private set; }
     public string RecycleStatus { get; private set; } = "Preview Recycle Bin items before permanently deleting them.";
@@ -240,11 +241,12 @@ internal sealed class StorageSenseController : IDisposable
     internal bool IsDue => settings.StorageSenseEnabled && (settings.StorageSenseLastAttemptUtc == null || clock() >= NextUtc);
     public void Start() { if (disposed) return; timer.Start(); _ = RunScheduledAsync(); }
     public void Cancel() => stop?.Cancel();
+    public void CancelRecycle() { if (IsRecycleBusy) Cancel(); }
     public void Invalidate() { Preview = null; RecyclePreview = null; Changed?.Invoke(); }
     public async Task PreviewRecycleAsync()
     {
         if (IsBusy || disposed) return;
-        RecyclePreview = null; RecycleStatus = "Scanning the Recycle Bin…"; Begin(RecycleStatus);
+        RecyclePreview = null; RecycleStatus = "Scanning the Recycle Bin…"; Begin(RecycleStatus, recycleOnly: true);
         try
         {
             var cutoff = clock().AddDays(-settings.StorageSenseAgeDays); var token = stop!.Token;
@@ -259,7 +261,7 @@ internal sealed class StorageSenseController : IDisposable
     {
         if (IsBusy || disposed || RecyclePreview == null) return;
         var preview = RecyclePreview; RecyclePreview = null;
-        RecycleStatus = "Permanently deleting previewed Recycle Bin items…"; Begin(RecycleStatus);
+        RecycleStatus = "Permanently deleting previewed Recycle Bin items…"; Begin(RecycleStatus, recycleOnly: true);
         try
         {
             var token = stop!.Token;
@@ -313,9 +315,9 @@ internal sealed class StorageSenseController : IDisposable
             TemporaryStatus = result.Message;
             summary = "Temporary files: " + result.Message;
             if (preview.Limited) summary += " Scan limit reached; additional files remain for a later run.";
-            if (includeRecycle && !token.IsCancellationRequested)
+            if (includeRecycle && settings.StorageSenseIncludeRecycleBin && !token.IsCancellationRequested)
             {
-                binStarted = true;
+                binStarted = true; IsRecycleBusy = true;
                 var binPreview = await StorageSenseSta.Run(() => recycle.Scan(now.AddDays(-age), token));
                 var binResult = await StorageSenseSta.Run(() => recycle.Clean(binPreview, token));
                 RecycleStatus = binResult.Message;
@@ -341,8 +343,8 @@ internal sealed class StorageSenseController : IDisposable
             if (recycleOnly) RecycleStatus = Status; else TemporaryStatus += error;
         }
     }
-    void Begin(string status)
-    { IsBusy = true; stop = new(); Status = status; Changed?.Invoke(); }
-    void End() { IsBusy = false; stop?.Dispose(); stop = null; if (!disposed) Changed?.Invoke(); }
+    void Begin(string status, bool recycleOnly = false)
+    { IsBusy = true; IsRecycleBusy = recycleOnly; stop = new(); Status = status; Changed?.Invoke(); }
+    void End() { IsBusy = false; IsRecycleBusy = false; stop?.Dispose(); stop = null; if (!disposed) Changed?.Invoke(); }
     public void Dispose() { disposed = true; timer.Stop(); Cancel(); }
 }
