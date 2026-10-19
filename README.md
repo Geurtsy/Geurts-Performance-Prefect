@@ -1,10 +1,39 @@
 # Geurts Performance Prefect
 
+**Settings → Disk analyser** embeds the official portable WinDirStat 2.9.3
+interface as a prototype. Choose a drive or folder (or paste its full path), then
+click **Analyse**. Browse the folder tree, largest files and treemap inside
+Prefect. Scanning never starts from opening the tab or normal app startup.
+
+Switching tabs, minimising and restoring Settings keep the same scan alive.
+Use **Close analyser** before closing Settings, exiting, restarting or updating
+Prefect; these actions wait while the analyser is active and do not force-stop
+native scans, cleanups or dialogs. WinDirStat's own prompts control deletion.
+
+This prototype retains WinDirStat's toolbar, colours and controls. Native dialogs
+can open separately. Small windows have less room for the file columns and chart;
+maximise Settings for detailed browsing. Open Prefect as administrator before
+scanning protected folders. Elevating/relaunching from within WinDirStat is outside
+the embedded prototype and can open a separate window. Settings for each embedded
+session are temporary and do not reuse standalone WinDirStat preferences.
+
+The GPL licence and upstream source archive are included; **Licence and source**
+opens an offline copy. The official executable is checked against its pinned
+SHA-256 before launch. No separate WinDirStat installation is required.
+
+Validation uses disposable folders and actual native windows, including Unicode
+paths, invalid targets, resize/tab/hide/restore, close/retry and app lifetime.
+No real files were deleted during validation. Mixed-DPI monitor transitions and
+WinDirStat's elevated relaunch are not validated. Developers can run
+`--disk-analyser-test <report-file>` for focused checks or
+`--disk-analyser-preview <fixture-folder>` for an isolated automatically started
+preview scan; these modes bypass normal startup preferences, drivers and sampling.
+
 A portable Windows x64 system monitor with a compact overlay, per-drive activity,
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses eight tabs: Startup, Security, Application updates, Downloads cleanup, Performance, Console,
+Settings uses nine tabs: Startup, Security, Application updates, Downloads cleanup, Performance, Console, Disk analyser,
 Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
 controls, Top applications averaging settings and Window controls.
 Settings opens at 1000 × 920 logical pixels, capped to fit the screen work area.

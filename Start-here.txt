@@ -1,4 +1,15 @@
-GEURTS PERFORMANCE PREFECT 1.27.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.29.0 — WINDOWS x64
+
+DISK ANALYSER PROTOTYPE
+Settings > Disk analyser embeds WinDirStat 2.9.3. Choose a drive or folder and
+click Analyse to start. Browse the file tree, largest files and treemap inside
+Prefect. Close analyser before closing Settings, exiting, restarting or updating
+Prefect. Native dialogs may open separately; review deletion prompts carefully.
+Protected-folder scans need Prefect opened as administrator first. Each session
+uses temporary portable preferences. Licence and source opens the bundled offline
+GPL licence and upstream source archive. No separate installation is needed.
+Mixed-DPI monitor transitions and WinDirStat's own elevated relaunch are not
+validated; elevated relaunch may open a separate window. Installation is manual.
 
 Open Geurts Performance Prefect\GeurtsPerformancePrefect.exe, then click Settings.
 The existing HardwareOverlay.exe launcher also opens the updated application.

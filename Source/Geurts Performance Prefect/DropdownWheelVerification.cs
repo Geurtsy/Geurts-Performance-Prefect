@@ -11,7 +11,7 @@ public static class DropdownWheelVerification
     public static void Run(SettingsWindow panel, Action<bool, string> check)
     {
         var choices = panel.Sections.Items.Cast<TabItem>().SelectMany(tab =>
-            ((StackPanel)((ScrollViewer)tab.Content).Content).Children.OfType<ComboBox>()).ToArray();
+            ((Panel)((ScrollViewer)tab.Content).Content).Children.OfType<ComboBox>()).ToArray();
         panel.UpdateLayout();
         check(choices.Length == 5, "Wheel verification covers all five Settings dropdowns");
         foreach (var choice in choices)

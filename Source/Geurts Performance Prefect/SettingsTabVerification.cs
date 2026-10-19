@@ -27,8 +27,11 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 8 && tabs.Select(t => t.Header).Distinct().Count() == 8,
-            "All eight Settings sections have distinct tabs including Security and Console");
+        check(tabs.Length == 9 && tabs.Select(t => t.Header).Distinct().Count() == 9,
+            "All nine Settings sections have distinct tabs including Disk analyser");
+        Select(panel, panel.DiskAnalyserPanel.AnalyseButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Disk analyser" && !panel.DiskAnalyserPanel.IsActive,
+            "Disk analyser opens idle in its own tab without starting WinDirStat");
         Select(panel, panel.StartAsAdministratorToggle);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Security",
             "Administrator startup is in the Security tab");

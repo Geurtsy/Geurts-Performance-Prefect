@@ -19,7 +19,7 @@ public static class SliderThemeVerification
     public static void Run(SettingsWindow settings, string folder, Action<bool, string> check)
     {
         var sliders = settings.Sections.Items.Cast<TabItem>().SelectMany(tab =>
-            ((StackPanel)((ScrollViewer)tab.Content).Content).Children.OfType<Slider>()).ToArray();
+            ((Panel)((ScrollViewer)tab.Content).Content).Children.OfType<Slider>()).ToArray();
         check(sliders.Length == 4, "Slider theme covers averaging, battery CPU limit, opacity and size");
         foreach (var control in sliders)
         {

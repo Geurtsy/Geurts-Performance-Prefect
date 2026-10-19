@@ -304,6 +304,7 @@ public static class Verification
         Render((FrameworkElement)overlay.Content, Path.Combine(folder, "overlay-preview.png"), 318, 1000);
         Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-preview.png"), 490, 790);
         SettingsTabVerification.Run(panel, folder, Check);
+        DiskAnalyserVerification.Run(panel, folder, Check);
         var settingsScroll = SettingsTabVerification.Select(panel, panel.DownloadsPath);
         settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.DownloadsPath.TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 100));
         settingsScroll.UpdateLayout();

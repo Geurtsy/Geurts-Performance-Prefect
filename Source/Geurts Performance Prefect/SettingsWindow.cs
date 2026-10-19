@@ -82,6 +82,7 @@ public sealed class SettingsWindow : Window
     public TextBlock PowerOptionsStatus { get; } = Note("");
     public DiagnosticConsole Console { get; }
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
+    public DiskAnalyserPanel DiskAnalyserPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     public SecurityPanel SecurityPanel { get; } = new();
     public FirewallPanel FirewallPanel { get; } = new();
@@ -212,9 +213,14 @@ public sealed class SettingsWindow : Window
         };
         Closing += (_, e) =>
         {
+            if (!DiskAnalyserPanel.CanClose()) { e.Cancel = true; ShowDiskAnalyser(); return; }
             if (BitLockerPanel.IsChanging) { e.Cancel = true; ShowSecurity(); return; }
             if (!Console.RequestClose(Close)) { e.Cancel = true; ShowConsole(); }
         };
+        var analyserScroll = new ScrollViewer { Content = DiskAnalyserPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        Sections.Items.Add(new TabItem { Header = "Disk analyser", Content = analyserScroll });
+        Closed += (_, _) => DiskAnalyserPanel.DisposeIdle();
         stack = AddTab("Overlay");
         var toggles = Panel();
         foreach (var metric in MetricInfo.All)
@@ -343,14 +349,20 @@ public sealed class SettingsWindow : Window
     {
         Sections.SelectedItem = Sections.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "Security");
     }
+    internal void ShowDiskAnalyser()
+    {
+        Sections.SelectedItem = Sections.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "Disk analyser");
+    }
     internal bool RequestApplicationExit()
     {
+        if (!DiskAnalyserPanel.CanClose()) { ShowDiskAnalyser(); ShowInForeground(); return false; }
         if (BitLockerPanel.IsChanging) { ShowSecurity(); ShowInForeground(); return false; }
         if (Console.RequestClose(overlay.Close)) return true;
         ShowConsole(); ShowInForeground(); return false;
     }
     internal bool AllowRestart()
     {
+        if (!DiskAnalyserPanel.CanClose()) { ShowDiskAnalyser(); ShowInForeground(); return false; }
         if (BitLockerPanel.IsChanging) { ShowSecurity(); ShowInForeground(); return false; }
         if (!Console.IsRunning) return true;
         Console.Status.Text = "Let the active diagnostic command finish before restarting or updating Prefect.";

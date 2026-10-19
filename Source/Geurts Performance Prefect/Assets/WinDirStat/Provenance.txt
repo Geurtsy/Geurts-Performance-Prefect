@@ -1,0 +1,21 @@
+WinDirStat 2.9.3, Windows x64, unmodified upstream executable.
+Copyright WinDirStat Team. GPL-3.0-or-later.
+
+Release: https://github.com/windirstat/windirstat/releases/tag/release/v2.9.3
+Portable archive: https://github.com/windirstat/windirstat/releases/download/release/v2.9.3/WinDirStat.zip
+Portable archive SHA256: c980fee14389eb3a160415b0a07361900f3630f232501884863fec40f369a4a4
+x64/WinDirStat.exe SHA256: c6925752fe688aa72115723f23dbb95a7e1c55f094a7d7f30acb5f509a38045b
+Authenticode signature verified on acquisition: Open Source Developer Bryan Berns.
+
+WinDirStat-source.zip is the unmodified upstream source archive for that release:
+https://codeload.github.com/windirstat/windirstat/zip/refs/tags/release/v2.9.3
+Source archive SHA256: cb8c3c89a53d659c5c736a667af2b21f63a95e9e614d68e95027b19fd28df410
+Upstream project includes build instructions and dependency acquisition scripts.
+The build requires the Windows C++ toolchain and retrieves xxHash when absent.
+
+Both binary and source ZIP are embedded resources in Prefect's assembly, so
+previous Prefect updaters can deliver them without expanding their file allowlist.
+Settings > Disk analyser > Licence and source extracts the bundled source ZIP
+and licence to a temporary folder. No Internet connection is needed.
+WinDirStat runs as a separate process with its own temporary portable INI.
+No WinDirStat source code is compiled or linked into Prefect.

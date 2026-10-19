@@ -1,3 +1,11 @@
+# Geurts Performance Prefect 1.29.0
+
+- Added a Disk analyser tab embedding the official WinDirStat 2.9.3 portable interface, with drive/folder selection, its file tree, largest-file view and treemap. Normal startup and opening the tab start no scan.
+- Native scans survive tab changes and minimising/restoring Settings. Close analyser requests a graceful close; Settings close, exit, restart and update installation wait while the analyser is active.
+- Bundled a verified unmodified x64 executable, GPL licence and offline upstream source archive. Each embedded session has private temporary portable settings and does not reuse standalone WinDirStat preferences.
+- This is an embedding prototype: WinDirStat keeps its native interface, dialogs may open separately and small windows have less room for columns. Start Prefect as administrator before protected-folder scans; WinDirStat's own elevated relaunch may open separately. Mixed-DPI monitor transitions are not validated.
+- Validated real native scans of disposable folders, Unicode/space paths, invalid-target retry, resizing, tab/hide/restore, close/retry, application lifetime and unchanged fixture contents. No real cleanup/deletion was performed. Local installation remains manual.
+
 # Geurts Performance Prefect 1.28.0
 
 - Added Create desktop shortcut in Settings → Application updates and the tray and overlay menus, with a success path or a clear error message.
