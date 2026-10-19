@@ -27,7 +27,7 @@ public static class WindowsImage
     internal static async Task<int> RunProcessAsync(ProcessStartInfo info, Action<string> output)
     {
         using var process = new Process { StartInfo = info };
-        if (!process.Start()) throw new IOException("Windows did not start DISM.");
+        if (!process.Start()) throw new IOException("Windows did not start the diagnostic process.");
         process.StandardInput.Close();
         async Task ReadAsync(StreamReader reader)
         {
@@ -44,7 +44,7 @@ public static class WindowsImage
         }
         finally
         {
-            // Never terminate a Windows servicing operation, including after an output failure.
+            // Let Windows servicing or drive optimization finish, including after an output failure.
             if (!process.HasExited) await process.WaitForExitAsync().ConfigureAwait(false);
         }
     }

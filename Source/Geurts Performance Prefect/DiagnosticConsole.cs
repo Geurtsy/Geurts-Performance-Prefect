@@ -21,6 +21,11 @@ public sealed class DiagnosticConsole : UserControl
     bool Image => CheckType.SelectedItem is ComboBoxItem { Tag: WindowsImageAction };
     WindowsImageAction ImageAction => (WindowsImageAction)((ComboBoxItem)CheckType.SelectedItem).Tag;
     bool activeImage;
+    readonly Func<string, DiskOptimizationAction, Action<string>, CancellationToken, Task<int>> optimizationRun;
+    readonly Func<string, bool> confirmOptimization;
+    bool Optimization => CheckType.SelectedItem is ComboBoxItem { Tag: DiskOptimizationAction };
+    DiskOptimizationAction OptimizationAction => (DiskOptimizationAction)((ComboBoxItem)CheckType.SelectedItem).Tag;
+    bool activeOptimization;
     readonly Func<string, Action<string>, Action<Func<string, Task>?>, Task<int>> repairRun;
     readonly Func<string, bool> confirmRepair;
     bool Repair => CheckType.SelectedIndex == 2;
@@ -58,10 +63,16 @@ public sealed class DiagnosticConsole : UserControl
         Func<string, Action<string>, Action<Func<string, Task>?>, Task<int>>? repairRun = null,
         Func<string, bool>? confirmRepair = null, bool repair = false,
         Func<WindowsImageAction, Action<string>, Task<int>>? imageRun = null,
-        Func<bool>? confirmImageRepair = null, bool windowsImage = false, bool administrator = true)
+        Func<bool>? confirmImageRepair = null, bool windowsImage = false, bool administrator = true,
+        Func<string, DiskOptimizationAction, Action<string>, CancellationToken, Task<int>>? optimizationRun = null,
+        Func<string, bool>? confirmOptimization = null)
     {
         this.administrator = administrator;
         this.run = run;
+        this.optimizationRun = optimizationRun ?? DiskOptimization.RunAsync;
+        this.confirmOptimization = confirmOptimization ?? (root => MessageBox.Show(Window.GetWindow(this), DiskOptimization.Confirmation(root),
+            "Geurts Performance Prefect · Optimize drive", MessageBoxButton.YesNo, MessageBoxImage.Question,
+            MessageBoxResult.No) == MessageBoxResult.Yes);
         this.integrityRun = integrityRun ?? SystemIntegrity.RunAsync;
         this.repairRun = repairRun ?? DiskRepair.RunAsync;
         this.confirmRepair = confirmRepair ?? (root => MessageBox.Show(Window.GetWindow(this), DiskRepair.Confirmation(root),
@@ -81,6 +92,8 @@ public sealed class DiagnosticConsole : UserControl
         CheckType.Items.Add(new ComboBoxItem { Content = "Windows image: Check health (DISM)", Tag = WindowsImageAction.CheckHealth });
         CheckType.Items.Add(new ComboBoxItem { Content = "Windows image: Scan health (DISM)", Tag = WindowsImageAction.ScanHealth });
         CheckType.Items.Add(new ComboBoxItem { Content = "Windows image: Repair (DISM)", Tag = WindowsImageAction.RestoreHealth });
+        CheckType.Items.Add(new ComboBoxItem { Content = "Disk fragmentation: Analyze", Tag = DiskOptimizationAction.Analyze });
+        CheckType.Items.Add(new ComboBoxItem { Content = "Disk fragmentation: Optimize drive (HDD / SSD)", Tag = DiskOptimizationAction.Optimize });
         header.Children.Add(CheckType);
         header.Children.Add(description);
         var controls = new DockPanel { Margin = new Thickness(0,6,0,6) };
@@ -117,6 +130,7 @@ public sealed class DiagnosticConsole : UserControl
         if (cancellation == null) return true;
         if (activeImage) Status.Text = "DISM is still running. Let Windows servicing finish before closing.";
         else if (activeRepair) Status.Text = "Repair is still running. Answer any CHKDSK prompt below and let it finish before closing.";
+        else if (activeOptimization) Status.Text = "Drive optimization is still running. Let Windows finish before closing.";
         else { closeAfterStop = afterStop; Stop(); }
         return false;
     }
@@ -128,6 +142,20 @@ public sealed class DiagnosticConsole : UserControl
         Drive.IsEnabled = !Integrity && !Image;
         StartButton.IsEnabled = administrator && (Integrity || Image || Drive.SelectedItem != null);
         StartButton.Content = (Repair || (Image && ImageAction == WindowsImageAction.RestoreHealth)) ? "Start repair" : "Start check";
+        StopButton.Content = Optimization ? (OptimizationAction == DiskOptimizationAction.Analyze ? "Stop analysis" : "Stop optimization") : "Stop check";
+        if (Optimization)
+        {
+            var analyze = OptimizationAction == DiskOptimizationAction.Analyze;
+            StartButton.Content = analyze ? "Analyze drive" : "Optimize drive";
+            description.Text = analyze ? "Analyze fragmentation on the selected drive without optimizing it. Windows reports fragmentation statistics and whether optimization is needed."
+                : "Optimize the selected drive. Windows chooses the appropriate operation for the drive's media type, including SSDs. Confirm before starting.";
+            guidance.Text = "Administrator access is required. Review Windows' full report below. Unsupported, locked or damaged volumes may be refused by Windows. " +
+                (analyze ? "Analysis does not repair or optimize the drive." : "Keep Prefect open until optimization finishes; Stop and Close are unavailable. No restart or schedule change is requested.");
+            Status.Text = !administrator ? "Restart Prefect as administrator to analyze and optimize drives in this tab."
+                : Drive.SelectedItem == null ? "No ready local drives are available. Reopen Settings after connecting or unlocking a drive."
+                : analyze ? "Choose a drive, then Analyze drive." : "Choose a drive, then Optimize drive to review the confirmation.";
+            return;
+        }
         if (Image)
         {
             description.Text = ImageAction switch
@@ -158,7 +186,7 @@ public sealed class DiagnosticConsole : UserControl
 
     void Stop()
     {
-        if (activeImage || activeRepair) return;
+        if (activeImage || activeRepair || activeOptimization) return;
         StopButton.IsEnabled = false; Status.Text = "Stopping the check…"; cancellation?.Cancel();
     }
 
@@ -204,22 +232,33 @@ public sealed class DiagnosticConsole : UserControl
         var integrity = Integrity;
         var repair = Repair;
         var image = Image;
+        var optimization = Optimization;
+        var optimizationAction = optimization ? OptimizationAction : DiskOptimizationAction.Analyze;
         var imageAction = image ? ImageAction : WindowsImageAction.CheckHealth;
         if (image && imageAction == WindowsImageAction.RestoreHealth && !confirmImageRepair())
         { Status.Text = "Repair cancelled. DISM was not started."; return; }
 
         var volume = Drive.SelectedItem as DiskCheckVolume;
+        if (optimization && optimizationAction == DiskOptimizationAction.Optimize && !confirmOptimization(volume!.Root))
+        { Status.Text = "Optimization cancelled. No optimization command was started."; return; }
         if (repair && !confirmRepair(volume!.Root)) { Status.Text = "Repair cancelled. No repair command was started."; return; }
         activeImage = image; activeRepair = repair;
+        activeOptimization = optimization && optimizationAction == DiskOptimizationAction.Optimize;
         cancellation = new CancellationTokenSource();
-        CheckType.IsEnabled = Drive.IsEnabled = StartButton.IsEnabled = false; StopButton.IsEnabled = !image && !repair;
+        CheckType.IsEnabled = Drive.IsEnabled = StartButton.IsEnabled = false; StopButton.IsEnabled = !image && !repair && !activeOptimization;
         ConsoleOutput.Text = image ? "> dism /Online /Cleanup-Image /" + imageAction + " /NoRestart\n\n" : integrity ? "> sfc /verifyonly\n\n" : $"> chkdsk {DiskCheck.VolumeArgument(volume!.Root)}{(repair ? " /f" : "")}\n\n";
         Status.Text = image ? "DISM is servicing the Windows image · output appears below…" : repair ? "Repairing " + volume!.Root + " · read and answer any CHKDSK prompts below…" : integrity ? "Scanning Windows system integrity · output appears below…" : "Checking " + volume!.Root + " · output appears below…";
+        if (optimization)
+        {
+            ConsoleOutput.Text = $"> defrag {DiskCheck.VolumeArgument(volume!.Root)} /{(activeOptimization ? "O" : "A")} /U /V\n\n";
+            Status.Text = (activeOptimization ? "Optimizing " : "Analyzing fragmentation on ") + volume.Root + " · output appears below…";
+        }
         try
         {
-            var code = image ? await imageRun(imageAction, AppendOutput) : repair ? await repairRun(volume!.Root, AppendOutput, InputReady) : integrity ? await integrityRun(AppendOutput, cancellation.Token)
+            var code = optimization ? await optimizationRun(volume!.Root, optimizationAction, AppendOutput, cancellation.Token)
+                : image ? await imageRun(imageAction, AppendOutput) : repair ? await repairRun(volume!.Root, AppendOutput, InputReady) : integrity ? await integrityRun(AppendOutput, cancellation.Token)
                 : await run(volume!.Root, AppendOutput, cancellation.Token);
-            Status.Text = image ? WindowsImage.Result(code) : repair ? DiskRepair.Result(code) : integrity ? SystemIntegrity.Result(code) : DiskCheck.Result(code);
+            Status.Text = optimization ? DiskOptimization.Result(optimizationAction, code) : image ? WindowsImage.Result(code) : repair ? DiskRepair.Result(code) : integrity ? SystemIntegrity.Result(code) : DiskCheck.Result(code);
             AppendOutput($"\n\n[Process exited with code {code}]\n");
         }
         catch (OperationCanceledException) { Status.Text = "Check stopped. Results are incomplete."; AppendOutput("\n[Check stopped]\n"); }
@@ -228,6 +267,7 @@ public sealed class DiagnosticConsole : UserControl
         {
             cancellation.Dispose(); cancellation = null;
             activeRepair = false; InputReady(null);
+            activeOptimization = false;
             activeImage = false; CheckType.IsEnabled = true; Drive.IsEnabled = !integrity && !image;
             StartButton.IsEnabled = administrator && (integrity || image || Drive.SelectedItem != null); StopButton.IsEnabled = false;
             var afterStop = closeAfterStop; closeAfterStop = null; afterStop?.Invoke();

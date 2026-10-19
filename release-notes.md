@@ -1,10 +1,9 @@
-# Geurts Performance Prefect 1.26.0
+# Geurts Performance Prefect 1.27.0
 
-- Added BitLocker drive decryption under Settings → Security: explicit drive selection, Turn off BitLocker and decrypt drive, conversion status, remaining encrypted percentage and resume for paused decryption.
-- Requires administrator access, checks the selected volume identity and current status again before starting, and confirms the drive and loss of encryption protection. Normal sessions offer an administrator restart that reopens Security without starting decryption.
-- Windows owns the background conversion; closing Prefect after acceptance does not cancel it. The visible tab refreshes an actively decrypting selected drive every 15 seconds. App close/restart/update waits while Windows acknowledges the initial request. Percentage and suspended protection alone never imply completion.
-- Locked drives require authorized Windows unlocking. No recovery keys are collected or auto-unlock keys cleared; organization policy and Windows errors are respected. Separate EFS file encryption is unaffected. Re-enabling BitLocker requires a separate setup through Windows management.
-- Validated supported conversion states, locked/unknown/unreadable drives, identity changes, confirmation cancellation, partial status failures, progress, completion, privilege gating, request lifecycle and normal/narrow layouts using isolated fixtures. No real drive decryption, key-protector changes, unlocking or administrator restart was run during validation.
+- Added disk fragmentation analysis and drive optimization under Settings → Console, with local drive selection, live progress, fragmentation statistics, Windows reports and exit codes.
+- Analyze drive checks without optimizing. Optimize drive requires confirmation and lets Windows choose the appropriate operation for the drive's media type, including SSDs. Administrator access is required; nothing starts automatically and scheduled optimization settings remain unchanged.
+- Analysis can be stopped. Optimization keeps Prefect open until Windows finishes; app exit, restart and update installation wait for completion. No restart is requested.
+- Validated command arguments, real Windows help output, confirmation cancellation, selected-drive routing, progress, stopping analysis, completion, failure/retry, administrator and missing-drive requirements, operation lifetime and normal/minimum layouts using isolated fixtures. No real drive analysis or optimization was run during validation.
 
 Windows x64 and the .NET 10 Desktop Runtime are required. Extract the release ZIP
 into your application folder manually, or initiate the update yourself in Settings.

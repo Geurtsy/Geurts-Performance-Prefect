@@ -44,8 +44,8 @@ public static class SettingsTabVerification
         check(panel.Width == Math.Min(1000, panel.MaxWidth) && panel.Height == Math.Min(920, panel.MaxHeight),
             "Settings opens at its expanded default size within the screen work area");
         Select(panel, panel.Console.CheckType);
-        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Console" && panel.Console.CheckType.Items.Count == 6,
-            "Console tab embeds all disk, system integrity and Windows image modes");
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Console" && panel.Console.CheckType.Items.Count == 8,
+            "Console tab embeds disk checks, fragmentation analysis, optimization, system integrity and Windows image modes");
         Select(panel, panel.DiskCleanupPanel.OpenButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Performance",
             "Disk Cleanup drive selection and launch are in Performance settings");

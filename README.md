@@ -58,6 +58,24 @@ review the full result before deciding on repairs. This is a file-system check,
 not a physical drive health test. See [Microsoft's CHKDSK reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/chkdsk).
 No check starts automatically.
 
+Under **Settings → Console**, choose **Disk fragmentation: Analyze**, select a
+local drive, then click **Analyze drive**. This runs `defrag X: /A /U /V` and
+shows Windows' fragmentation statistics and recommendations without optimizing
+the drive. **Stop analysis** cancels the analysis; stopped results are incomplete.
+
+Choose **Disk fragmentation: Optimize drive (HDD / SSD)** and click **Optimize
+drive** to review and confirm the selected drive. This runs `defrag X: /O /U /V`;
+Windows chooses the appropriate optimization for the media type, including SSDs.
+Progress, the full report and exit codes appear in the embedded console. Run
+Prefect as administrator first. Nothing starts on opening, mode selection or
+startup, and Windows' scheduled optimization settings are preserved.
+
+Keep Prefect open until optimization finishes. Stop, Close, app exit, restart
+and update installation wait for the operation to finish. No restart is requested.
+Windows may refuse unsupported, locked or damaged volumes; review its report
+before taking further action. This does not repair file-system errors or failing
+hardware. See [Microsoft's drive optimization reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/defrag).
+
 Under **Settings → Console**, select **System integrity scan** and click **Start check**
 to run `sfc /verifyonly` against the running Windows installation; the drive
 selection does not apply. Run Prefect as administrator first.

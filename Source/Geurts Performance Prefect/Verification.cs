@@ -27,6 +27,7 @@ public static class Verification
         DiskCheckVerification.Run(folder, Check);
         DiskRepairVerification.Run(folder, Check);
         WindowsImageVerification.Run(folder, Check);
+        DiskOptimizationVerification.Run(folder, Check);
         ConsoleTabVerification.Run(folder, Check);
         DiskCleanupVerification.Run(folder, Check);
         VisualEffectsVerification.Run(folder, Check);
