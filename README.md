@@ -24,26 +24,36 @@ Windows' own Storage Sense configuration unchanged. Each scan visits at most
 Deletion bypasses the Recycle Bin. Reported file data sizes are estimates, and
 recovered free space can differ. Validation deletes only disposable fixture files.
 
-**Settings → Programs and Features → Open Programs and Features** embeds the
+**Settings → Programs and Features** automatically loads and embeds the
 classic Control Panel **Uninstall or change a program** interface inside Prefect.
 Select a program to see Windows' Uninstall, Change or Repair commands, or
 right-click it for available actions. The list retains Windows' native appearance,
 columns, sorting, scrolling and keyboard navigation. No uninstaller starts just
-by opening the tab or list.
+by opening the tab. If loading fails, use **Retry loading**.
 
 Windows and each program handle their own uninstallers, confirmation dialogs and
 administrator prompts, which can open separately. Closing the list does not
 cancel an external uninstaller. This shows the classic desktop-program list;
 use Windows Settings for apps that are absent from Control Panel.
 
+After the list opens, this Settings window stays unpinned so separate uninstall
+dialogs can come forward, including after switching tabs. Prefect also avoids a
+delayed focus retry over those dialogs. The overlay's **Always on top** behavior
+and saved preference remain unchanged; a new Settings window uses that preference
+again until you open Programs and Features.
+
 Prefect creates its own Windows Shell view; it does not take over an existing
 Control Panel or File Explorer window. Tab switching and hide/restore are supported.
 Small windows need horizontal scrolling for all columns. Mixed-DPI monitor
-transitions and an actual uninstall were not tested. Validation browses the real
-list and checks selection and available actions without uninstalling software.
+transitions and third-party uninstall execution were not tested. Validation browses
+the real list and launches a harmless dialog fixture through the native Uninstall
+action without uninstalling software. Its temporary test registration is removed
+when the isolated preview closes.
 The isolated `--programs-features-test <report-file>` and
 `--programs-features-preview <report-file>` modes bypass normal preferences,
 startup actions, drivers and the installed app.
+Use `--programs-features-uninstall-preview <report-file>` only for the disposable
+dialog integration fixture; close the preview to remove its test entry.
 
 
 

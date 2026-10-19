@@ -11,26 +11,32 @@ namespace GeurtsPerformancePrefect;
 // Control Panel/Explorer windows are discovered, reparented or terminated.
 public sealed class ProgramsFeaturesPanel : DockPanel
 {
-    internal Button OpenButton { get; } = new() { Content = "Open Programs and Features", HorizontalAlignment = HorizontalAlignment.Left };
-    internal TextBlock Status { get; } = new() { Text = "Open the classic Control Panel list to uninstall or change a program.", Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,8,0,8) };
+    internal Button RetryButton { get; } = new() { Content = "Retry loading", Visibility = Visibility.Collapsed, HorizontalAlignment = HorizontalAlignment.Left };
+    internal TextBlock Status { get; } = new() { Text = "Loading Programs and Features…", Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,8,0,8) };
     internal ProgramsFeaturesHost Host { get; } = new();
+    internal bool HasOpened { get; private set; }
+    internal event Action? Opening;
 
     public ProgramsFeaturesPanel()
     {
         var heading = new StackPanel();
         heading.Children.Add(new TextBlock { Text = "Programs and Features", Foreground = Palette.Text, FontSize = 16, FontWeight = FontWeights.SemiBold });
         heading.Children.Add(new TextBlock { Text = "The classic Windows uninstall interface. Select a program and use its Uninstall or Change action. Windows and the program control any confirmation or administrator prompts; these may open separately.", Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,8,0,8) });
-        heading.Children.Add(OpenButton); heading.Children.Add(Status);
+        heading.Children.Add(RetryButton); heading.Children.Add(Status);
         SetDock(heading, Dock.Top); Children.Add(heading); Children.Add(Host);
-        Host.Failed += message => { Status.Text = "Could not open Programs and Features: " + message + " Click Open to retry."; OpenButton.IsEnabled = true; };
-        OpenButton.Click += (_, _) => Open();
+        Host.Failed += message => { Status.Text = "Could not load Programs and Features: " + message; RetryButton.Visibility = Visibility.Visible; };
+        RetryButton.Click += (_, _) => Open();
+        // Visibility changes also cover returning to a tab whose HWND WPF recreated.
+        IsVisibleChanged += (_, _) => { if (IsVisible) Dispatcher.InvokeAsync(() => { if (IsVisible) Open(); }); };
     }
 
     internal void Open()
     {
+        HasOpened = true;
+        Opening?.Invoke();
         if (Host.Open())
         {
-            OpenButton.IsEnabled = false;
+            RetryButton.Visibility = Visibility.Collapsed;
             Status.Text = "Windows Programs and Features is embedded below. Right-click a program for its available actions. Uninstallers may continue in separate windows.";
         }
     }

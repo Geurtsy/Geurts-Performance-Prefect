@@ -26,17 +26,36 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        if (e.Args.Length == 2 && (e.Args[0] == "--programs-features-test" || e.Args[0] == "--programs-features-preview"))
+        if (e.Args.Length == 2 && e.Args[0] == "--programs-features-dialog-fixture")
+        {
+            ProgramsFeaturesDialogFixture.ShowDialog(Path.GetFullPath(e.Args[1]));
+            return;
+        }
+        if (e.Args.Length == 2 && (e.Args[0] == "--programs-features-test" || e.Args[0] == "--programs-features-preview" || e.Args[0] == "--programs-features-uninstall-preview"))
         {
             var report = Path.GetFullPath(e.Args[1]); var folder = Path.GetDirectoryName(report)!;
             Directory.CreateDirectory(folder); ShutdownMode = ShutdownMode.OnExplicitShutdown;
             var overlay = new OverlayWindow(new SettingsStore(Path.Combine(folder, "programs-preview-settings.json")), new OverlaySettings(), verification: true);
             var panel = new SettingsWindow(overlay) { Title = "Geurts Performance Prefect · Programs and Features (isolated preview)" };
             MainWindow = panel;
-            panel.Show(); panel.ShowProgramsFeatures(); panel.UpdateLayout();
-            if (e.Args[0] == "--programs-features-preview")
+            panel.Show(); panel.UpdateLayout();
+            if (e.Args[0] != "--programs-features-test")
             {
-                panel.ProgramsFeaturesPanel.Open();
+                // Put this explicitly isolated preview on a spare display when available,
+                // leaving the installed app's potentially pinned Settings window alone.
+                var spare = System.Windows.Forms.Screen.AllScreens.FirstOrDefault(screen => !screen.Primary);
+                if (spare != null)
+                {
+                    var fromDevice = System.Windows.PresentationSource.FromVisual(panel)!.CompositionTarget.TransformFromDevice;
+                    var origin = fromDevice.Transform(new Point(spare.WorkingArea.Left + 24, spare.WorkingArea.Top + 24));
+                    panel.Left = origin.X; panel.Top = origin.Y;
+                }
+                if (e.Args[0] == "--programs-features-uninstall-preview")
+                {
+                    var fixture = new ProgramsFeaturesDialogFixture(report);
+                    panel.Closed += (_, _) => fixture.Dispose();
+                }
+                panel.ShowProgramsFeatures();
                 panel.Closed += (_, _) => { overlay.Close(); Shutdown(); };
                 return;
             }
@@ -44,6 +63,11 @@ public partial class App : Application
             {
                 var log = new System.Collections.Generic.List<string>();
                 ProgramsFeaturesVerification.Run(panel, (pass, name) =>
+                {
+                    if (!pass) throw new InvalidOperationException("FAILED: " + name);
+                    log.Add("PASS: " + name); File.WriteAllLines(report, log);
+                });
+                ProgramsFeaturesVerification.RunTopmostLifetime(overlay, (pass, name) =>
                 {
                     if (!pass) throw new InvalidOperationException("FAILED: " + name);
                     log.Add("PASS: " + name); File.WriteAllLines(report, log);

@@ -18,18 +18,25 @@ public sealed class SettingsWindow : Window
         Show();
         // Raise Settings above the overlay and other windows for this explicit open action.
         // Restore the saved preference immediately so Settings does not stay pinned.
-        Topmost = true;
-        Topmost = overlay.Settings.AlwaysOnTop;
+        if (!ProgramsFeaturesPanel.HasOpened) Topmost = true;
+        ApplyTopmostPreference();
         Activate();
         Focus();
         // Tray/context menus can restore their previous focus as they close.
+        // After loading uninstallers, avoid a delayed retry stealing dialog focus.
         Dispatcher.InvokeAsync(() =>
         {
-            if (IsVisible && WindowState == WindowState.Normal) { Activate(); Focus(); }
+            if (!ProgramsFeaturesPanel.HasOpened && IsVisible && WindowState == WindowState.Normal) { Activate(); Focus(); }
         }, System.Windows.Threading.DispatcherPriority.Input);
     }
 
     readonly OverlayWindow overlay;
+    internal void ApplyTopmostPreference()
+    {
+        // Uninstallers are separate, normal windows. Keep this Settings session
+        // unpinned even after switching tabs so an ongoing uninstall stays reachable.
+        Topmost = overlay.Settings.AlwaysOnTop && !ProgramsFeaturesPanel.HasOpened;
+    }
     readonly ComboBox graphics = new(), board = new();
     readonly TextBlock sensorStatus;
     string choiceSignature = "";
@@ -112,6 +119,7 @@ public sealed class SettingsWindow : Window
         Icon = Branding.WindowIcon;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Topmost = overlay.Settings.AlwaysOnTop;
+        ProgramsFeaturesPanel.Opening += ApplyTopmostPreference;
         var dock = new DockPanel { Margin = new Thickness(24), Background = Palette.Background }; Content = dock;
         var footer = new StackPanel { Margin = new Thickness(0,16,0,0) };
         var footerButtons = new Grid(); footerButtons.ColumnDefinitions.Add(new()); footerButtons.ColumnDefinitions.Add(new() { Width = GridLength.Auto });

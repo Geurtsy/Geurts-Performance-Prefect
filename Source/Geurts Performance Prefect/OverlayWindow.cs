@@ -326,7 +326,7 @@ public sealed class OverlayWindow : Window
         UpdateEmpty();
         Volatile.Write(ref refreshMilliseconds, Settings.RefreshMilliseconds);
         Volatile.Write(ref monitorFps, Settings.Visible[Metric.ForegroundFps]);
-        if (settingsWindow != null) settingsWindow.Topmost = Settings.AlwaysOnTop;
+        settingsWindow?.ApplyTopmostPreference();
         if (Latest != null) Receive(Latest);
         AutoAvoidTrayItem.Checked = Settings.AutoAvoid; autoAvoidMenuItem.IsChecked = Settings.AutoAvoid;
         AutoAvoidChanged?.Invoke(Settings.AutoAvoid);

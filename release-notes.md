@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.31.1
+
+- Programs and Features now loads automatically when its tab opens. Removed the Open button; Retry loading appears only if loading fails.
+- Settings stops staying above other windows after the list opens, so external uninstall dialogs can be brought forward and used. This lasts through tab switches and Settings reopening in the same session; the overlay's Always on top setting and saved preference are preserved.
+- Removed the delayed Settings focus retry during this session so it cannot pull focus back from an uninstall dialog.
+- Validated automatic loading, native view lifetime, sizing and pinning behavior, plus a real Shell Uninstall action that launches a harmless external dialog fixture. No installed software was removed. Third-party uninstallers and administrator prompts remain controlled by Windows; mixed-DPI transitions are not validated. Local installation remains manual.
+
 # Geurts Performance Prefect 1.31.0
 
 - Added a Storage Sense tab with an age limit, file-by-file preview, size estimate, confirmed manual cleanup, Stop and saved cleanup results. It removes only old files in the current user's temporary folder and keeps folders intact.
