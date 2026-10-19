@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.30.0
+
+- Added Settings → Programs and Features, embedding the classic Control Panel uninstall interface with its real program list, columns, native Uninstall/Change/Repair commands and context menus.
+- Click Open Programs and Features to load the list. Opening the tab or list starts no uninstaller. Windows and each program handle their prompts and may open separate windows.
+- Creates a private in-process Shell view without taking over existing Control Panel/Explorer windows or saving its layout into Explorer preferences. Supports resizing, tab switching, hide/restore and resource cleanup.
+- Validated the real interface, program selection and available uninstall action without uninstalling anything, plus isolated lifecycle, layout, package and updater checks. Mixed-DPI monitor transitions and actual uninstall execution were not tested. Local installation remains manual.
+
 # Geurts Performance Prefect 1.29.0
 
 - Added a Disk analyser tab embedding the official WinDirStat 2.9.3 portable interface, with drive/folder selection, its file tree, largest-file view and treemap. Normal startup and opening the tab start no scan.

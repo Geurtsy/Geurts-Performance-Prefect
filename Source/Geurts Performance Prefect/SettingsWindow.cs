@@ -83,6 +83,7 @@ public sealed class SettingsWindow : Window
     public DiagnosticConsole Console { get; }
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
     public DiskAnalyserPanel DiskAnalyserPanel { get; } = new();
+    public ProgramsFeaturesPanel ProgramsFeaturesPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     public SecurityPanel SecurityPanel { get; } = new();
     public FirewallPanel FirewallPanel { get; } = new();
@@ -220,7 +221,10 @@ public sealed class SettingsWindow : Window
         var analyserScroll = new ScrollViewer { Content = DiskAnalyserPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         Sections.Items.Add(new TabItem { Header = "Disk analyser", Content = analyserScroll });
-        Closed += (_, _) => DiskAnalyserPanel.DisposeIdle();
+        Closed += (_, _) => { DiskAnalyserPanel.DisposeIdle(); ProgramsFeaturesPanel.Host.Dispose(); };
+        var programsScroll = new ScrollViewer { Content = ProgramsFeaturesPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        Sections.Items.Add(new TabItem { Header = "Programs and Features", Content = programsScroll });
         stack = AddTab("Overlay");
         var toggles = Panel();
         foreach (var metric in MetricInfo.All)
@@ -348,6 +352,10 @@ public sealed class SettingsWindow : Window
     internal void ShowSecurity()
     {
         Sections.SelectedItem = Sections.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "Security");
+    }
+    internal void ShowProgramsFeatures()
+    {
+        Sections.SelectedItem = Sections.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "Programs and Features");
     }
     internal void ShowDiskAnalyser()
     {
