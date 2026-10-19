@@ -24,6 +24,29 @@ Windows' own Storage Sense configuration unchanged. Each scan visits at most
 Deletion bypasses the Recycle Bin. Reported file data sizes are estimates, and
 recovered free space can differ. Validation deletes only disposable fixture files.
 
+**Settings → Programs and Features → Open Programs and Features** embeds the
+classic Control Panel **Uninstall or change a program** interface inside Prefect.
+Select a program to see Windows' Uninstall, Change or Repair commands, or
+right-click it for available actions. The list retains Windows' native appearance,
+columns, sorting, scrolling and keyboard navigation. No uninstaller starts just
+by opening the tab or list.
+
+Windows and each program handle their own uninstallers, confirmation dialogs and
+administrator prompts, which can open separately. Closing the list does not
+cancel an external uninstaller. This shows the classic desktop-program list;
+use Windows Settings for apps that are absent from Control Panel.
+
+Prefect creates its own Windows Shell view; it does not take over an existing
+Control Panel or File Explorer window. Tab switching and hide/restore are supported.
+Small windows need horizontal scrolling for all columns. Mixed-DPI monitor
+transitions and an actual uninstall were not tested. Validation browses the real
+list and checks selection and available actions without uninstalling software.
+The isolated `--programs-features-test <report-file>` and
+`--programs-features-preview <report-file>` modes bypass normal preferences,
+startup actions, drivers and the installed app.
+
+
+
 **Settings → Disk analyser** embeds the official portable WinDirStat 2.9.3
 interface as a prototype. Choose a drive or folder (or paste its full path), then
 click **Analyse**. Browse the folder tree, largest files and treemap inside
@@ -57,7 +80,7 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses ten tabs: Startup, Security, Application updates, Downloads cleanup, Storage Sense, Performance, Console, Disk analyser,
+Settings uses eleven tabs: Startup, Security, Application updates, Downloads cleanup, Storage Sense, Performance, Console, Disk analyser, Programs and Features,
 Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
 controls, Top applications averaging settings and Window controls.
 Settings opens at 1000 × 920 logical pixels, capped to fit the screen work area.

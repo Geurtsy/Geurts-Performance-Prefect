@@ -26,6 +26,33 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && (e.Args[0] == "--programs-features-test" || e.Args[0] == "--programs-features-preview"))
+        {
+            var report = Path.GetFullPath(e.Args[1]); var folder = Path.GetDirectoryName(report)!;
+            Directory.CreateDirectory(folder); ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var overlay = new OverlayWindow(new SettingsStore(Path.Combine(folder, "programs-preview-settings.json")), new OverlaySettings(), verification: true);
+            var panel = new SettingsWindow(overlay) { Title = "Geurts Performance Prefect · Programs and Features (isolated preview)" };
+            MainWindow = panel;
+            panel.Show(); panel.ShowProgramsFeatures(); panel.UpdateLayout();
+            if (e.Args[0] == "--programs-features-preview")
+            {
+                panel.ProgramsFeaturesPanel.Open();
+                panel.Closed += (_, _) => { overlay.Close(); Shutdown(); };
+                return;
+            }
+            try
+            {
+                var log = new System.Collections.Generic.List<string>();
+                ProgramsFeaturesVerification.Run(panel, (pass, name) =>
+                {
+                    if (!pass) throw new InvalidOperationException("FAILED: " + name);
+                    log.Add("PASS: " + name); File.WriteAllLines(report, log);
+                });
+                panel.Close(); overlay.Close(); Shutdown(0);
+            }
+            catch (Exception ex) { File.AppendAllText(report, ex.ToString()); panel.Close(); overlay.Close(); Shutdown(1); }
+            return;
+        }
         if (e.Args.Length == 2 && e.Args[0] == "--disk-analyser-test")
         {
             var report = Path.GetFullPath(e.Args[1]); var folder = Path.GetDirectoryName(report)!;

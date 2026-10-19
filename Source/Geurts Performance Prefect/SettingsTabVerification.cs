@@ -27,8 +27,8 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 10 && tabs.Select(t => t.Header).Distinct().Count() == 10,
-            "All ten Settings sections have distinct tabs including Storage Sense and Disk analyser");
+        check(tabs.Length == 11 && tabs.Select(t => t.Header).Distinct().Count() == 11,
+            "All eleven Settings sections have distinct tabs including Storage Sense, Disk analyser and Programs and Features");
         Select(panel, panel.StorageSensePanel.PreviewButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Storage Sense" && !panel.StorageSensePanel.Enabled.IsChecked!.Value,
             "Storage Sense has its own idle tab and automatic cleanup defaults off");
