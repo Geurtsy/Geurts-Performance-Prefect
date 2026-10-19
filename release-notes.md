@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.30.0
+
+- Added a Storage Sense tab with an age limit, file-by-file preview, size estimate, confirmed manual cleanup, Stop and saved cleanup results. It removes only old files in the current user's temporary folder and keeps folders intact.
+- Added opt-in daily, weekly and 30-day automatic cleanup while Prefect is running. Scheduling defaults off, starts after one interval, catches up when Prefect reopens and saves an attempt checkpoint before deletion. Disabling it stops active cleanup after the current file.
+- Open, changed, read-only, system, hard-linked and redirected files are kept. Junctions and protected app/settings/personal locations are refused. Manual cleanup uses the approved preview and validates the same file handle before deletion. Downloads, Recycle Bin and Windows Storage Sense settings remain outside this feature.
+- Validated deletion and scheduling using isolated fixtures, including cancellation, modified/replaced files, locked files, junctions, failed settings saves and UI controls. No live cleanup or installation is performed during validation. Local installation remains manual.
+
 # Geurts Performance Prefect 1.29.0
 
 - Added a Disk analyser tab embedding the official WinDirStat 2.9.3 portable interface, with drive/folder selection, its file tree, largest-file view and treemap. Normal startup and opening the tab start no scan.

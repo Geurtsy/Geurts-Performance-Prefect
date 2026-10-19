@@ -27,6 +27,12 @@ public sealed class OverlaySettings
     public bool MinimiseToTray { get; set; } = true;
     public bool AutoAvoid { get; set; }
     public bool AutoWipeDownloadsOnStartup { get; set; }
+    public bool StorageSenseEnabled { get; set; }
+    public int StorageSenseAgeDays { get; set; } = 30;
+    public StorageSenseSchedule StorageSenseSchedule { get; set; } = StorageSenseSchedule.Weekly;
+    public DateTime? StorageSenseLastAttemptUtc { get; set; }
+    public DateTime? StorageSenseLastRunUtc { get; set; }
+    public string StorageSenseLastResult { get; set; } = "";
     public bool StartAsAdministrator { get; set; }
     public List<BoringApplication> BoringApplications { get; set; } = new();
     public bool ApplyPowerOptionsOnStartup { get; set; }
@@ -51,6 +57,10 @@ public sealed class OverlaySettings
     public void Normalise()
     {
         Visible ??= new();
+        StorageSenseAgeDays = Math.Clamp(StorageSenseAgeDays, 7, 365);
+        if (!Enum.IsDefined(StorageSenseSchedule)) StorageSenseSchedule = StorageSenseSchedule.Weekly;
+        if (StorageSenseLastAttemptUtc > DateTime.UtcNow) StorageSenseLastAttemptUtc = DateTime.UtcNow;
+        StorageSenseLastResult ??= "";
         BoringApplications = (BoringApplications ?? new()).Where(a => a != null && !string.IsNullOrWhiteSpace(a.Id) && !string.IsNullOrWhiteSpace(a.Name))
             .Select(a => a with { Executables = (a.Executables ?? Array.Empty<string>()).Select(GeurtsPerformancePrefect.BoringApplications.ExecutablePath)
                 .Where(p => p != null).Select(p => p!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() })

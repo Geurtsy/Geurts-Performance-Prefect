@@ -1,5 +1,29 @@
 # Geurts Performance Prefect
 
+**Settings → Storage Sense** previews and permanently removes old files in your
+current user's `%LOCALAPPDATA%\Temp` folder. Select a minimum age (7–365 days;
+default 30), click **Preview files**, review the paths and size estimate, then
+click **Clean previewed files…** and confirm. Only those previewed files are
+eligible; files added or changed afterward are kept. Folders remain in place.
+
+Automatic cleanup is off by default. Enable it explicitly and choose daily,
+weekly (default), or every 30 days. The first run is one interval after enabling
+or changing the policy. Scheduling works while Prefect is running, including in
+the tray; an overdue run starts when Prefect next opens. Each automatic attempt
+is checkpointed before deletion to prevent repeated retries. Last cleanup and
+next automatic run appear in the tab. **Stop** cancels a preview or stops cleanup
+after its current file; disabling automatic cleanup also stops active work.
+
+Both creation and modification must be older than the age limit. Storage Sense
+keeps open, read-only, system, hard-linked and redirected files; junctions and
+symbolic links are skipped. It refuses a temporary folder overlapping Prefect,
+its settings or protected personal/system folders. Downloads, Recycle Bin, cloud
+storage and Windows system temporary files are outside this feature. It leaves
+Windows' own Storage Sense configuration unchanged. Each scan visits at most
+100,000 entries and includes up to 10,000 candidate files; any limit is reported.
+Deletion bypasses the Recycle Bin. Reported file data sizes are estimates, and
+recovered free space can differ. Validation deletes only disposable fixture files.
+
 **Settings → Disk analyser** embeds the official portable WinDirStat 2.9.3
 interface as a prototype. Choose a drive or folder (or paste its full path), then
 click **Analyse**. Browse the folder tree, largest files and treemap inside
@@ -33,7 +57,7 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses nine tabs: Startup, Security, Application updates, Downloads cleanup, Performance, Console, Disk analyser,
+Settings uses ten tabs: Startup, Security, Application updates, Downloads cleanup, Storage Sense, Performance, Console, Disk analyser,
 Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
 controls, Top applications averaging settings and Window controls.
 Settings opens at 1000 × 920 logical pixels, capped to fit the screen work area.

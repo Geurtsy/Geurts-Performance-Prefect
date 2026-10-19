@@ -100,6 +100,7 @@ public sealed class OverlayWindow : Window
     public OverlaySettings Settings { get; }
     public SettingsStore Store { get; }
     public DownloadsCleanup Downloads { get; }
+    internal StorageSenseController StorageSense { get; }
     public PowerOptionsController PowerOptions { get; }
     public Snapshot? Latest { get; private set; }
     public event Action<Snapshot>? SnapshotReceived;
@@ -139,6 +140,7 @@ public sealed class OverlayWindow : Window
         this.restartStart = restartStart;
         PowerOptions = powerOptions ?? new PowerOptionsController(settings, store);
         Downloads = downloads ?? new DownloadsCleanup();
+        StorageSense = new StorageSenseController(settings, store);
         this.cursorPosition = cursorPosition ?? (() => { var cursor = Forms.Cursor.Position; return new Point(cursor.X, cursor.Y); });
         Foreground = Palette.Text; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
         Title = "Geurts Performance Prefect"; Width = 318; SizeToContent = SizeToContent.WidthAndHeight;
@@ -229,6 +231,7 @@ public sealed class OverlayWindow : Window
             UpdateOverlayHeight();
             ClampToScreen();
             QueueAutoAvoidSnap();
+            if (!verification) StorageSense.Start();
             if (!verification && worker == null) { staleTimer.Start(); worker = Task.Factory.StartNew(SampleLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default); }
         };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.F2) { OpenSettings(); e.Handled = true; } };
@@ -555,6 +558,7 @@ public sealed class OverlayWindow : Window
         if (closing) return;
         if (settingsWindow != null && !settingsWindow.RequestApplicationExit()) { e.Cancel = true; return; }
         closing = true; saveTimer.Stop(); staleTimer.Stop(); stop.Cancel();
+        StorageSense.Dispose();
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
         settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();
         // Sampling owns the monitor and disposes it; never race its hardware update.

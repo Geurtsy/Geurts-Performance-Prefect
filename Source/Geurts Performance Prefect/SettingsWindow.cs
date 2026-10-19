@@ -82,6 +82,7 @@ public sealed class SettingsWindow : Window
     public TextBlock PowerOptionsStatus { get; } = Note("");
     public DiagnosticConsole Console { get; }
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
+    public StorageSensePanel StorageSensePanel { get; }
     public DiskAnalyserPanel DiskAnalyserPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     public SecurityPanel SecurityPanel { get; } = new();
@@ -92,6 +93,8 @@ public sealed class SettingsWindow : Window
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null, BitLockerPanel? bitLocker = null, Func<string>? createDesktopShortcut = null)
     {
         this.overlay = overlay;
+        StorageSensePanel = new StorageSensePanel(overlay.StorageSense, overlay.Settings, overlay.Store);
+        Closed += (_, _) => StorageSensePanel.Dispose();
         BitLockerPanel = bitLocker ?? new BitLockerPanel(() => overlay.RestartElevated(openSecurity: true));
         Console = console ?? new DiagnosticConsole();
         this.parking = parking ?? new CoreParking();
@@ -183,6 +186,8 @@ public sealed class SettingsWindow : Window
         overlay.Downloads.Changed += UpdateDownloads;
         Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
         UpdateDownloads();
+        stack = AddTab("Storage Sense");
+        stack.Children.Add(StorageSensePanel);
         stack = AddTab("Performance");
         stack.Children.Add(VisualEffectsPanel);
         stack.Children.Add(DiskCleanupPanel);

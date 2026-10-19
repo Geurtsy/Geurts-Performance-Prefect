@@ -27,8 +27,11 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 9 && tabs.Select(t => t.Header).Distinct().Count() == 9,
-            "All nine Settings sections have distinct tabs including Disk analyser");
+        check(tabs.Length == 10 && tabs.Select(t => t.Header).Distinct().Count() == 10,
+            "All ten Settings sections have distinct tabs including Storage Sense and Disk analyser");
+        Select(panel, panel.StorageSensePanel.PreviewButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "Storage Sense" && !panel.StorageSensePanel.Enabled.IsChecked!.Value,
+            "Storage Sense has its own idle tab and automatic cleanup defaults off");
         Select(panel, panel.DiskAnalyserPanel.AnalyseButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Disk analyser" && !panel.DiskAnalyserPanel.IsActive,
             "Disk analyser opens idle in its own tab without starting WinDirStat");
