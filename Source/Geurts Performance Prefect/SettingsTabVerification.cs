@@ -27,11 +27,14 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 11 && tabs.Select(t => t.Header).Distinct().Count() == 11,
-            "All eleven Settings sections have distinct tabs including Storage Sense, Disk analyser and Programs and Features");
-        Select(panel, panel.StorageSensePanel.PreviewButton);
+        check(tabs.Length == 10 && tabs.Select(t => t.Header).Distinct().Count() == 10 && tabs.All(t => (string)t.Header != "Downloads cleanup"),
+            "All ten Settings sections have distinct tabs and Downloads cleanup has no separate tab");
+        var storageScroll = Select(panel, panel.StorageSensePanel.PreviewButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Storage Sense" && !panel.StorageSensePanel.Enabled.IsChecked!.Value,
             "Storage Sense has its own idle tab and automatic cleanup defaults off");
+        check(Select(panel, panel.WipeDownloadsButton) == storageScroll && Select(panel, panel.AutoWipeDownloadsToggle) == storageScroll &&
+            Select(panel, panel.DownloadsPath) == storageScroll && Select(panel, panel.DownloadsStatus) == storageScroll,
+            "Downloads path, manual cleanup, startup toggle and results are grouped in Storage Sense");
         Select(panel, panel.DiskAnalyserPanel.AnalyseButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Disk analyser" && !panel.DiskAnalyserPanel.IsActive,
             "Disk analyser opens idle in its own tab without starting WinDirStat");
@@ -100,6 +103,17 @@ public static class SettingsTabVerification
                     buttonBounds = panel.BitLockerPanel.DecryptButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.BitLockerPanel.DecryptButton.RenderSize));
                     check(buttonBounds.Top >= 0 && buttonBounds.Bottom <= selected.ViewportHeight && buttonBounds.Right <= selected.ViewportWidth,
                         "BitLocker action remains reachable and fits the scrolled Security tab at width " + width);
+                    selected.ScrollToTop(); selected.UpdateLayout();
+                }
+                if (selected == storageScroll)
+                {
+                    selected.ScrollToBottom(); selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-storage-downloads-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    var downloadsBounds = panel.WipeDownloadsButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.WipeDownloadsButton.RenderSize));
+                    var toggleBounds = panel.AutoWipeDownloadsToggle.TransformToAncestor(selected).TransformBounds(new Rect(panel.AutoWipeDownloadsToggle.RenderSize));
+                    check(downloadsBounds.Top >= 0 && downloadsBounds.Bottom <= selected.ViewportHeight && downloadsBounds.Right <= selected.ViewportWidth &&
+                        toggleBounds.Top >= 0 && toggleBounds.Bottom <= selected.ViewportHeight && toggleBounds.Right <= selected.ViewportWidth,
+                        "Downloads cleanup and startup controls fit the scrolled Storage Sense tab at width " + width);
                     selected.ScrollToTop(); selected.UpdateLayout();
                 }
             }

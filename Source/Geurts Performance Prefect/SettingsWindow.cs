@@ -181,7 +181,11 @@ public sealed class SettingsWindow : Window
         CheckUpdatesButton.Click += (_, _) => CheckUpdates();
         InstallUpdateButton.Click += (_, _) => InstallUpdate();
         Closed += (_, _) => updateStop.Cancel();
-        stack = AddTab("Downloads cleanup");
+        stack = AddTab("Storage Sense");
+        stack.Children.Add(StorageSensePanel);
+        stack.Children.Add(new TextBlock { Text = "Downloads cleanup", Foreground = Palette.Accent, FontSize = 18,
+            FontWeight = FontWeights.SemiBold, Margin = new Thickness(0,20,0,0) });
+        stack.Children.Add(Note("Downloads uses its own full-folder wipe controls below. Its startup toggle works even when Enable automatic cleanup above is off. The Storage Sense age limit and daily, weekly or 30-day schedule do not apply to Downloads."));
         stack.Children.Add(Note("Permanently deletes files and subfolders from your Windows Downloads folder. Deleted items do not go to the Recycle Bin. Locked, protected and linked items are skipped."));
         stack.Children.Add(DownloadsPath);
         AutoWipeDownloadsToggle.IsChecked = overlay.Settings.AutoWipeDownloadsOnStartup;
@@ -195,8 +199,6 @@ public sealed class SettingsWindow : Window
         overlay.Downloads.Changed += UpdateDownloads;
         Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
         UpdateDownloads();
-        stack = AddTab("Storage Sense");
-        stack.Children.Add(StorageSensePanel);
         stack = AddTab("Performance");
         stack.Children.Add(VisualEffectsPanel);
         stack.Children.Add(DiskCleanupPanel);

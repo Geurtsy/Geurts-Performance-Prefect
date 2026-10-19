@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.32.1
+
+- Moved Downloads cleanup into Settings → Storage Sense and removed the separate Downloads cleanup tab. Its folder path, manual wipe, startup toggle and cleanup results are grouped in a clearly labelled section.
+- Preserved saved Downloads preferences, permanent-deletion confirmations and existing manual/startup behavior. The Storage Sense age limit and periodic schedule do not apply to the Downloads wipe.
+- Validated existing cleanup behavior with disposable fixtures and checked control placement and reachability at normal and minimum Settings widths. Local installation remains manual.
+
 # Geurts Performance Prefect 1.32.0
 
 - Added a Recycle Bin section to Storage Sense with original locations, recycling dates, known sizes and a separate permanent-deletion confirmation. Previewed folders explicitly include their contents; folder sizes may be unavailable.

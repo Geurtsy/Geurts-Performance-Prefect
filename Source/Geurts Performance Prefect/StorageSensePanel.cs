@@ -35,9 +35,9 @@ public sealed class StorageSensePanel : StackPanel, IDisposable
             "Geurts Performance Prefect · Storage Sense", MessageBoxButton.YesNo, MessageBoxImage.Warning,
             MessageBoxResult.No) == MessageBoxResult.Yes);
         Children.Add(new TextBlock { Text = "Storage Sense", Foreground = Palette.Accent, FontSize = 18, FontWeight = FontWeights.SemiBold });
-        Children.Add(Note("Keep space free by removing old temporary files and Recycle Bin items. Previewing never deletes anything. Each category has its own preview and permanent cleanup confirmation."));
+        Children.Add(Note("Manage temporary files, Recycle Bin items and Downloads cleanup here. Temporary files and Recycle Bin items have their own age-based previews and permanent cleanup confirmations. Downloads has separate full-folder wipe controls at the end of this page."));
         Children.Add(Note("Temporary folder: " + controller.Root));
-        Children.Add(Note("Temporary files must have both creation and modification dates older than the age limit. Recycle Bin items must have been in the bin longer than that limit. Downloads, personal folders, cloud storage and Windows system temporary files are outside this cleanup."));
+        Children.Add(Note("Temporary files must have both creation and modification dates older than the age limit. Recycle Bin items must have been in the bin longer than that limit. These age and schedule controls do not apply to Downloads. Personal folders, cloud storage and Windows system temporary files are outside this cleanup."));
         Children.Add(Label("Keep items for at least")); Children.Add(Age);
         Age.ItemsSource = new[] { 7, 14, 30, 60, 90, 180, 365, settings.StorageSenseAgeDays }.Distinct().Order().ToArray();
         var ageTemplate = new DataTemplate(); var ageText = new FrameworkElementFactory(typeof(TextBlock));

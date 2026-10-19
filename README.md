@@ -121,7 +121,7 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses eleven tabs: Startup, Security, Application updates, Downloads cleanup, Storage Sense, Performance, Console, Disk analyser, Programs and Features,
+Settings uses ten tabs: Startup, Security, Application updates, Storage Sense, Performance, Console, Disk analyser, Programs and Features,
 Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
 controls, Top applications averaging settings and Window controls.
 Settings opens at 1000 × 920 logical pixels, capped to fit the screen work area.
@@ -556,7 +556,14 @@ of the Windows-wide UAC control.
 
 ## Downloads cleanup
 
-Under **Settings → Downloads Cleanup**, choose **Wipe Downloads now…** to
+Find Downloads cleanup at the end of **Settings → Storage Sense**. Its manual
+wipe, startup toggle, folder path and results are grouped there; the separate
+Downloads cleanup tab has been removed. Downloads keeps its own full-folder wipe
+behavior and saved preference. Its startup wipe works even when Storage Sense's
+**Enable automatic cleanup** is off. Storage Sense's age limit and daily, weekly or
+30-day schedule apply to temporary files and the optional Recycle Bin only.
+
+Under **Settings → Storage Sense → Downloads cleanup**, choose **Wipe Downloads now…** to
 permanently delete files and subfolders after confirming the displayed location.
 The Downloads folder itself stays in place. Deleted items do not go to the Recycle Bin.
 
