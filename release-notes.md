@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.33.0
+
+- Added Settings → File compression with explicit file/folder selection, a size/state preview, confirmed Compress and Decompress actions, progress, Stop and actual disk-usage results. Windows NTFS compression is lossless; files keep their names and open and edit normally without extraction or Prefect running.
+- Operates only on existing previewed files, including subfolders, without changing folder inheritance. Nothing runs automatically. Whole drives and protected system/application/settings folders are excluded. Locked, changed, replaced, redirected, hard-linked and unsupported files are reported and skipped; decompression checks free space. Closing, restarting and updating wait for work to finish or stop.
+- Validated real NTFS compression, normal reading/editing, decompression with byte-identical contents, preview/confirmation, file replacement/lock/link guards, cancellation, Settings lifetime and normal/minimum layouts using disposable fixtures. Savings and performance depend on file content and hardware; existing media and archives often save little. Local installation remains manual.
+
 # Geurts Performance Prefect 1.32.1
 
 - Moved Downloads cleanup into Settings → Storage Sense and removed the separate Downloads cleanup tab. Its folder path, manual wipe, startup toggle and cleanup results are grouped in a clearly labelled section.

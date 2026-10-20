@@ -1,4 +1,13 @@
-GEURTS PERFORMANCE PREFECT 1.29.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.33.0 — WINDOWS x64
+
+FILE COMPRESSION
+Settings > File compression saves disk space with lossless NTFS compression.
+Choose files or a data folder, preview sizes and states, then confirm Compress
+or Decompress. Files stay readable and editable normally; no extraction is needed.
+Nothing runs automatically. Only existing previewed files change; folder defaults
+stay unchanged. Whole drives and protected folders are excluded. Stop waits for
+the current file and keeps completed changes. Decompression needs free space.
+Savings and performance vary, especially for already compressed media/archives.
 
 DISK ANALYSER PROTOTYPE
 Settings > Disk analyser embeds WinDirStat 2.9.3. Choose a drive or folder and

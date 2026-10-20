@@ -1,5 +1,35 @@
 # Geurts Performance Prefect
 
+**Settings → File compression** uses Windows' lossless NTFS compression to save
+disk space while files keep their names and remain directly readable and editable
+in their usual apps. Choose files or a data folder, click **Preview files**, review
+original size, size on disk and compression state, then confirm **Compress previewed
+files…** or **Decompress previewed files…**. Prefect is not needed to read them later.
+Nothing runs automatically. Folder previews include subfolders, but only existing
+previewed files change; this action does not enable compression inheritance for
+future files. A fresh preview is required after an operation.
+
+Savings vary: photos, videos and archives often save little. Compression uses extra
+CPU during access; performance can vary. Decompression requires enough free space,
+including a 64 MB reserve checked before each file. **Stop** waits for the current
+file and keeps completed changes. Settings close, app exit, restart and updating
+wait until this work finishes or stops.
+
+Only local NTFS paths are supported. Whole drives, Windows, Program Files,
+ProgramData, Prefect and user application/settings folders are protected. System,
+read-only, encrypted, sparse, offline/cloud placeholder, hard-linked and redirected
+files are skipped, as are files over 30 GB. Windows permissions and file locks are
+respected. Changed, replaced, missing and newly locked files are rechecked after
+preview and skipped. A preview lists up to 10,000 eligible files and visits up to
+100,000 entries; limits and skipped items are reported with the first 100 issue
+details. Actual disk usage is shown after each operation. This is separate from
+Windows Compact OS and does not compress the operating system.
+
+`--file-compression-test <report-file>` runs isolated real NTFS compression,
+read/edit/decompress, confirmation, cancellation and path-safety fixtures under
+the report folder. Normal startup actions, live settings and installed apps are
+bypassed. The full `--self-test` also verifies Settings layout and operation lifetime.
+
 **Settings → Storage Sense** previews and permanently removes old files in your
 current user's `%LOCALAPPDATA%\Temp` folder. Select a minimum age (7–365 days;
 default 30), click **Preview files**, review the paths and size estimate, then
@@ -121,7 +151,7 @@ A portable Windows x64 system monitor with a compact overlay, per-drive activity
 configurable sensors, minimise-to-tray, automatic cursor avoidance and an optional
 core-parking control, optional Downloads cleanup and optional startup with Windows.
 
-Settings uses ten tabs: Startup, Security, Application updates, Storage Sense, Performance, Console, Disk analyser, Programs and Features,
+Settings uses eleven tabs: Startup, Security, Application updates, Storage Sense, File compression, Performance, Console, Disk analyser, Programs and Features,
 Overlay and Sensor sources. Overlay includes the metric toggles, Hard drive usage
 controls, Top applications averaging settings and Window controls.
 Settings opens at 1000 × 920 logical pixels, capped to fit the screen work area.

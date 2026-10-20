@@ -91,6 +91,7 @@ public sealed class SettingsWindow : Window
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
     public StorageSensePanel StorageSensePanel { get; }
     public DiskAnalyserPanel DiskAnalyserPanel { get; } = new();
+    public FileCompressionPanel FileCompressionPanel { get; } = new();
     public ProgramsFeaturesPanel ProgramsFeaturesPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     public SecurityPanel SecurityPanel { get; } = new();
@@ -199,6 +200,8 @@ public sealed class SettingsWindow : Window
         overlay.Downloads.Changed += UpdateDownloads;
         Closed += (_, _) => overlay.Downloads.Changed -= UpdateDownloads;
         UpdateDownloads();
+        stack = AddTab("File compression");
+        stack.Children.Add(FileCompressionPanel);
         stack = AddTab("Performance");
         stack.Children.Add(VisualEffectsPanel);
         stack.Children.Add(DiskCleanupPanel);
@@ -229,6 +232,7 @@ public sealed class SettingsWindow : Window
         };
         Closing += (_, e) =>
         {
+            if (!FileCompressionPanel.CanLeave()) { e.Cancel = true; ShowFileCompression(); return; }
             if (!DiskAnalyserPanel.CanClose()) { e.Cancel = true; ShowDiskAnalyser(); return; }
             if (BitLockerPanel.IsChanging) { e.Cancel = true; ShowSecurity(); return; }
             if (!Console.RequestClose(Close)) { e.Cancel = true; ShowConsole(); }
@@ -378,6 +382,7 @@ public sealed class SettingsWindow : Window
     }
     internal bool RequestApplicationExit()
     {
+        if (!FileCompressionPanel.CanLeave()) { ShowFileCompression(); ShowInForeground(); return false; }
         if (!DiskAnalyserPanel.CanClose()) { ShowDiskAnalyser(); ShowInForeground(); return false; }
         if (BitLockerPanel.IsChanging) { ShowSecurity(); ShowInForeground(); return false; }
         if (Console.RequestClose(overlay.Close)) return true;
@@ -385,12 +390,14 @@ public sealed class SettingsWindow : Window
     }
     internal bool AllowRestart()
     {
+        if (!FileCompressionPanel.CanLeave()) { ShowFileCompression(); ShowInForeground(); return false; }
         if (!DiskAnalyserPanel.CanClose()) { ShowDiskAnalyser(); ShowInForeground(); return false; }
         if (BitLockerPanel.IsChanging) { ShowSecurity(); ShowInForeground(); return false; }
         if (!Console.IsRunning) return true;
         Console.Status.Text = "Let the active diagnostic command finish before restarting or updating Prefect.";
         ShowConsole(); ShowInForeground(); return false;
     }
+    internal void ShowFileCompression() => Sections.SelectedItem = Sections.Items.Cast<TabItem>().Single(tab => (string)tab.Header == "File compression");
     void UpdateDownloads()
     {
         DownloadsStatus.Text = overlay.Downloads.Status;

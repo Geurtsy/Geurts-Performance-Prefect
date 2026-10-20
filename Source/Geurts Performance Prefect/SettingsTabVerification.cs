@@ -27,8 +27,28 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 10 && tabs.Select(t => t.Header).Distinct().Count() == 10 && tabs.All(t => (string)t.Header != "Downloads cleanup"),
-            "All ten Settings sections have distinct tabs and Downloads cleanup has no separate tab");
+        check(tabs.Length == 11 && tabs.Select(t => t.Header).Distinct().Count() == 11 && tabs.All(t => (string)t.Header != "Downloads cleanup"),
+            "All eleven Settings sections have distinct tabs and Downloads cleanup has no separate tab");
+        var compressionScroll = Select(panel, panel.FileCompressionPanel.PreviewButton);
+        check((string)((TabItem)panel.Sections.SelectedItem).Header == "File compression" && !panel.FileCompressionPanel.IsBusy && !panel.FileCompressionPanel.CompressButton.IsEnabled,
+            "File compression opens idle in its own tab and requires a preview before changes");
+        var compressionFixture = Path.Combine(folder, "compression-lifetime.txt"); File.WriteAllText(compressionFixture, "disposable lifetime fixture");
+        panel.FileCompressionPanel.SelectPaths(new[] { compressionFixture });
+        var compressionWork = panel.FileCompressionPanel.PreviewAsync();
+        check(!panel.AllowRestart() && !panel.RequestApplicationExit(), "An active file preview blocks application restart, update and exit");
+        panel.Close();
+        check(panel.IsVisible, "Closing Settings waits for file compression work to finish or stop");
+        panel.FileCompressionPanel.Stop();
+        var timeout = System.Diagnostics.Stopwatch.StartNew();
+        while (!compressionWork.IsCompleted)
+        {
+            if (timeout.Elapsed > TimeSpan.FromSeconds(30)) throw new TimeoutException("Compression lifetime fixture timed out.");
+            panel.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            System.Threading.Thread.Sleep(5);
+        }
+        compressionWork.GetAwaiter().GetResult();
+        check(!panel.FileCompressionPanel.IsBusy && File.ReadAllText(compressionFixture) == "disposable lifetime fixture",
+            "Stopping the preview releases lifetime guards without altering fixture contents");
         var storageScroll = Select(panel, panel.StorageSensePanel.PreviewButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Storage Sense" && !panel.StorageSensePanel.Enabled.IsChecked!.Value,
             "Storage Sense has its own idle tab and automatic cleanup defaults off");
@@ -114,6 +134,19 @@ public static class SettingsTabVerification
                     check(downloadsBounds.Top >= 0 && downloadsBounds.Bottom <= selected.ViewportHeight && downloadsBounds.Right <= selected.ViewportWidth &&
                         toggleBounds.Top >= 0 && toggleBounds.Bottom <= selected.ViewportHeight && toggleBounds.Right <= selected.ViewportWidth,
                         "Downloads cleanup and startup controls fit the scrolled Storage Sense tab at width " + width);
+                    selected.ScrollToTop(); selected.UpdateLayout();
+                }
+                if (selected == compressionScroll)
+                {
+                    panel.Height = Math.Min(width == 600 ? 700 : 920, panel.MaxHeight); panel.UpdateLayout();
+                    selected.ScrollToVerticalOffset(panel.FileCompressionPanel.CompressButton.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 20);
+                    selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-file-compression-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    var actionBounds = panel.FileCompressionPanel.CompressButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.CompressButton.RenderSize));
+                    var reverseBounds = panel.FileCompressionPanel.DecompressButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.DecompressButton.RenderSize));
+                    check(actionBounds.Top >= 0 && actionBounds.Bottom <= selected.ViewportHeight && actionBounds.Right <= selected.ViewportWidth &&
+                        reverseBounds.Right <= selected.ViewportWidth,
+                        "Compression actions wrap and remain reachable at width " + width);
                     selected.ScrollToTop(); selected.UpdateLayout();
                 }
             }
