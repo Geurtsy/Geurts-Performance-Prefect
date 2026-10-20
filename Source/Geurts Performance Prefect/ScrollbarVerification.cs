@@ -11,7 +11,7 @@ public static class ScrollbarVerification
     public static void Run(SettingsWindow panel, Action<bool, string> check)
     {
         var originalHeight = panel.Height;
-        panel.Height = panel.MinHeight;
+        panel.WindowState = WindowState.Maximized;
         var scroll = SettingsTabVerification.Select(panel, panel.PowerPresetSelector);
         panel.UpdateLayout();
         var bar = (ScrollBar)scroll.Template.FindName("PART_VerticalScrollBar", scroll);

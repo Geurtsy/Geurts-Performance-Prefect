@@ -110,16 +110,16 @@ public static class DiskCheckVerification
                 check(window.Console.StartButton.IsEnabled && !window.Console.StopButton.IsEnabled && window.Console.Status.Text.Contains("errors remain") &&
                     window.Console.ConsoleOutput.Text.Contains("code 3"), "Disk errors remain visible after completion and a new check can be started");
                 Capture(window, Path.Combine(folder, "disk-check-result.png"));
-                window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
+                window.WindowState = WindowState.Maximized; window.UpdateLayout();
                 check(window.Console.ConsoleOutput.ActualHeight > 80 && window.Console.StartButton.IsVisible && window.Console.Status.IsVisible,
-                    "Disk-check controls and console retain usable space at the minimum window size");
-                Capture(window, Path.Combine(folder, "disk-check-minimum.png"));
+                    "Disk-check controls and console retain usable space at the full-screen layout");
+                Capture(window, Path.Combine(folder, "disk-check-full-screen.png"));
                 var content = (FrameworkElement)window.Content;
                 var startBounds = window.Console.StartButton.TransformToAncestor(content).TransformBounds(new Rect(window.Console.StartButton.RenderSize));
                 var stopBounds = window.Console.StopButton.TransformToAncestor(content).TransformBounds(new Rect(window.Console.StopButton.RenderSize));
                 check(startBounds.Left >= 0 && stopBounds.Right <= content.ActualWidth &&
                     window.Console.Drive.ActualWidth >= 180 && window.Console.Status.ActualWidth <= content.ActualWidth,
-                    "Drive choice, both check buttons and result fit inside the minimum disk-check width");
+                    "Drive choice, both check buttons and result fit inside the full-screen disk-check layout");
                 window.Console.AppendOutput(new string('x', 250000));
                 check(window.Console.ConsoleOutput.Text.Length <= 200000, "Console history is bounded during large checks");
                 completion = new TaskCompletionSource<int>();
@@ -163,10 +163,10 @@ public static class DiskCheckVerification
                 check(integrityWindow.Console.Status.Text.Contains("Review") && integrityWindow.Console.ConsoleOutput.Text.Contains("integrity violations") &&
                     integrityWindow.Console.CheckType.IsEnabled && !integrityWindow.Console.Drive.IsEnabled,
                     "SFC findings remain visible even when exit code is zero and the console permits another scan");
-                integrityWindow.Width = integrityWindow.MinWidth; integrityWindow.Height = integrityWindow.MinHeight;
-                Capture(integrityWindow, Path.Combine(folder, "system-integrity-minimum.png"));
+                integrityWindow.WindowState = WindowState.Maximized;
+                Capture(integrityWindow, Path.Combine(folder, "system-integrity-full-screen.png"));
                 check(integrityWindow.Console.ConsoleOutput.ActualHeight > 80 && integrityWindow.Console.StartButton.IsVisible,
-                    "System integrity console and controls remain usable at minimum window size");
+                    "System integrity console and controls remain usable at full-screen layout");
                 integrityWindow.Console.CheckType.SelectedIndex = 0;
                 check(!integrityWindow.Console.StartButton.IsEnabled && integrityWindow.Console.Drive.IsEnabled,
                     "Switching to disk checks requires a drive even after an integrity scan");

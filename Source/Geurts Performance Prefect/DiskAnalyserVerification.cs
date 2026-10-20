@@ -62,7 +62,7 @@ internal static class DiskAnalyserVerification
             window.Close();
             check(window.IsVisible && panel.IsActive,
                 "Closing Settings cannot destroy an active native scan or cleanup operation");
-            foreach (var size in new[] { new Size(1000,920), new Size(600,700) })
+            foreach (var size in new[] { new Size(SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height) })
             {
                 window.Width = size.Width; window.Height = size.Height; window.UpdateLayout();
                 check(panel.Host.ActualWidth > 200 && panel.Host.ActualHeight > 100 && session.IsEmbedded,

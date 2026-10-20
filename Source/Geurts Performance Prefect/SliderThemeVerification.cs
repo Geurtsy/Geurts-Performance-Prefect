@@ -18,8 +18,7 @@ public static class SliderThemeVerification
 {
     public static void Run(SettingsWindow settings, string folder, Action<bool, string> check)
     {
-        var sliders = settings.Sections.Items.Cast<TabItem>().SelectMany(tab =>
-            ((Panel)((ScrollViewer)tab.Content).Content).Children.OfType<Slider>()).ToArray();
+        var sliders = settings.Hud.Sliders;
         check(sliders.Length == 4, "Slider theme covers averaging, battery CPU limit, opacity and size");
         foreach (var control in sliders)
         {
@@ -36,6 +35,7 @@ public static class SliderThemeVerification
             stack.Children.Add(new Slider { Minimum = 0, Maximum = 100, Value = value, IsEnabled = value != 50 });
         }
         var window = new Window { Width = 430, Height = 350, Content = stack, ShowInTaskbar = false, Title = "Slider theme verification" };
+        window.Resources.MergedDictionaries.Add(SettingsHud.CreateResources());
         try
         {
             window.Show(); Pump();
@@ -67,7 +67,7 @@ public static class SliderThemeVerification
             check(rejected && slider.Value == 50 && !track.Thumb.IsEnabled && !track.IncreaseRepeatButton.IsEnabled,
                 "Disabled themed sliders reject accessible value changes and disable their mouse controls");
             slider.IsEnabled = true; slider.Focus(); Pump();
-            foreach (var width in new[] { 430d, 330d })
+            foreach (var width in new[] { 430d })
             {
                 window.Width = width; Pump();
                 var drawing = new DrawingVisual();

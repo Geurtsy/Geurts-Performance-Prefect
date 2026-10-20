@@ -107,6 +107,7 @@ public sealed class OverlayWindow : Window
     public event Action<Snapshot>? SnapshotReceived;
     public event Action<bool>? AutoAvoidChanged;
     public event Action? DisplaysChanged;
+    internal event Action? SettingsChanged;
     readonly Dictionary<Metric, MetricRow> rows = new();
     readonly ApplicationUsageHistory applicationHistory = new();
     public IReadOnlyDictionary<Metric, MetricRow> MetricRows => rows;
@@ -335,7 +336,7 @@ public sealed class OverlayWindow : Window
         AutoAvoidChanged?.Invoke(Settings.AutoAvoid);
         QueueAutoAvoidSnap();
     }
-    public void Changed() { ApplySettings(); saveTimer.Stop(); saveTimer.Start(); }
+    public void Changed() { ApplySettings(); saveTimer.Stop(); saveTimer.Start(); SettingsChanged?.Invoke(); }
     void UpdateEmpty() => empty.Visibility = rows.Values.Concat(DriveRows.Values).Any(r => r.Visibility == Visibility.Visible) ? Visibility.Collapsed : Visibility.Visible;
     public void SaveSettings()
     {
@@ -503,7 +504,7 @@ public sealed class OverlayWindow : Window
         if (settingsWindow?.IsVisible == true)
         {
             restoreSettingsAfterMinimise = true;
-            settingsWindow.Hide(); settingsWindow.WindowState = WindowState.Normal;
+            settingsWindow.Hide(); settingsWindow.WindowState = WindowState.Maximized;
         }
         if (Settings.MinimiseToTray) { ShowInTaskbar = false; Hide(); }
         else { ShowInTaskbar = true; if (!IsVisible) Show(); }

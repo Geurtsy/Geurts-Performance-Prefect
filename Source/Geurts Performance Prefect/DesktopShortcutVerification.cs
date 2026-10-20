@@ -80,11 +80,11 @@ public static class DesktopShortcutVerification
             check(overlay.ContextMenu!.Items.OfType<MenuItem>().Any(i => (string)i.Header == "Create desktop shortcut") &&
                 overlay.RestartTrayItem.Owner!.Items.Cast<System.Windows.Forms.ToolStripItem>().Any(i => i.Text == "Create desktop shortcut"),
                 "Overlay and tray menus both expose Create desktop shortcut");
-            foreach (var width in new[] { 600d, 1000d })
+            foreach (var width in new[] { SystemParameters.WorkArea.Width })
             {
                 panel.Width = width;
                 panel.UpdateLayout();
-                Verification.Render((FrameworkElement)panel.Content, Path.Combine(folder, "desktop-shortcut-" + width + ".png"), width, 920);
+                SettingsTabVerification.Capture(panel, Path.Combine(folder, "desktop-shortcut-" + width + ".png"), width, 920);
                 check(panel.CreateDesktopShortcutButton.ActualWidth > 100 && panel.DesktopShortcutStatus.ActualWidth > 100,
                     "Shortcut control and status have usable space at Settings width " + width);
             }

@@ -14,7 +14,7 @@ public sealed class SettingsWindow : Window
 {
     internal void ShowInForeground()
     {
-        WindowState = WindowState.Normal;
+        WindowState = WindowState.Maximized;
         Show();
         // Raise Settings above the overlay and other windows for this explicit open action.
         // Restore the saved preference immediately so Settings does not stay pinned.
@@ -26,11 +26,12 @@ public sealed class SettingsWindow : Window
         // After loading uninstallers, avoid a delayed retry stealing dialog focus.
         Dispatcher.InvokeAsync(() =>
         {
-            if (!ProgramsFeaturesPanel.HasOpened && IsVisible && WindowState == WindowState.Normal) { Activate(); Focus(); }
+            if (!ProgramsFeaturesPanel.HasOpened && IsVisible && WindowState == WindowState.Maximized) { Activate(); Focus(); }
         }, System.Windows.Threading.DispatcherPriority.Input);
     }
 
     readonly OverlayWindow overlay;
+    internal SettingsHud Hud { get; }
     internal void ApplyTopmostPreference()
     {
         // Uninstallers are separate, normal windows. Keep this Settings session
@@ -101,6 +102,7 @@ public sealed class SettingsWindow : Window
     bool updatingPowerOptions;
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null, BitLockerPanel? bitLocker = null, Func<string>? createDesktopShortcut = null)
     {
+        Resources.MergedDictionaries.Add(SettingsHud.CreateResources());
         this.overlay = overlay;
         FileCompressionPanel = new FileCompressionPanel(new FileCompression(), null, automatic: overlay.AutomaticCompression);
         StorageSensePanel = new StorageSensePanel(overlay.StorageSense, overlay.Settings, overlay.Store);
@@ -113,18 +115,20 @@ public sealed class SettingsWindow : Window
         this.confirmDownloads = confirmDownloads ?? (message => MessageBox.Show(this, message,
             "Geurts Performance Prefect · Downloads", MessageBoxButton.YesNo, MessageBoxImage.Warning,
             MessageBoxResult.No) == MessageBoxResult.Yes);
-        Foreground = Palette.Text; Background = Palette.Background; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
+        Foreground = SettingsHud.Text; Background = SettingsHud.Background; FontFamily = new FontFamily("Segoe UI"); FontSize = 14;
         Title = "Geurts Performance Prefect · Settings";
         var workArea = SystemParameters.WorkArea;
-        MaxWidth = Math.Max(1, workArea.Width - 32); MaxHeight = Math.Max(1, workArea.Height - 32);
-        MinWidth = Math.Min(600, MaxWidth); MinHeight = Math.Min(700, MaxHeight);
+        ResizeMode = ResizeMode.CanMinimize; WindowState = WindowState.Maximized;
+        MinWidth = Math.Min(800, MaxWidth); MinHeight = Math.Min(780, MaxHeight);
         Width = Math.Min(1000, MaxWidth); Height = Math.Min(920, MaxHeight);
         Icon = Branding.WindowIcon;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Topmost = overlay.Settings.AlwaysOnTop;
         ProgramsFeaturesPanel.Opening += ApplyTopmostPreference;
-        var dock = new DockPanel { Margin = new Thickness(24), Background = Palette.Background }; Content = dock;
-        var footer = new StackPanel { Margin = new Thickness(0,16,0,0) };
+        var dock = new DockPanel { Background = SettingsHud.Background }; Content = dock;
+        var header = SettingsHud.Header(); DockPanel.SetDock(header, Dock.Top); dock.Children.Add(header);
+        var footer = new StackPanel { Margin = new Thickness(24,14,24,18) };
+        footer.Children.Add(new Border { Height = 1, Background = SettingsHud.Line, Margin = new Thickness(0,0,0,12) });
         var footerButtons = new Grid(); footerButtons.ColumnDefinitions.Add(new()); footerButtons.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
         var quit = new Button { Content = "Exit application", HorizontalAlignment = HorizontalAlignment.Left }; quit.Click += (_, _) => overlay.Close();
         footerButtons.Children.Add(quit);
@@ -365,6 +369,7 @@ public sealed class SettingsWindow : Window
         if (overlay.Latest != null) UpdateSensors(overlay.Latest);
         Closed += (_, _) => { overlay.SnapshotReceived -= UpdateSensors; overlay.AutoAvoidChanged -= UpdateAutoAvoid; overlay.SaveSettings(); };
         StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) overlay.Minimise(); };
+        Hud = new SettingsHud(this, overlay);
     }
     internal void ShowConsole()
     {
@@ -744,8 +749,8 @@ public sealed class SettingsWindow : Window
         if (Sections.Items.Count == 1) Sections.SelectedIndex = 0;
         return stack;
     }
-    static TextBlock Label(string text) => new() { Text = text, Margin = new Thickness(0,12,0,7) };
-    static TextBlock Note(string text) => new() { Text = text, Foreground = Palette.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,7,0,0), LineHeight = 18 };
+    static TextBlock Label(string text) => new() { Text = text, Margin = new Thickness(0,20,0,10), FontSize = 14, FontWeight = FontWeights.Medium };
+    static TextBlock Note(string text) => new() { Text = text, Foreground = SettingsHud.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,7,0,0), LineHeight = 18 };
     static Border Panel() => new() { Background = Palette.Panel, CornerRadius = new CornerRadius(10), Padding = new Thickness(14,8,10,8), Child = new StackPanel() };
     static void AddSlider(StackPanel parent, string label, double min, double max, double current, Action<double> changed, Func<double,string> format)
     {

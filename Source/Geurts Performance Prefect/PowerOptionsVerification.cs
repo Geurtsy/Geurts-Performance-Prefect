@@ -176,9 +176,7 @@ public static class PowerOptionsVerification
             var scroll = SettingsTabVerification.Select(panel, panel.PowerPresetSelector);
             scroll.ScrollToVerticalOffset(panel.PowerPresetSelector.TransformToAncestor((Visual)scroll.Content).Transform(new Point()).Y - 30);
             scroll.UpdateLayout();
-            Verification.Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-power-options.png"), 490, 790);
-            panel.Width = 430; panel.UpdateLayout(); scroll.UpdateLayout();
-            Verification.Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-power-options-narrow.png"), 420, 790);
+            SettingsTabVerification.Capture(panel, Path.Combine(folder, "settings-power-options.png"), SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height);
         }
         finally { panel.Close(); overlay.Close(); }
         overlay = new OverlayWindow(blockedStore, new OverlaySettings(), verification: true);

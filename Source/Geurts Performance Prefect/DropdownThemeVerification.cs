@@ -27,6 +27,7 @@ public static class DropdownThemeVerification
         var stack = new StackPanel { Margin = new Thickness(20), Background = Palette.Background };
         stack.Children.Add(named); stack.Children.Add(choice); stack.Children.Add(disabled);
         var window = new Window { Width = 430, Height = 270, Content = stack, ShowInTaskbar = false, Title = "Dropdown theme verification" };
+        window.Resources.MergedDictionaries.Add(SettingsHud.CreateResources());
         try
         {
             window.Show(); Pump();

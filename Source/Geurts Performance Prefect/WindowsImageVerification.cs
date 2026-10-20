@@ -95,16 +95,16 @@ public static class WindowsImageVerification
             complete.SetResult(unchecked((int)0x800f081f)); Await(window.Console.ActiveCheck!);
             check(window.Console.Status.Text.Contains("800F081F") && window.Console.ConsoleOutput.Text.Contains("source files"),
                 "Image repair source failure and raw output remain visible for follow-up");
-            window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
+            window.WindowState = WindowState.Maximized; window.UpdateLayout();
             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
             check(window.Console.ConsoleOutput.ActualHeight > 80 && window.Console.StartButton.IsVisible && window.Console.Status.IsVisible,
-                "Windows image console remains usable at minimum window size");
+                "Windows image console remains usable at full-screen layout");
             var content = (FrameworkElement)window.Content;
             var bitmap = new RenderTargetBitmap((int)Math.Ceiling(content.ActualWidth), (int)Math.Ceiling(content.ActualHeight), 96, 96, PixelFormats.Pbgra32);
             var visual = new DrawingVisual();
             using (var context = visual.RenderOpen()) context.DrawRectangle(new VisualBrush(content), null, new Rect(content.RenderSize));
             bitmap.Render(visual); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            using (var stream = File.Create(Path.Combine(folder, "windows-image-minimum.png"))) encoder.Save(stream);
+            using (var stream = File.Create(Path.Combine(folder, "windows-image-full-screen.png"))) encoder.Save(stream);
             complete = new TaskCompletionSource<int>(); Start(); complete.SetException(new IOException("fixture DISM unavailable")); Await(window.Console.ActiveCheck!);
             check(window.Console.Status.Text.Contains("DISM unavailable") && window.Console.StartButton.IsEnabled && window.Console.CheckType.IsEnabled,
                 "Image tool launch failures show an error and allow retry");

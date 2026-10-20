@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.37.0
+
+- Applied the approved tactical Settings design: dark green panels, a numbered left navigation rail, bold HUD detailing, spacious controls and six-pixel bevelled action buttons. Dropdowns, sliders, switches, text fields and scrollbars share the Settings theme. Settings opens full screen and returns full screen after tray restore.
+- Overlay opens first and groups its existing controls into Readings, Placement and Appearance. Hard drive usage, top applications and window controls remain under Overlay. A live preview follows actual readings and visibility preferences. The console stays embedded in its own tab.
+- Preserves existing preferences, feature actions, confirmations and work-in-progress guards. The compact desktop overlay retains its existing appearance; the new design is scoped to Settings.
+- Validated native navigation, live preview updates, preference preservation, themed dropdown/slider interaction and control reachability in full-screen Settings, alongside the isolated application self-tests. Local installation remains manual.
+
 # Geurts Performance Prefect 1.36.0
 
 - Added off-by-default automatic compression for one selected NTFS drive, with percentage sliders (defaults 85% full to compress, 70% to decompress) and two new-file modes: threshold-controlled or always compress new files while thresholds manage older files. Always-new mode exempts files created after activation from automatic decompression.

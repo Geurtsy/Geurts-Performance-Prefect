@@ -30,14 +30,14 @@ internal static class SettingsForegroundVerification
             check(GetActiveWindow() == new WindowInteropHelper(cleanup.Window).Handle,
                 "Another test window takes activation before reopening Settings");
             overlay.OpenSettings();
-            check(IsActive() && panel.IsVisible && panel.WindowState == WindowState.Normal,
+            check(IsActive() && panel.IsVisible && panel.WindowState == WindowState.Maximized,
                 $"Reopening Settings brings it forward with Always on top {topmost}");
             check(panel.Topmost == topmost && overlay.Topmost == topmost && overlay.Settings.AlwaysOnTop == topmost,
                 "Opening Settings preserves the Always on top preference and both window states");
             overlay.Minimise();
             cleanup.Window.Activate();
             overlay.OpenSettings();
-            check(IsActive() && panel.IsVisible && panel.WindowState == WindowState.Normal && panel.Topmost == topmost,
+            check(IsActive() && panel.IsVisible && panel.WindowState == WindowState.Maximized && panel.Topmost == topmost,
                 $"Opening Settings after minimising restores it to foreground with Always on top {topmost}");
         }
         overlay.Settings.AlwaysOnTop = originalTopmost;

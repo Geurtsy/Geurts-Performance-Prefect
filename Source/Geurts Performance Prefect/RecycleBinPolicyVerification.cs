@@ -135,13 +135,13 @@ internal static class RecycleBinPolicyVerification
         var mode = Application.Current.ShutdownMode; Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var scroll = new ScrollViewer { Content = panel, Style = (Style)Application.Current.FindResource("SettingsScrollViewer"), VerticalScrollBarVisibility = ScrollBarVisibility.Visible, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         var surface = new Border { Background = Palette.Background, Child = scroll, Padding = new Thickness(12) };
-        var window = new Window { Content = surface, Width = 1000, Height = 920, ShowInTaskbar = false };
+        var window = new Window { Content = surface, WindowState = WindowState.Maximized, ShowInTaskbar = false };
         try
         {
             window.Show();
-            foreach (var width in new[] { 1000d, 600d })
+            foreach (var width in new[] { SystemParameters.WorkArea.Width })
             {
-                window.Width = width; window.Height = width == 600 ? 700 : 920; window.UpdateLayout();
+                window.UpdateLayout();
                 scroll.ScrollToVerticalOffset(panel.PreviewRecycleButton.TransformToAncestor(panel).Transform(new Point()).Y - 150); window.UpdateLayout();
                 var bounds = panel.CleanRecycleButton.TransformToAncestor(scroll).TransformBounds(new Rect(panel.CleanRecycleButton.RenderSize));
                 check(bounds.Left >= 0 && bounds.Right <= scroll.ViewportWidth && bounds.Top >= 0 && bounds.Bottom <= scroll.ViewportHeight,

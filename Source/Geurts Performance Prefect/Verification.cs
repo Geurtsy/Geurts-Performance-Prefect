@@ -305,19 +305,20 @@ public static class Verification
             "The overlay switches back to application FPS when supported process frames return");
         // Render our own WPF content off screen for layout review; no desktop automation.
         Render((FrameworkElement)overlay.Content, Path.Combine(folder, "overlay-preview.png"), 318, 1000);
-        Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-preview.png"), 490, 790);
+        SettingsTabVerification.Capture(panel, Path.Combine(folder, "settings-preview.png"), SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height);
+        SettingsHudVerification.Run(panel, overlay, store, folder, Check);
         SettingsTabVerification.Run(panel, folder, Check);
         DiskAnalyserVerification.Run(panel, folder, Check);
         var settingsScroll = SettingsTabVerification.Select(panel, panel.DownloadsPath);
         settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.DownloadsPath.TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 100));
         settingsScroll.UpdateLayout();
-        Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-downloads-preview.png"), 490, 790);
+        SettingsTabVerification.Capture(panel, Path.Combine(folder, "settings-downloads-preview.png"), SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height);
         settingsScroll = SettingsTabVerification.Select(panel, panel.DriveToggles[driveA.Id]);
         settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.DriveToggles[driveA.Id].TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 110)); settingsScroll.UpdateLayout();
-        Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-drives-preview.png"), 490, 790);
+        SettingsTabVerification.Capture(panel, Path.Combine(folder, "settings-drives-preview.png"), SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height);
         settingsScroll = SettingsTabVerification.Select(panel, panel.AutoAvoidToggle);
         settingsScroll.ScrollToVerticalOffset(Math.Max(0, panel.AutoAvoidToggle.TransformToAncestor((Visual)settingsScroll.Content).Transform(new Point()).Y - 40)); settingsScroll.UpdateLayout();
-        Render((FrameworkElement)panel.Content, Path.Combine(folder, "settings-window-preview.png"), 490, 790);
+        SettingsTabVerification.Capture(panel, Path.Combine(folder, "settings-window-preview.png"), SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height);
         panel.Close();
         // Exercise real WPF window state changes using isolated preferences and no sensor worker.
         overlay.Show(); overlay.OpenSettings();
@@ -342,7 +343,7 @@ public static class Verification
         activePanel.WindowState = WindowState.Minimized;
         Check(overlay.WindowState == WindowState.Minimized && !overlay.IsVisible && !overlay.ShowInTaskbar && !activePanel.IsVisible, "Minimising Settings hides the complete application in tray mode");
         overlay.RestoreOverlay();
-        Check(overlay.IsVisible && overlay.WindowState == WindowState.Normal && activePanel.IsVisible && activePanel.WindowState == WindowState.Normal, "Tray restore returns both windows to normal state");
+        Check(overlay.IsVisible && overlay.WindowState == WindowState.Normal && activePanel.IsVisible && activePanel.WindowState == WindowState.Maximized, "Tray restore returns the overlay and full-screen Settings");
         overlay.Minimise(); overlay.OpenSettings();
         Check(overlay.IsVisible && activePanel.IsVisible && overlay.WindowState == WindowState.Normal, "Opening Settings from the tray restores the hidden application");
         overlay.Minimise(); overlay.Settings.MinimiseToTray = false; overlay.Changed();

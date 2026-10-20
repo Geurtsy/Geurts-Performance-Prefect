@@ -68,10 +68,10 @@ internal static class ConsoleTabVerification
             complete.TrySetResult(0); Await(console.ActiveCheck!); Pump();
             check(panel.IsVisible && console.ConsoleOutput.Text.Contains("code 0") && console.StartButton.IsEnabled,
                 "Repair results remain in the Console tab after completion");
-            panel.Width = panel.MinWidth; panel.Height = panel.MinHeight; Pump();
+            panel.WindowState = WindowState.Maximized; Pump();
             check(console.ConsoleOutput.ActualHeight > 80 && console.StartButton.IsVisible,
-                "Embedded repair output retains usable space at minimum Settings size");
-            SettingsTabVerification.Capture(panel, Path.Combine(folder, "console-tab-repair-minimum.png"), panel.MinWidth, panel.MinHeight);
+                "Embedded repair output retains usable space at full-screen Settings");
+            SettingsTabVerification.Capture(panel, Path.Combine(folder, "console-tab-repair-full-screen.png"), panel.MinWidth, panel.MinHeight);
             panel.Close();
             var denied = new DiagnosticConsole(Array.Empty<DiskCheckVolume>(), (_, _, _) => throw new Exception("Must not run"), administrator: false, integrity: true);
             denied.StartButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

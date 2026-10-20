@@ -107,12 +107,12 @@ public static class DiskRepairVerification
                 denyReply = false; Await(window.Console.SendResponseAsync());
                 check(replies.SequenceEqual(new[] { "N" }) && window.Console.Response.Text == "", "Only an explicit Send action forwards the user's chosen prompt letter");
                 emit!("Fixture repair progress: 50%\n");
-                window.Width = window.MinWidth; window.Height = window.MinHeight; window.UpdateLayout();
-                DiskCheckVerification.Capture(window, Path.Combine(folder, "disk-repair-running-minimum.png"));
+                window.WindowState = WindowState.Maximized; window.UpdateLayout();
+                DiskCheckVerification.Capture(window, Path.Combine(folder, "disk-repair-running-full-screen.png"));
                 var content = (FrameworkElement)window.Content;
                 var responseBounds = window.Console.SendResponseButton.TransformToAncestor(content).TransformBounds(new Rect(window.Console.SendResponseButton.RenderSize));
                 check(window.Console.ConsoleOutput.ActualHeight > 70 && responseBounds.Right <= content.ActualWidth && responseBounds.Bottom <= content.ActualHeight,
-                    "Repair console and prompt response controls remain usable at the minimum window size");
+                    "Repair console and prompt response controls remain usable at the full-screen layout");
                 completion.SetResult(0); Await(window.Console.ActiveCheck!);
                 check(window.IsVisible && window.Console.StartButton.IsEnabled && !window.Console.SendResponseButton.IsEnabled && !window.Console.Response.IsEnabled &&
                     window.Console.Status.Text.Contains("scheduled") && window.Console.Status.Text.Contains("code 0"),

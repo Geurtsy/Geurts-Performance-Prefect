@@ -36,7 +36,7 @@ internal static class ProgramsFeaturesVerification
             check(dialog.IsActive && !window.IsActive, "A normal dialog can take activation after opening the uninstall list");
         }
         finally { dialog.Close(); }
-        foreach (var size in new[] { new Size(1000,920), new Size(600,700) })
+        foreach (var size in new[] { new Size(SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height) })
         {
             window.Width = size.Width; window.Height = size.Height; window.UpdateLayout();
             check(panel.Host.ActualWidth > 300 && panel.Host.ActualHeight > 100,

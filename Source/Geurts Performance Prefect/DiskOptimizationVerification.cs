@@ -89,8 +89,8 @@ internal static class DiskOptimizationVerification
             complete.SetResult(0); Await(console.ActiveCheck!);
             check(panel.IsVisible && console.Status.Text.Contains("completed") && console.StartButton.IsEnabled && console.Drive.IsEnabled && !console.StopButton.IsEnabled,
                 "Completed optimization leaves its report visible and restores controls");
-            SettingsTabVerification.Capture(panel, Path.Combine(folder, "disk-optimization-minimum.png"), panel.MinWidth, panel.MinHeight);
-            check(console.ConsoleOutput.ActualHeight > 80 && console.StartButton.IsVisible, "Optimization controls and results fit minimum Settings size");
+            SettingsTabVerification.Capture(panel, Path.Combine(folder, "disk-optimization-full-screen.png"), panel.MinWidth, panel.MinHeight);
+            check(console.ConsoleOutput.ActualHeight > 80 && console.StartButton.IsVisible, "Optimization controls and results fit full-screen Settings");
             complete = new TaskCompletionSource<int>(); Start(); output!("Access denied\n"); complete.SetResult(5); Await(console.ActiveCheck!);
             check(console.Status.Text.Contains("code 5") && console.ConsoleOutput.Text.Contains("Access denied"), "Windows optimization failures preserve output and exit codes");
             complete = new TaskCompletionSource<int>(); Start(); complete.SetException(new IOException("fixture optimizer unavailable")); Await(console.ActiveCheck!);

@@ -1,5 +1,14 @@
 # Geurts Performance Prefect
 
+Settings uses a dark green tactical command deck with bevelled controls and a
+numbered left navigation rail. **Overlay** opens first, with **Readings**,
+**Placement** and **Appearance** pages plus a preview of actual overlay readings.
+Hard drive usage, top applications and window controls are grouped there;
+diagnostics remain embedded in **Console**. Existing preferences are retained.
+The compact desktop overlay keeps its existing appearance. Settings opens full
+screen and restores full screen from the tray, with native minimize and close
+controls. Sections scroll independently.
+
 **Settings → File compression** uses Windows' lossless NTFS compression to save
 disk space while files keep their names and remain directly readable and editable
 in their usual apps. Choose files or a data folder, click **Preview files**, review

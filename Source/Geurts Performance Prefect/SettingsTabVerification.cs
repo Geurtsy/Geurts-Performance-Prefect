@@ -18,6 +18,7 @@ public static class SettingsTabVerification
         while (parent is not TabItem && parent != null) parent = LogicalTreeHelper.GetParent(parent);
         var tab = (TabItem)(parent ?? throw new InvalidOperationException("Control is not in a settings tab."));
         panel.Sections.SelectedItem = tab;
+        panel.Hud.RevealControl(control);
         panel.UpdateLayout();
         panel.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         return (ScrollViewer)tab.Content;
@@ -70,8 +71,8 @@ public static class SettingsTabVerification
         Select(panel, panel.BitLockerPanel.DecryptButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Security",
             "BitLocker drive selection and decryption are in the Security tab");
-        check(panel.Width == Math.Min(1000, panel.MaxWidth) && panel.Height == Math.Min(920, panel.MaxHeight),
-            "Settings opens at its expanded default size within the screen work area");
+        check(panel.WindowState == WindowState.Maximized && panel.ResizeMode == ResizeMode.CanMinimize,
+            "Settings opens full-screen with native minimize and close controls");
         Select(panel, panel.Console.CheckType);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "Console" && panel.Console.CheckType.Items.Count == 8,
             "Console tab embeds disk checks, fragmentation analysis, optimization, system integrity and Windows image modes");
@@ -90,7 +91,7 @@ public static class SettingsTabVerification
             Select(panel, panel.TopmostToggle) == readings &&
             panel.DriveToggles.Values.All(toggle => Select(panel, toggle) == readings),
             "Overlay contains the metric, hard drive, top application and window controls");
-        foreach (var width in new[] { 1000d, 600d })
+        foreach (var width in new[] { SystemParameters.WorkArea.Width })
         {
             foreach (var tab in tabs)
             {
@@ -128,7 +129,7 @@ public static class SettingsTabVerification
                 if (selected == storageScroll)
                 {
                     selected.ScrollToBottom(); selected.UpdateLayout();
-                    Capture(panel, Path.Combine(folder, "settings-storage-downloads-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    Capture(panel, Path.Combine(folder, "settings-storage-downloads-" + width + ".png"), width, SystemParameters.WorkArea.Height);
                     var downloadsBounds = panel.WipeDownloadsButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.WipeDownloadsButton.RenderSize));
                     var toggleBounds = panel.AutoWipeDownloadsToggle.TransformToAncestor(selected).TransformBounds(new Rect(panel.AutoWipeDownloadsToggle.RenderSize));
                     check(downloadsBounds.Top >= 0 && downloadsBounds.Bottom <= selected.ViewportHeight && downloadsBounds.Right <= selected.ViewportWidth &&
@@ -139,20 +140,21 @@ public static class SettingsTabVerification
                 if (selected == compressionScroll)
                 {
                     panel.FileCompressionPanel.SelectDrive(Path.GetPathRoot(folder)!);
-                    panel.Height = Math.Min(width == 600 ? 700 : 920, panel.MaxHeight); panel.UpdateLayout();
+                    panel.Height = Math.Min(SystemParameters.WorkArea.Height, panel.MaxHeight); panel.UpdateLayout();
                     selected.ScrollToTop(); selected.UpdateLayout();
-                    Capture(panel, Path.Combine(folder, "settings-drive-picker-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    panel.FileCompressionPanel.ChooseDrive.BringIntoView(); selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-drive-picker-" + width + ".png"), width, SystemParameters.WorkArea.Height);
                     var pickBounds = panel.FileCompressionPanel.ChooseDrive.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.ChooseDrive.RenderSize));
                     check(pickBounds.Top >= 0 && pickBounds.Bottom <= selected.ViewportHeight && pickBounds.Right <= selected.ViewportWidth,
                         "Entire-drive selection remains reachable at width " + width);
                     panel.FileCompressionPanel.ScanCompressButton.BringIntoView(); selected.UpdateLayout();
-                    Capture(panel, Path.Combine(folder, "settings-scan-compress-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    Capture(panel, Path.Combine(folder, "settings-scan-compress-" + width + ".png"), width, SystemParameters.WorkArea.Height);
                     var streamBounds = panel.FileCompressionPanel.ScanCompressButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.ScanCompressButton.RenderSize));
                     check(streamBounds.Top >= 0 && streamBounds.Bottom <= selected.ViewportHeight && streamBounds.Right <= selected.ViewportWidth && panel.FileCompressionPanel.ScanCompressButton.IsEnabled,
                         "Scan-and-compress action is reachable and enabled for an explicitly selected drive at width " + width);
                     selected.ScrollToVerticalOffset(panel.FileCompressionPanel.CompressButton.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 20);
                     selected.UpdateLayout();
-                    Capture(panel, Path.Combine(folder, "settings-file-compression-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    Capture(panel, Path.Combine(folder, "settings-file-compression-" + width + ".png"), width, SystemParameters.WorkArea.Height);
                     var actionBounds = panel.FileCompressionPanel.CompressButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.CompressButton.RenderSize));
                     var reverseBounds = panel.FileCompressionPanel.DecompressButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.DecompressButton.RenderSize));
                     check(actionBounds.Top >= 0 && actionBounds.Bottom <= selected.ViewportHeight && actionBounds.Right <= selected.ViewportWidth &&
@@ -163,7 +165,7 @@ public static class SettingsTabVerification
                     var automatic = panel.FileCompressionPanel.AutomaticPanel!;
                     selected.ScrollToVerticalOffset(automatic.High.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 40);
                     selected.UpdateLayout();
-                    Capture(panel, Path.Combine(folder, "settings-automatic-compression-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    Capture(panel, Path.Combine(folder, "settings-automatic-compression-" + width + ".png"), width, SystemParameters.WorkArea.Height);
                     var highBounds = automatic.High.TransformToAncestor(selected).TransformBounds(new Rect(automatic.High.RenderSize));
                     var lowBounds = automatic.Low.TransformToAncestor(selected).TransformBounds(new Rect(automatic.Low.RenderSize));
                     check(highBounds.Top >= 0 && lowBounds.Bottom <= selected.ViewportHeight && highBounds.Right <= selected.ViewportWidth && lowBounds.Right <= selected.ViewportWidth,
@@ -171,7 +173,7 @@ public static class SettingsTabVerification
                     check(!automatic.Enabled.IsChecked!.Value && automatic.Mode.Items.Count == 2,
                         "Both automatic modes are available and default off in Settings at width " + width);
                     selected.ScrollToBottom(); selected.UpdateLayout();
-                    Capture(panel, Path.Combine(folder, "settings-automatic-actions-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    Capture(panel, Path.Combine(folder, "settings-automatic-actions-" + width + ".png"), width, SystemParameters.WorkArea.Height);
                     var applyBounds = automatic.ApplyButton.TransformToAncestor(selected).TransformBounds(new Rect(automatic.ApplyButton.RenderSize));
                     check(applyBounds.Right <= selected.ViewportWidth && automatic.High.Template.FindName("PART_Track", automatic.High) != null,
                         "Automatic controls use the themed slider and fit the scrolled Settings page at width " + width);
@@ -180,20 +182,22 @@ public static class SettingsTabVerification
             }
         }
         panel.Sections.SelectedIndex = 0;
-        Capture(panel, Path.Combine(folder, "settings-tabs-minimum.png"), 600, 700);
+        Capture(panel, Path.Combine(folder, "settings-tabs-full-screen.png"), SystemParameters.WorkArea.Width, SystemParameters.WorkArea.Height);
         check(((ScrollViewer)tabs[0].Content).ViewportHeight > 30,
-            "Minimum Settings height retains scrollable content below every tab");
+            "Full-screen Settings retains scrollable section content");
         var root = (DockPanel)panel.Content;
         var footer = root.Children.OfType<StackPanel>().Single();
         var bounds = footer.TransformToAncestor(root).TransformBounds(new Rect(footer.RenderSize));
         check(bounds.Bottom <= root.ActualHeight + 1 && bounds.Top >= panel.Sections.ActualHeight,
-            "Done and Exit remain fully visible below the tabs at minimum window size");
+            "Done and Exit remain fully visible below the tabs in full-screen Settings");
         panel.Width = Math.Min(1000, panel.MaxWidth); panel.Height = Math.Min(920, panel.MaxHeight); panel.UpdateLayout();
     }
 
     internal static void Capture(SettingsWindow panel, string path, double width, double height)
     {
-        panel.Width = width; panel.Height = height;
+        // Always capture the actual full-screen surface, including callers that previously rendered off screen.
+        if (!panel.IsVisible) panel.Show();
+        panel.WindowState = WindowState.Maximized;
         panel.UpdateLayout();
         panel.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         var content = (FrameworkElement)panel.Content;
