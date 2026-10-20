@@ -23,6 +23,19 @@ Version 1.34.1 fixes a 1.34.0 drive-root boundary bug that could skip every file
 as “Outside the approved drive.” After installing the fix, preview again and
 confirm compression; a previous result with zero changed files changed nothing.
 
+**Scan and compress drive…** is an alternative for an explicitly selected drive.
+It asks for confirmation once before starting, then checks one file, compresses
+it immediately if eligible, and moves to the next file. It uses the same protected
+path, attribute, lock and identity checks, with live changed/skipped totals and
+disk savings. It does not build or wait for a full drive preview. The final file
+count is unknown before starting, and eligible files discovered during the run,
+including newly added files, may be compressed. There is no file-count cutoff.
+Already compressed files are skipped. **Stop** keeps completed changes and finishes
+the current file; a fresh scan can process the remaining eligible files. Closing,
+restarting and updating wait until the operation finishes or stops. Selecting a
+drive alone starts nothing. The existing preview/confirm workflow stays available
+for reviewing a fixed list before changes; decompression still uses that workflow.
+
 Savings vary: photos, videos and archives often save little. Compression uses extra
 CPU during access; performance can vary. Decompression requires enough free space,
 including a 64 MB reserve checked before each file. **Stop** waits for the current

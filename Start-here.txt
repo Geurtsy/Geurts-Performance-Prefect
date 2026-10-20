@@ -1,6 +1,11 @@
-GEURTS PERFORMANCE PREFECT 1.34.1 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.35.0 — WINDOWS x64
 
 FILE COMPRESSION
+Scan and compress drive checks each file and compresses it immediately if eligible,
+then moves on. Select a drive and confirm once before starting. No full preview
+is needed. Windows and protected files are skipped. Stop keeps completed changes
+and finishes the current file. Use Preview entire drive to review files first.
+
 Settings > File compression saves disk space with lossless NTFS compression.
 Choose files or a data folder, preview sizes and states, then confirm Compress
 or Decompress. Files stay readable and editable normally; no extraction is needed.

@@ -128,6 +128,7 @@ internal static class FileCompressionVerification
         // Fixtures remain under Verification for inspection; remove the junction itself without traversing it.
         Directory.Delete(junction); File.SetAttributes(readOnly, FileAttributes.Normal);
         DriveCompressionVerification.Run(folder, check);
+        StreamingCompressionVerification.Run(folder, check);
     }
     static void Await(Task task)
     {

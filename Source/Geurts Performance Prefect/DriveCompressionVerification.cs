@@ -89,6 +89,9 @@ internal static class DriveCompressionVerification
             check(cancelled && !Directory.GetFiles(Path.GetTempPath(), "Prefect-compression-*.jsonl").Except(before).Any(),
                 "Cancelling a drive scan discards the partial snapshot without leaving temporary files");
         }
+        var streaming = engine.ScanAndCompressContents(root, CancellationToken.None);
+        check(streaming.CheckedFiles > FileCompression.MaxFiles && streaming.Result.Changed == 2 && streaming.Error == null,
+            "Streaming reaches eligible files beyond the 10,000-file preview limit without recompressing existing compressed files");
         File.SetAttributes(readOnly, FileAttributes.Normal);
     }
     static void VerifyActualDriveRoot(string fixture, Action<bool, string> check)

@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.35.0
+
+- Added Scan and compress drive to Settings → File compression. After explicitly selecting a drive and confirming once, Prefect checks a file, compresses it immediately if eligible, then moves to the next. There is no wait for a complete preview, no full drive snapshot and no file-count cutoff. The preview/confirm workflow remains available.
+- Retains Windows/protected-path exclusions, attributes, permissions, exclusive file access and identity checks. Already compressed files are skipped. Shows live progress, changed/skipped totals and disk savings. Stop finishes the current file and keeps completed changes; a fresh scan handles remaining files. App close/restart/update waits for completion or Stop.
+- Validated sequential compression before the next file is processed, byte-preserving reads, protected/locked/read-only exclusions, cancellation/resume, confirmation, failure/retry, real drive-root approval, more than 10,000 files and narrow/default layouts with disposable fixtures. No real drive was compressed during validation. Local installation remains manual.
+
 # Geurts Performance Prefect 1.34.1
 
 - Fixed whole-drive compression incorrectly skipping every file as “Outside the approved drive.” Drive roots already end in a separator; the containment check now preserves that boundary when accepting their files.

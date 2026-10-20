@@ -31,8 +31,14 @@ internal sealed record CompressionResult(int Changed, int Skipped, long Before, 
         $"Disk usage for changed files: {FileCompression.Size(Before)} → {FileCompression.Size(After)}. " +
         (Before >= After ? $"Saved {FileCompression.Size(Before - After)}." : $"Used {FileCompression.Size(After - Before)} more.");
 }
+internal sealed record ScanCompressionResult(long CheckedFiles, CompressionResult Result, string? Error)
+{
+    public string Message => $"Scan and compress: checked {CheckedFiles} eligible file(s). " + Result.Message +
+        (Error == null ? "" : " Scan ended early: " + Error);
+}
 
-// Only existing, explicitly previewed files are changed. Directory compression/inheritance is never set.
+// Preview actions change only approved files; the separate streaming action checks and changes each
+// discovered file immediately after drive-wide confirmation. Directory inheritance is never set.
 internal sealed class FileCompression
 {
     internal const int MaxFiles = 10_000, MaxEntries = 100_000;
@@ -71,18 +77,21 @@ internal sealed class FileCompression
     internal CompressionPreview PreviewDriveContents(string root, CancellationToken stop, Action<string>? progress = null) =>
         Scan(new[] { Normalize(root) }, stop, progress, Normalize(root));
 
-    CompressionPreview Scan(IEnumerable<string> selections, CancellationToken stop, Action<string>? progress, string? driveRoot)
+    CompressionPreview Scan(IEnumerable<string> selections, CancellationToken stop, Action<string>? progress, string? driveRoot,
+        Action<CompressionFile>? process = null)
     {
         var files = new List<CompressionFile>(); var issues = new List<string>(); int skipped = 0; long visited = 0;
         bool limited = false;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pending = new Stack<IEnumerator<string>>();
-        CompressionSnapshot? snapshot = driveRoot == null ? null : new CompressionSnapshot();
+        long eligible = 0;
+        CompressionSnapshot? snapshot = driveRoot == null || process != null ? null : new CompressionSnapshot();
         pending.Push(selections.Select(Normalize).GetEnumerator());
         try
         {
             while (pending.TryPeek(out var iterator))
             {
+                if (process != null && stop.IsCancellationRequested) break;
                 stop.ThrowIfCancellationRequested();
                 string path;
                 try
@@ -107,20 +116,63 @@ internal sealed class FileCompression
                     {
                         CompressionFile file;
                         using (var handle = Open(path, write: false)) file = Inspect(path, handle, driveRoot);
+                        eligible++;
                         // Snapshot write errors must abort the preview, rather than silently omit files.
-                        snapshot?.Add(file);
-                        if (snapshot == null || files.Count < CompressionSnapshot.DisplayLimit) files.Add(file);
+                        if (process != null) process(file);
+                        else
+                        {
+                            snapshot?.Add(file);
+                            if (snapshot == null || files.Count < CompressionSnapshot.DisplayLimit) files.Add(file);
+                        }
                     }
                 }
                 catch (Exception ex) when (Expected(ex) && ex is not CompressionSnapshotException)
                 { skipped++; if (issues.Count < 100) issues.Add(path + ": " + ex.Message); }
-                if (visited % 100 == 0) progress?.Invoke($"Previewing… {snapshot?.Count ?? files.Count} eligible file(s), {skipped} skipped. {path}");
+                if (visited % 100 == 0) progress?.Invoke($"{(process == null ? "Previewing" : "Scanning")}… {eligible} eligible file(s), {skipped} skipped during scanning. {path}");
             }
             snapshot?.Complete();
             return new(files.ToArray(), skipped, issues.ToArray(), limited) { Snapshot = snapshot, DriveRoot = driveRoot };
         }
         catch { snapshot?.Dispose(); throw; }
         finally { while (pending.TryPop(out var iterator)) iterator.Dispose(); }
+    }
+
+    internal ScanCompressionResult ScanAndCompressDrive(string root, CancellationToken stop, Action<string>? progress = null)
+    {
+        root = Normalize(root);
+        if (!Same(root, Path.GetPathRoot(root)!)) throw new IOException("Select the root of one local NTFS drive, such as C:\\.");
+        ValidatePath(root, allowRoot: true);
+        return ScanAndCompressContents(root, stop, progress);
+    }
+
+    internal ScanCompressionResult ScanAndCompressContents(string root, CancellationToken stop, Action<string>? progress = null,
+        string? approvedRoot = null)
+    {
+        root = Normalize(root); approvedRoot ??= root;
+        int changed = 0, skipped = 0; long checkedFiles = 0, before = 0, after = 0;
+        var issues = new List<string>(); string? error = null;
+        void Report(string message) => progress?.Invoke($"Changed {changed} file(s), skipped {skipped}, saved {Size(Math.Max(0, before - after))}. " + message);
+        try
+        {
+            using var scan = Scan(new[] { root }, stop, Report, approvedRoot, file =>
+            {
+                if (stop.IsCancellationRequested) return;
+                checkedFiles++;
+                if (file.Compressed) { skipped++; return; }
+                try
+                {
+                    var bytes = ChangeFile(file, true, approvedRoot, () => Report("Compressing: " + file.Path));
+                    changed++; before += bytes.Before; after += bytes.After;
+                    Report("Compressed: " + file.Path);
+                }
+                catch (Exception ex) when (Expected(ex))
+                { skipped++; if (issues.Count < 100) issues.Add(file.Path + ": " + ex.Message); }
+            });
+            skipped += scan.Skipped;
+            issues.AddRange(scan.Issues.Take(Math.Max(0, 100 - issues.Count)));
+        }
+        catch (Exception ex) when (Expected(ex)) { error = ex.Message; }
+        return new(checkedFiles, new(changed, skipped, before, after, stop.IsCancellationRequested, issues.ToArray()), error);
     }
 
     internal CompressionResult Apply(CompressionPreview preview, bool compress, CancellationToken stop, Action<string>? progress = null)
@@ -132,31 +184,37 @@ internal sealed class FileCompression
             if (file.Compressed == compress) { skipped++; continue; }
             try
             {
-                if (preview.DriveRoot != null && !Contains(preview.DriveRoot, file.Path)) throw new IOException("Outside the approved drive.");
-                ValidatePath(file.Path, policyRoot: preview.DriveRoot);
-                // No sharing: no writer, rename, replacement or deletion while checking/changing this file.
-                using var handle = Open(file.Path, write: true);
-                var current = Inspect(file.Path, handle, preview.DriveRoot);
-                if (current.Identity != file.Identity || current.Volume != file.Volume || current.Length != file.Length ||
-                    current.Modified != file.Modified || current.Compressed != file.Compressed)
-                    throw new IOException("Changed since preview; preview again.");
-                if (!compress)
-                {
-                    var drive = new DriveInfo(Path.GetPathRoot(file.Path)!);
-                    if (drive.AvailableFreeSpace < Math.Max(0, file.Length - current.DiskBytes) + 64L * 1024 * 1024)
-                        throw new IOException("Not enough free space to decompress with a 64 MB reserve.");
-                }
-                progress?.Invoke($"{(compress ? "Compressing" : "Decompressing")} {changed + skipped + 1}/{preview.Count}: {file.Path}");
-                ushort format = (ushort)(compress ? 1 : 0);
-                if (!DeviceIoControl(handle, 0x0009C040, ref format, 2, IntPtr.Zero, 0, out _, IntPtr.Zero))
-                    throw NativeError();
-                var result = Inspect(file.Path, handle, preview.DriveRoot);
-                if (result.Compressed != compress) throw new IOException("Windows did not confirm the requested compression state.");
-                changed++; before += current.DiskBytes; after += result.DiskBytes;
+                var bytes = ChangeFile(file, compress, preview.DriveRoot, () =>
+                    progress?.Invoke($"{(compress ? "Compressing" : "Decompressing")} {changed + skipped + 1}/{preview.Count}: {file.Path}"));
+                changed++; before += bytes.Before; after += bytes.After;
             }
             catch (Exception ex) when (Expected(ex)) { skipped++; if (issues.Count < 100) issues.Add(file.Path + ": " + ex.Message); }
         }
         return new(changed, skipped, before, after, stop.IsCancellationRequested, issues.ToArray());
+    }
+
+    (long Before, long After) ChangeFile(CompressionFile file, bool compress, string? approvedRoot, Action progress)
+    {
+        if (approvedRoot != null && !Contains(approvedRoot, file.Path)) throw new IOException("Outside the approved drive.");
+        ValidatePath(file.Path, policyRoot: approvedRoot);
+        // The same exclusive handle and identity checks protect both preview and streaming actions.
+        using var handle = Open(file.Path, write: true);
+        var current = Inspect(file.Path, handle, approvedRoot);
+        if (current.Identity != file.Identity || current.Volume != file.Volume || current.Length != file.Length ||
+            current.Modified != file.Modified || current.Compressed != file.Compressed)
+            throw new IOException("Changed since eligibility check; preview or scan again.");
+        if (!compress)
+        {
+            var drive = new DriveInfo(Path.GetPathRoot(file.Path)!);
+            if (drive.AvailableFreeSpace < Math.Max(0, file.Length - current.DiskBytes) + 64L * 1024 * 1024)
+                throw new IOException("Not enough free space to decompress with a 64 MB reserve.");
+        }
+        progress();
+        ushort format = (ushort)(compress ? 1 : 0);
+        if (!DeviceIoControl(handle, 0x0009C040, ref format, 2, IntPtr.Zero, 0, out _, IntPtr.Zero)) throw NativeError();
+        var result = Inspect(file.Path, handle, approvedRoot);
+        if (result.Compressed != compress) throw new IOException("Windows did not confirm the requested compression state.");
+        return (current.DiskBytes, result.DiskBytes);
     }
 
     void ValidatePath(string path, bool allowRoot = false, string? policyRoot = null)

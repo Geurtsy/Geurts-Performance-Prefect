@@ -15,6 +15,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
     internal Button ChooseFolder { get; } = Button("Choose folder…");
     internal Button ChooseDrive { get; } = Button("Choose entire drive…");
     internal Button PreviewButton { get; } = Button("Preview files");
+    internal Button ScanCompressButton { get; } = Button("Scan and compress drive…");
     internal Button CompressButton { get; } = Button("Compress previewed files…");
     internal Button DecompressButton { get; } = Button("Decompress previewed files…");
     internal Button StopButton { get; } = Button("Stop");
@@ -26,6 +27,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
     string[] selections = Array.Empty<string>();
     string? selectedDrive;
     readonly Func<string, CancellationToken, Action<string>?, CompressionPreview> previewDrive;
+    readonly Func<string, CancellationToken, Action<string>?, ScanCompressionResult> scanAndCompressDrive;
     CompressionPreview? preview;
     CancellationTokenSource? cancellation;
     internal bool IsBusy { get; private set; }
@@ -33,18 +35,22 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
 
     public FileCompressionPanel() : this(new FileCompression(), null) { }
     internal FileCompressionPanel(FileCompression engine, Func<string, bool>? confirm,
-        Func<string, CancellationToken, Action<string>?, CompressionPreview>? previewDrive = null)
+        Func<string, CancellationToken, Action<string>?, CompressionPreview>? previewDrive = null,
+        Func<string, CancellationToken, Action<string>?, ScanCompressionResult>? scanAndCompressDrive = null)
     {
         this.engine = engine;
         this.previewDrive = previewDrive ?? engine.PreviewDrive;
+        this.scanAndCompressDrive = scanAndCompressDrive ?? engine.ScanAndCompressDrive;
         this.confirm = confirm ?? (message => MessageBox.Show(Window.GetWindow(this), message,
             "Geurts Performance Prefect · File compression", MessageBoxButton.YesNo, MessageBoxImage.Question,
             MessageBoxResult.No) == MessageBoxResult.Yes);
         Children.Add(new TextBlock { Text = "File compression", Foreground = Palette.Accent, FontSize = 18, FontWeight = FontWeights.SemiBold });
         Children.Add(Note("Save disk space with Windows' lossless NTFS compression. Files keep their names and open, read and edit normally in their usual apps. No extraction or running Prefect is needed to read them."));
-        Children.Add(Note("Choose files, a data folder or an entire local NTFS drive. A drive preview scans eligible files across that drive while skipping Windows, standard application folders, boot/recovery files, AppData and other protected paths. Only existing previewed files change; folder and drive compression defaults stay unchanged."));
+        Children.Add(Note("Choose files, a data folder or an entire local NTFS drive. Windows, standard application folders, boot/recovery files, AppData and other protected paths are skipped. Preview actions change only their previewed files. Folder and drive compression defaults stay unchanged."));
         var pick = new WrapPanel(); pick.Children.Add(ChooseFiles); pick.Children.Add(ChooseFolder); pick.Children.Add(ChooseDrive); Children.Add(pick);
-        Children.Add(Selection); Children.Add(PreviewButton);
+        Children.Add(Selection);
+        var scanActions = new WrapPanel(); scanActions.Children.Add(PreviewButton); scanActions.Children.Add(ScanCompressButton); Children.Add(scanActions);
+        Children.Add(Note("For a selected drive, Scan and compress drive checks each file, compresses it immediately if eligible, then moves on. Confirm once before starting; no full preview is required. Stop finishes the current file and keeps completed changes. Preview entire drive remains available for reviewing files before any changes."));
         Children.Add(Note("Review original size, size on disk and compression state below. Savings depend on the data; videos, photos and archives often save little. Reading and editing compressed files uses extra CPU and performance can vary."));
         var template = new DataTemplate(); var text = new FrameworkElementFactory(typeof(TextBlock));
         text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding());
@@ -59,7 +65,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
         Children.Add(Files);
         var actions = new WrapPanel(); actions.Children.Add(CompressButton); actions.Children.Add(DecompressButton); actions.Children.Add(StopButton); Children.Add(actions);
         Children.Add(Status);
-        Children.Add(Note("Preview first, then confirm either action. Locked, read-only, encrypted, sparse, system, cloud placeholder and linked files are skipped, as are files over 30 GB. Files changed since preview are skipped. Decompression needs free disk space. Stop waits for the current file; completed changes remain. Preview again to reverse them."));
+        Children.Add(Note("For the preview actions, preview first and then confirm Compress or Decompress. All actions skip locked, read-only, encrypted, sparse, system, cloud placeholder and linked files, as well as files over 30 GB. Files changed since their eligibility check are skipped. Decompression needs free disk space. Stop waits for the current file; completed changes remain. Preview again to reverse them."));
         Children.Add(Note("Drive previews scan the complete accessible tree and show the first 500 eligible files here; totals and confirmation include every eligible file in the completed preview. A temporary snapshot is removed when replaced, used or closed. File/folder previews contain up to 10,000 eligible files and visit up to 100,000 entries. Skipped counts include excluded folders without scanning their contents; details show the first 100 issues. Windows permissions are respected."));
         ChooseFiles.Click += (_, _) =>
         {
@@ -77,6 +83,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
             if (dialog.ShowDialog(Window.GetWindow(this)) == true) SelectDrive(dialog.FolderName);
         };
         PreviewButton.Click += async (_, _) => await PreviewAsync();
+        ScanCompressButton.Click += async (_, _) => await ScanAndCompressAsync();
         CompressButton.Click += async (_, _) => await ApplyAsync(true);
         DecompressButton.Click += async (_, _) => await ApplyAsync(false);
         StopButton.Click += (_, _) => Stop();
@@ -153,6 +160,28 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
         finally { approved.Dispose(); End(); }
     }
 
+    internal async Task ScanAndCompressAsync()
+    {
+        if (IsBusy || selectedDrive == null) return;
+        var root = selectedDrive;
+        if (!confirm("Scan and compress eligible files across entire drive " + root + "?\n\n" +
+            "Each file is checked, compressed immediately if eligible, then scanning moves to the next file. " +
+            "There is no full preview or final file count before compression starts. Windows and protected files/folders are skipped. " +
+            "Files found while scanning, including newly added files, may be compressed. Files remain normally readable and editable. " +
+            "Savings vary and compressed access uses extra CPU.\n\nStop waits for the current file and keeps completed changes. " +
+            "Use Preview entire drive first if you want to review the files before changing them.")) return;
+        Begin(); preview?.Dispose(); preview = null; Files.ItemsSource = null;
+        Status.Text = "Scanning and compressing eligible drive files…";
+        try
+        {
+            var result = await Task.Run(() => scanAndCompressDrive(root, cancellation!.Token, Report));
+            Status.Text = result.Message;
+            Files.ItemsSource = new[] { result.Message }.Concat(result.Result.Issues.Select(i => "Skipped: " + i)).ToArray();
+        }
+        catch (Exception ex) { Status.Text = "Scan and compress failed: " + ex.Message + " Completed changes remain. Preview again to review file states."; }
+        finally { End(); }
+    }
+
     internal void Stop() { cancellation?.Cancel(); Status.Text = "Stopping after the current file…"; }
     internal bool CanLeave()
     {
@@ -167,6 +196,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
     {
         ChooseFiles.IsEnabled = ChooseFolder.IsEnabled = ChooseDrive.IsEnabled = !IsBusy;
         PreviewButton.IsEnabled = !IsBusy && selections.Length != 0;
+        ScanCompressButton.IsEnabled = !IsBusy && selectedDrive != null;
         PreviewButton.Content = selectedDrive == null ? "Preview files" : "Preview entire drive";
         CompressButton.Content = selectedDrive == null ? "Compress previewed files…" : "Compress eligible drive files…";
         DecompressButton.Content = selectedDrive == null ? "Decompress previewed files…" : "Decompress eligible drive files…";

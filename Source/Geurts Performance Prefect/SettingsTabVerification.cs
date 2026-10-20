@@ -145,6 +145,11 @@ public static class SettingsTabVerification
                     var pickBounds = panel.FileCompressionPanel.ChooseDrive.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.ChooseDrive.RenderSize));
                     check(pickBounds.Top >= 0 && pickBounds.Bottom <= selected.ViewportHeight && pickBounds.Right <= selected.ViewportWidth,
                         "Entire-drive selection remains reachable at width " + width);
+                    panel.FileCompressionPanel.ScanCompressButton.BringIntoView(); selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-scan-compress-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    var streamBounds = panel.FileCompressionPanel.ScanCompressButton.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.ScanCompressButton.RenderSize));
+                    check(streamBounds.Top >= 0 && streamBounds.Bottom <= selected.ViewportHeight && streamBounds.Right <= selected.ViewportWidth && panel.FileCompressionPanel.ScanCompressButton.IsEnabled,
+                        "Scan-and-compress action is reachable and enabled for an explicitly selected drive at width " + width);
                     selected.ScrollToVerticalOffset(panel.FileCompressionPanel.CompressButton.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 20);
                     selected.UpdateLayout();
                     Capture(panel, Path.Combine(folder, "settings-file-compression-" + width + ".png"), width, width == 600 ? 700 : 920);
