@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.36.0
+
+- Added off-by-default automatic compression for one selected NTFS drive, with percentage sliders (defaults 85% full to compress, 70% to decompress) and two new-file modes: threshold-controlled or always compress new files while thresholds manage older files. Always-new mode exempts files created after activation from automatic decompression.
+- Persists explicit approval, drive identity, thresholds, mode and activation time. Runs while Prefect is open/in the tray, watches new files with debounce/retries and checks fullness each minute. Threshold transitions/startup catch-up can scan the accessible drive; overflow reconciliation is rate-limited. Unchanged fullness and space recovered by Prefect do not cause repeated/opposite drive sweeps.
+- Retains protected-path, link, attribute, permission, lock and file-identity checks. Decompression checks free space and projected fullness. Manual/automatic work cannot overlap; stale previews are invalidated. Stop/disable preserves completed changes; exit/restart/update waits for active work to stop. A changed volume requires fresh approval.
+- Validated both policies, compression/decompression, threshold spacing and transitions, anti-oscillation, persistence/failures, drive mismatch, cancellation, work ownership, real file-created notifications and normal/minimum layouts with isolated fixtures and injected capacity readings. No live drive policy was enabled during validation. Local installation remains manual.
+
 # Geurts Performance Prefect 1.35.0
 
 - Added Scan and compress drive to Settings → File compression. After explicitly selecting a drive and confirming once, Prefect checks a file, compresses it immediately if eligible, then moves to the next. There is no wait for a complete preview, no full drive snapshot and no file-count cutoff. The preview/confirm workflow remains available.

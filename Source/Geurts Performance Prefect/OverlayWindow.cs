@@ -101,6 +101,7 @@ public sealed class OverlayWindow : Window
     public SettingsStore Store { get; }
     public DownloadsCleanup Downloads { get; }
     internal StorageSenseController StorageSense { get; }
+    internal AutomaticCompressionController AutomaticCompression { get; }
     public PowerOptionsController PowerOptions { get; }
     public Snapshot? Latest { get; private set; }
     public event Action<Snapshot>? SnapshotReceived;
@@ -141,6 +142,7 @@ public sealed class OverlayWindow : Window
         PowerOptions = powerOptions ?? new PowerOptionsController(settings, store);
         Downloads = downloads ?? new DownloadsCleanup();
         StorageSense = new StorageSenseController(settings, store);
+        AutomaticCompression = new AutomaticCompressionController(settings, store);
         this.cursorPosition = cursorPosition ?? (() => { var cursor = Forms.Cursor.Position; return new Point(cursor.X, cursor.Y); });
         Foreground = Palette.Text; FontFamily = new FontFamily("Segoe UI"); FontSize = 13;
         Title = "Geurts Performance Prefect"; Width = 318; SizeToContent = SizeToContent.WidthAndHeight;
@@ -232,6 +234,7 @@ public sealed class OverlayWindow : Window
             ClampToScreen();
             QueueAutoAvoidSnap();
             if (!verification) StorageSense.Start();
+            if (!verification) AutomaticCompression.Start();
             if (!verification && worker == null) { staleTimer.Start(); worker = Task.Factory.StartNew(SampleLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default); }
         };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.F2) { OpenSettings(); e.Handled = true; } };
@@ -529,6 +532,7 @@ public sealed class OverlayWindow : Window
     internal bool RestartApplication()
     {
         if (closing) return false;
+        if (!AutomaticCompression.CanLeave()) { OpenSettings(); settingsWindow!.ShowFileCompression(); return false; }
         if (settingsWindow != null && !settingsWindow.AllowRestart()) return false;
         UpdateSavedPosition();
         var result = ApplicationRestart.Relaunch(Store, Settings, restartStart);
@@ -543,6 +547,7 @@ public sealed class OverlayWindow : Window
     public void RestartElevated(bool openConsole = false, bool openSecurity = false)
     {
         if (HardwareSampler.IsAdministrator) return;
+        if (!AutomaticCompression.CanLeave()) { OpenSettings(); settingsWindow!.ShowFileCompression(); return; }
         if (settingsWindow != null && !settingsWindow.AllowRestart()) return;
         SaveSettings();
         try
@@ -556,9 +561,11 @@ public sealed class OverlayWindow : Window
     void OnClosing(object? sender, CancelEventArgs e)
     {
         if (closing) return;
+        if (!AutomaticCompression.CanLeave()) { e.Cancel = true; OpenSettings(); settingsWindow!.ShowFileCompression(); return; }
         if (settingsWindow != null && !settingsWindow.RequestApplicationExit()) { e.Cancel = true; return; }
         closing = true; saveTimer.Stop(); staleTimer.Stop(); stop.Cancel();
         StorageSense.Dispose();
+        AutomaticCompression.Dispose();
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
         settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();
         // Sampling owns the monitor and disposes it; never race its hardware update.

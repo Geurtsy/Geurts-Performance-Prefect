@@ -26,18 +26,20 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        if (e.Args.Length == 2 && e.Args[0] == "--file-compression-test")
+        if (e.Args.Length == 2 && (e.Args[0] == "--file-compression-test" || e.Args[0] == "--automatic-compression-test"))
         {
             var report = Path.GetFullPath(e.Args[1]); Directory.CreateDirectory(Path.GetDirectoryName(report)!);
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             var log = new System.Collections.Generic.List<string>();
             try
             {
-                FileCompressionVerification.Run(Path.GetDirectoryName(report)!, (pass, name) =>
+                void CheckCompression(bool pass, string name)
                 {
                     if (!pass) throw new InvalidOperationException("FAILED: " + name);
                     log.Add("PASS: " + name); File.WriteAllLines(report, log);
-                });
+                }
+                if (e.Args[0] == "--automatic-compression-test") AutomaticCompressionVerification.Run(Path.GetDirectoryName(report)!, CheckCompression);
+                else FileCompressionVerification.Run(Path.GetDirectoryName(report)!, CheckCompression);
                 Shutdown(0);
             }
             catch (Exception ex) { log.Add(ex.ToString()); File.WriteAllLines(report, log); Shutdown(1); }

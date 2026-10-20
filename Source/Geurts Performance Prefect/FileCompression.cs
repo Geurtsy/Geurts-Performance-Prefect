@@ -10,7 +10,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace GeurtsPerformancePrefect;
 
-internal sealed record CompressionFile(string Path, long Length, long DiskBytes, long Modified, ulong Identity, uint Volume, bool Compressed)
+internal sealed record CompressionFile(string Path, long Length, long DiskBytes, long Modified, ulong Identity, uint Volume, bool Compressed, long Created = 0)
 {
     public override string ToString() => $"{Path}\n{FileCompression.Size(Length)} · on disk {FileCompression.Size(DiskBytes)} · {(Compressed ? "compressed" : "uncompressed")}";
 }
@@ -193,6 +193,29 @@ internal sealed class FileCompression
         return new(changed, skipped, before, after, stop.IsCancellationRequested, issues.ToArray());
     }
 
+    internal ScanCompressionResult ManageAutomatic(string[] paths, string root, Func<CompressionFile, bool?> choose,
+        CancellationToken stop, Action<string>? progress = null)
+    {
+        root = Normalize(root);
+        if (paths.Any(p => !Contains(root, Normalize(p)))) throw new IOException("Automatic targets must belong to the approved drive.");
+        int changed = 0, skipped = 0; long checkedFiles = 0, before = 0, after = 0; var issues = new List<string>();
+        using var scan = Scan(paths, stop, progress, root, file =>
+        {
+            if (stop.IsCancellationRequested) return;
+            checkedFiles++;
+            try
+            {
+                var compress = choose(file);
+                if (compress == null || file.Compressed == compress.Value) { skipped++; return; }
+                var bytes = ChangeFile(file, compress.Value, root, () => progress?.Invoke((compress.Value ? "Auto-compressing: " : "Auto-decompressing: ") + file.Path));
+                changed++; before += bytes.Before; after += bytes.After;
+            }
+            catch (Exception ex) when (Expected(ex)) { skipped++; if (issues.Count < 100) issues.Add(file.Path + ": " + ex.Message); }
+        });
+        skipped += scan.Skipped; issues.AddRange(scan.Issues.Take(Math.Max(0, 100 - issues.Count)));
+        return new(checkedFiles, new(changed, skipped, before, after, stop.IsCancellationRequested, issues.ToArray()), null);
+    }
+
     (long Before, long After) ChangeFile(CompressionFile file, bool compress, string? approvedRoot, Action progress)
     {
         if (approvedRoot != null && !Contains(approvedRoot, file.Path)) throw new IOException("Outside the approved drive.");
@@ -262,7 +285,8 @@ internal sealed class FileCompression
         uint low = GetCompressedFileSize(path, out uint high);
         if (low == uint.MaxValue && Marshal.GetLastWin32Error() != 0) throw NativeError();
         return new(path, length, ((long)high << 32) | low, ((long)info.WriteHigh << 32) | info.WriteLow,
-            ((ulong)info.IndexHigh << 32) | info.IndexLow, info.Volume, (flags & FileAttributes.Compressed) != 0);
+            ((ulong)info.IndexHigh << 32) | info.IndexLow, info.Volume, (flags & FileAttributes.Compressed) != 0,
+            ((long)info.CreationHigh << 32) | info.CreationLow);
     }
 
     static SafeFileHandle Open(string path, bool write)
@@ -279,7 +303,7 @@ internal sealed class FileCompression
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
     }
     static bool Same(string a, string b) => string.Equals(Path.TrimEndingDirectorySeparator(a), Path.TrimEndingDirectorySeparator(b), StringComparison.OrdinalIgnoreCase);
-    static bool Contains(string parent, string child)
+    internal static bool Contains(string parent, string child)
     {
         parent = Path.TrimEndingDirectorySeparator(parent);
         // Drive roots retain their trailing separator; appending another rejects every child.

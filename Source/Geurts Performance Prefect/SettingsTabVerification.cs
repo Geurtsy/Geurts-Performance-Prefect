@@ -159,6 +159,22 @@ public static class SettingsTabVerification
                         reverseBounds.Right <= selected.ViewportWidth,
                         "Compression actions wrap and remain reachable at width " + width);
                     panel.FileCompressionPanel.SelectPaths(new[] { compressionFixture });
+                    panel.UpdateLayout(); selected.UpdateLayout();
+                    var automatic = panel.FileCompressionPanel.AutomaticPanel!;
+                    selected.ScrollToVerticalOffset(automatic.High.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 40);
+                    selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-automatic-compression-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    var highBounds = automatic.High.TransformToAncestor(selected).TransformBounds(new Rect(automatic.High.RenderSize));
+                    var lowBounds = automatic.Low.TransformToAncestor(selected).TransformBounds(new Rect(automatic.Low.RenderSize));
+                    check(highBounds.Top >= 0 && lowBounds.Bottom <= selected.ViewportHeight && highBounds.Right <= selected.ViewportWidth && lowBounds.Right <= selected.ViewportWidth,
+                        "Automatic fullness sliders fit and remain reachable at width " + width);
+                    check(!automatic.Enabled.IsChecked!.Value && automatic.Mode.Items.Count == 2,
+                        "Both automatic modes are available and default off in Settings at width " + width);
+                    selected.ScrollToBottom(); selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-automatic-actions-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    var applyBounds = automatic.ApplyButton.TransformToAncestor(selected).TransformBounds(new Rect(automatic.ApplyButton.RenderSize));
+                    check(applyBounds.Right <= selected.ViewportWidth && automatic.High.Template.FindName("PART_Track", automatic.High) != null,
+                        "Automatic controls use the themed slider and fit the scrolled Settings page at width " + width);
                     selected.ScrollToTop(); selected.UpdateLayout();
                 }
             }

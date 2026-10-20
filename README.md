@@ -36,6 +36,47 @@ restarting and updating wait until the operation finishes or stops. Selecting a
 drive alone starts nothing. The existing preview/confirm workflow stays available
 for reviewing a fixed list before changes; decompression still uses that workflow.
 
+The **Automatic compression** section adds an off-by-default policy for one selected
+drive. Choose the drive above, set the two percentage sliders and the new-file mode,
+then enable it and confirm. **Apply automatic settings…** saves later changes, with
+confirmation while enabled. The percentage is drive space used: defaults compress
+at **85% full or higher** and decompress at **70% full or lower**. The sliders keep
+at least five percentage points between them. Between thresholds, older files
+keep their current states. The two modes are:
+
+- **Compress new files only above the high threshold:** the high threshold applies
+  to eligible existing and new files; the low threshold allows decompression.
+- **Always compress new files; thresholds manage older files:** files whose creation
+  time is after this policy was enabled stay compressed at any fullness. They are
+  excluded from automatic decompression; the sliders manage older files. Moving
+  an older file does not change its classification. Re-enabling or changing the
+  configured drive establishes a new activation time; Apply on the same enabled
+  drive preserves it.
+
+Monitoring runs while Prefect is open, including in the tray. Closing Settings
+keeps it active. The first check is one minute after enabling or launch; fullness
+and queued files are checked each minute. File events are debounced for at least
+ten seconds so copying/writing can finish. Locked items retry up to three times;
+later file events can queue them again. The queue is limited to 10,000 paths and
+processes up to 256 ready notifications per pass. New folders can include their
+contents. Missed/overflowed events request a reconciliation scan, limited to once
+per hour. Threshold transitions and startup catch-up for always-new mode can scan
+the accessible drive. An unchanged fullness band does not repeatedly trigger a
+drive sweep, and changes made by Prefect do not immediately schedule an opposite
+sweep. Large drive scans may take time; live status appears in the section.
+
+Decompression checks free space per file and refuses an expansion that would bring
+usage to within one percentage point of the compression threshold. Eligible files
+compressed by other tools may also be decompressed. The saved volume identity is
+checked before work and for each candidate, so a replacement volume under the same
+letter requires fresh approval. Manual/automatic operations do not overlap; an
+automatic run invalidates open manual previews. **Stop and disable automatic
+compression** stops after the current file and saves the disabled policy. Completed
+changes remain. Exit/restart/update requests stop active automatic work and wait
+for the current file; retry the action once it stops. File/folder inheritance and
+Windows' own compression configuration are unchanged. If saving a disabled policy
+fails, work stays stopped for this session and the persistence error is shown.
+
 Savings vary: photos, videos and archives often save little. Compression uses extra
 CPU during access; performance can vary. Decompression requires enough free space,
 including a 64 MB reserve checked before each file. **Stop** waits for the current
@@ -63,6 +104,8 @@ the report folder. Normal startup actions, live settings and installed apps are
 bypassed. Drive-mode tests use a disposable folder representing a volume, including
 over 10,000 eligible files and protected sentinels; they never compress a real drive.
 The full `--self-test` also verifies Settings layout and operation lifetime.
+`--automatic-compression-test <report-file>` runs just the automatic-policy and
+real disposable-watcher checks with isolated settings and simulated drive fullness.
 
 **Settings → Storage Sense** previews and permanently removes old files in your
 current user's `%LOCALAPPDATA%\Temp` folder. Select a minimum age (7–365 days;

@@ -32,13 +32,17 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
     CancellationTokenSource? cancellation;
     internal bool IsBusy { get; private set; }
     internal CompressionPreview? Preview => preview;
+    readonly AutomaticCompressionController? automatic;
+    internal AutomaticCompressionPanel? AutomaticPanel { get; }
 
     public FileCompressionPanel() : this(new FileCompression(), null) { }
     internal FileCompressionPanel(FileCompression engine, Func<string, bool>? confirm,
         Func<string, CancellationToken, Action<string>?, CompressionPreview>? previewDrive = null,
-        Func<string, CancellationToken, Action<string>?, ScanCompressionResult>? scanAndCompressDrive = null)
+        Func<string, CancellationToken, Action<string>?, ScanCompressionResult>? scanAndCompressDrive = null,
+        AutomaticCompressionController? automatic = null)
     {
         this.engine = engine;
+        this.automatic = automatic;
         this.previewDrive = previewDrive ?? engine.PreviewDrive;
         this.scanAndCompressDrive = scanAndCompressDrive ?? engine.ScanAndCompressDrive;
         this.confirm = confirm ?? (message => MessageBox.Show(Window.GetWindow(this), message,
@@ -87,12 +91,17 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
         CompressButton.Click += async (_, _) => await ApplyAsync(true);
         DecompressButton.Click += async (_, _) => await ApplyAsync(false);
         StopButton.Click += (_, _) => Stop();
+        if (automatic != null)
+        {
+            AutomaticPanel = new AutomaticCompressionPanel(automatic, () => selectedDrive);
+            Children.Add(AutomaticPanel); automatic.Changed += Sync;
+        }
         Sync();
     }
 
     internal void SelectPaths(IEnumerable<string> paths)
     {
-        if (IsBusy) return;
+        if (IsBusy || automatic?.IsBusy == true) return;
         selectedDrive = null; preview?.Dispose();
         selections = paths.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         preview = null; Files.ItemsSource = null; Selection.Text = string.Join("\n", selections);
@@ -101,7 +110,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
 
     internal bool SelectDrive(string root)
     {
-        if (IsBusy) return false;
+        if (IsBusy || automatic?.IsBusy == true) return false;
         try
         {
             var normalized = System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(root));
@@ -119,7 +128,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
 
     internal async Task PreviewAsync()
     {
-        if (IsBusy || selections.Length == 0) return;
+        if (IsBusy || automatic?.IsBusy == true || selections.Length == 0) return;
         Begin(); preview?.Dispose(); preview = null; Files.ItemsSource = null; Status.Text = "Previewing files…";
         try
         {
@@ -139,7 +148,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
 
     internal async Task ApplyAsync(bool compress)
     {
-        if (IsBusy || preview == null) return;
+        if (IsBusy || automatic?.IsBusy == true || preview == null) return;
         var approved = preview;
         long count = compress ? approved.Count - approved.CompressedCount : approved.CompressedCount;
         if (count == 0) return;
@@ -162,7 +171,7 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
 
     internal async Task ScanAndCompressAsync()
     {
-        if (IsBusy || selectedDrive == null) return;
+        if (IsBusy || automatic?.IsBusy == true || selectedDrive == null) return;
         var root = selectedDrive;
         if (!confirm("Scan and compress eligible files across entire drive " + root + "?\n\n" +
             "Each file is checked, compressed immediately if eligible, then scanning moves to the next file. " +
@@ -189,22 +198,29 @@ public sealed class FileCompressionPanel : StackPanel, IDisposable
         Status.Text = "Let file compression finish, or click Stop and wait for the current file before closing, restarting or updating.";
         return false;
     }
-    void Begin() { IsBusy = true; cancellation = new(); Sync(); }
-    void End() { IsBusy = false; cancellation?.Dispose(); cancellation = null; Sync(); }
+    void Begin() { IsBusy = true; if (automatic != null) automatic.ManualBusy = true; cancellation = new(); Sync(); }
+    void End() { IsBusy = false; if (automatic != null) automatic.ManualBusy = false; cancellation?.Dispose(); cancellation = null; Sync(); }
     void Report(string message) => Dispatcher.Invoke(() => { if (cancellation?.IsCancellationRequested != true) Status.Text = message; });
     void Sync()
     {
-        ChooseFiles.IsEnabled = ChooseFolder.IsEnabled = ChooseDrive.IsEnabled = !IsBusy;
-        PreviewButton.IsEnabled = !IsBusy && selections.Length != 0;
-        ScanCompressButton.IsEnabled = !IsBusy && selectedDrive != null;
+        if (automatic?.IsBusy == true && preview != null)
+        {
+            preview.Dispose(); preview = null; Files.ItemsSource = null;
+            Status.Text = "Automatic work is active. Preview again after it finishes to review current file states.";
+        }
+        bool idle = !IsBusy && automatic?.IsBusy != true;
+        ChooseFiles.IsEnabled = ChooseFolder.IsEnabled = ChooseDrive.IsEnabled = idle;
+        PreviewButton.IsEnabled = idle && selections.Length != 0;
+        ScanCompressButton.IsEnabled = idle && selectedDrive != null;
         PreviewButton.Content = selectedDrive == null ? "Preview files" : "Preview entire drive";
         CompressButton.Content = selectedDrive == null ? "Compress previewed files…" : "Compress eligible drive files…";
         DecompressButton.Content = selectedDrive == null ? "Decompress previewed files…" : "Decompress eligible drive files…";
-        CompressButton.IsEnabled = !IsBusy && preview != null && preview.Count > preview.CompressedCount;
-        DecompressButton.IsEnabled = !IsBusy && preview?.CompressedCount > 0;
+        CompressButton.IsEnabled = idle && preview != null && preview.Count > preview.CompressedCount;
+        DecompressButton.IsEnabled = idle && preview?.CompressedCount > 0;
         StopButton.IsEnabled = IsBusy;
+        AutomaticPanel?.Refresh();
     }
-    public void Dispose() { preview?.Dispose(); preview = null; }
+    public void Dispose() { if (automatic != null) automatic.Changed -= Sync; AutomaticPanel?.Dispose(); preview?.Dispose(); preview = null; }
     static Button Button(string caption) => new() { Content = caption, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,8,0) };
     static TextBlock Note(string text) => new() { Text = text, Foreground = Palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,6,0,8) };
 }

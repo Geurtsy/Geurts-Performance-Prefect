@@ -1,6 +1,14 @@
-GEURTS PERFORMANCE PREFECT 1.35.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.36.0 — WINDOWS x64
 
 FILE COMPRESSION
+Automatic compression is off by default. Choose one drive, then use Automatic
+compression to set sliders for compressing at high fullness and decompressing
+at low fullness (defaults 85% and 70%). Keep at least a five-point gap. Select
+threshold-only new files or always-new files; always-new files created after
+enabling are kept compressed while the thresholds manage older files. Enable
+and confirm, then use Apply for changes. Runs while Prefect is open/in the tray.
+The first check is in one minute. Stop and disable keeps completed changes.
+
 Scan and compress drive checks each file and compresses it immediately if eligible,
 then moves on. Select a drive and confirm once before starting. No full preview
 is needed. Windows and protected files are skipped. Stop keeps completed changes

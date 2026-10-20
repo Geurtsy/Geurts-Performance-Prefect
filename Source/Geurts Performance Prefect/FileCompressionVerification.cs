@@ -129,6 +129,7 @@ internal static class FileCompressionVerification
         Directory.Delete(junction); File.SetAttributes(readOnly, FileAttributes.Normal);
         DriveCompressionVerification.Run(folder, check);
         StreamingCompressionVerification.Run(folder, check);
+        AutomaticCompressionVerification.Run(folder, check);
     }
     static void Await(Task task)
     {

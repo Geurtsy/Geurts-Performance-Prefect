@@ -27,6 +27,7 @@ public sealed class OverlaySettings
     public bool MinimiseToTray { get; set; } = true;
     public bool AutoAvoid { get; set; }
     public bool AutoWipeDownloadsOnStartup { get; set; }
+    public AutomaticCompressionPolicy AutomaticCompression { get; set; } = new();
     public bool StorageSenseEnabled { get; set; }
     public bool StorageSenseIncludeRecycleBin { get; set; }
     public int StorageSenseAgeDays { get; set; } = 30;
@@ -58,6 +59,7 @@ public sealed class OverlaySettings
     public void Normalise()
     {
         Visible ??= new();
+        AutomaticCompression = (AutomaticCompression ?? new()).Normalise();
         StorageSenseAgeDays = Math.Clamp(StorageSenseAgeDays, 7, 365);
         if (!Enum.IsDefined(StorageSenseSchedule)) StorageSenseSchedule = StorageSenseSchedule.Weekly;
         if (StorageSenseLastAttemptUtc > DateTime.UtcNow) StorageSenseLastAttemptUtc = DateTime.UtcNow;

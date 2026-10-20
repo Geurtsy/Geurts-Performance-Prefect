@@ -1,0 +1,213 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Threading;
+
+namespace GeurtsPerformancePrefect;
+
+internal static class AutomaticCompressionVerification
+{
+    internal static void Run(string folder, Action<bool, string> check)
+    {
+        var root = Path.Combine(folder, "automatic-compression-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
+        string nativeRoot = Path.GetPathRoot(root)!;
+        var native = CompressionDrive.Read(nativeRoot);
+        var now = DateTime.UtcNow; var since = now.AddHours(-1);
+        const long GiB = 1024L * 1024 * 1024;
+        var volume = new CompressionDrive(native.Volume, 100 * GiB, 10 * GiB);
+        var settings = new OverlaySettings(); var store = new SettingsStore(Path.Combine(root, "settings.json"));
+        var data = Path.Combine(root, "Data"); Directory.CreateDirectory(data);
+        var protectedRoot = Path.Combine(data, "Windows"); Directory.CreateDirectory(protectedRoot);
+        var engine = new FileCompression(protectedRoot, store.Path);
+        string FileAt(string path, bool old = false)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, string.Concat(Enumerable.Repeat("automatic file compression readable fixture\r\n", 8192)));
+            File.SetCreationTimeUtc(path, old ? now.AddDays(-2) : now.AddMinutes(-1)); return path;
+        }
+        bool Compressed(string path) => (File.GetAttributes(path) & FileAttributes.Compressed) != 0;
+        var oldFile = FileAt(Path.Combine(data, "older.txt"), true); var newFile = FileAt(Path.Combine(data, "new.txt"));
+        var sentinel = FileAt(Path.Combine(protectedRoot, "system.txt"));
+        var original = File.ReadAllText(oldFile);
+        int runs = 0;
+        ScanCompressionResult Run(string[] paths, string approved, Func<CompressionFile, bool?> choose, CancellationToken token, Action<string>? report)
+        {
+            Interlocked.Increment(ref runs);
+            return engine.ManageAutomatic(paths.Select(p => p == nativeRoot ? data : p).ToArray(), approved, choose, token, report);
+        }
+        using var controller = new AutomaticCompressionController(settings, store, engine, _ => volume, () => now, Run);
+        Await(controller.TickAsync(true));
+        check(runs == 0 && !settings.AutomaticCompression.Enabled, "Automatic compression defaults off and performs no drive work");
+        var legacy = JsonSerializer.Deserialize<OverlaySettings>("{\"AutomaticCompression\":null}")!; legacy.Normalise();
+        check(!legacy.AutomaticCompression.Enabled && legacy.AutomaticCompression.CompressAt == 85 && legacy.AutomaticCompression.DecompressAt == 70,
+            "Older/null settings recover to an off policy with 85%/70% thresholds");
+        var invalid = new AutomaticCompressionPolicy(true, data, 0, 500, 500, (NewFileCompressionMode)99, since).Normalise();
+        check(!invalid.Enabled && invalid.Root == "" && invalid.CompressAt <= 99 && invalid.DecompressAt <= invalid.CompressAt - 5 && invalid.NewFiles == NewFileCompressionMode.AboveThreshold,
+            "Invalid saved drive roots, thresholds and modes cannot enable automatic file changes");
+        var policy = new AutomaticCompressionPolicy(true, nativeRoot, native.Volume, 85, 70, NewFileCompressionMode.AboveThreshold, since);
+        check(controller.Configure(policy) && store.Load().AutomaticCompression == policy, "Automatic drive, identity, mode, thresholds and activation time persist together");
+        Await(controller.TickAsync()); check(runs == 0, "Enabling does not start work before the one-minute check");
+        controller.ManualBusy = true; Await(controller.TickAsync(true)); check(runs == 0, "Automatic work waits while a manual compression operation owns the files");
+        controller.ManualBusy = false; Await(controller.TickAsync(true));
+        check(Compressed(oldFile) && Compressed(newFile) && !Compressed(sentinel) && File.ReadAllText(oldFile) == original,
+            "Above the high threshold automatic mode compresses eligible old/new files and preserves protected files and bytes");
+        int previous = runs; now = now.AddMinutes(2); Await(controller.TickAsync(true));
+        check(runs == previous, "An unchanged fullness band does not repeatedly rescan the whole drive");
+        volume = volume with { Free = 25 * GiB }; Await(controller.TickAsync(true));
+        var midFile = FileAt(Path.Combine(data, "new-between-thresholds.txt")); controller.Queue(midFile); now = now.AddMinutes(2); Await(controller.TickAsync(true));
+        check(!Compressed(midFile) && Compressed(oldFile), "Threshold-only mode keeps states between thresholds and leaves new files uncompressed");
+        volume = volume with { Free = 40 * GiB }; now = now.AddMinutes(2); Await(controller.TickAsync(true));
+        check(!Compressed(oldFile) && !Compressed(newFile) && File.ReadAllText(newFile) == original,
+            "Crossing the low threshold decompresses eligible files with byte-identical contents");
+        controller.Configure(policy with { NewFiles = NewFileCompressionMode.Always }); Await(controller.TickAsync(true));
+        check(!Compressed(oldFile) && Compressed(newFile) && Compressed(midFile), "Always-new mode keeps new files compressed below the low threshold while older files stay uncompressed");
+        var added = FileAt(Path.Combine(data, "added-after-enable.txt")); controller.Queue(added);
+        Await(controller.TickAsync(true)); check(!Compressed(added), "New-file events are debounced before compression");
+        now = now.AddMinutes(2); Await(controller.TickAsync(true));
+        check(Compressed(added), "A settled new-file notification is compressed on the next pass");
+        var locked = FileAt(Path.Combine(data, "copying.txt")); controller.Queue(locked); now = now.AddMinutes(2);
+        using (var held = new FileStream(locked, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) Await(controller.TickAsync(true));
+        check(controller.PendingCount > 0 && !Compressed(locked), "A still-open new file is retained for a bounded retry");
+        now = now.AddMinutes(2); Await(controller.TickAsync(true));
+        check(Compressed(locked), "A new file compresses after its writer releases it");
+        previous = runs; volume = volume with { Volume = native.Volume + 1 }; Await(controller.TickAsync(true));
+        check(runs == previous && controller.Status.Contains("identity changed"), "A replacement volume under the same drive letter cannot receive the saved policy");
+        volume = volume with { Volume = native.Volume }; previous = runs; now = now.AddHours(2); controller.RequestCatchup(); Await(controller.TickAsync(true));
+        check(runs == previous + 1, "Missed-event recovery can reconcile the accessible tree after the cooldown");
+        previous = runs; controller.RequestCatchup(); now = now.AddMinutes(2); Await(controller.TickAsync(true));
+        check(runs == previous, "Watcher overflow cannot cause repeated full-drive scans within the one-hour cooldown");
+        controller.Disable(); previous = runs;
+        controller.Queue(FileAt(Path.Combine(data, "disabled.txt"))); now = now.AddMinutes(2); Await(controller.TickAsync(true));
+        check(runs == previous && !controller.Policy.Enabled, "Disabled automatic mode ignores new files and threshold changes");
+
+        var candidate = new CompressionFile(oldFile, 30 * GiB, 1 * GiB, 0, 1, native.Volume, true, since.AddDays(-1).ToFileTimeUtc());
+        check(AutomaticCompressionController.Decide(policy, new(native.Volume, 100 * GiB, 40 * GiB), candidate) == null,
+            "Projected decompression that would approach the high threshold is refused to prevent oscillation");
+        check(AutomaticCompressionController.Decide(policy, new(native.Volume, 100 * GiB, 1000), candidate) == true,
+            "A critically full drive continues to request compression rather than decompression");
+
+        // A synthetic usage change represents space saved by our own operation.
+        var selfSettings = new OverlaySettings(); var selfStore = new SettingsStore(Path.Combine(root, "self-settings.json"));
+        int selfRuns = 0; volume = new(native.Volume, 100 * GiB, 10 * GiB);
+        using (var self = new AutomaticCompressionController(selfSettings, selfStore, engine, _ => volume, () => now,
+            (_, _, _, _, _) => { selfRuns++; volume = volume with { Free = 40 * GiB }; return new(0, new(0,0,0,0,false,Array.Empty<string>()), null); }))
+        {
+            self.Configure(policy); Await(self.TickAsync(true)); now = now.AddMinutes(2); Await(self.TickAsync(true));
+            check(selfRuns == 1, "Space recovered by compression does not immediately trigger an opposite decompression sweep");
+        }
+        VerifyPersistenceFailures(root, policy, native, now, check);
+        VerifyUi(root, data, nativeRoot, native, since, engine, check);
+        VerifyWatcher(root, nativeRoot, native, since, check);
+        VerifyNewEventDuringRun(root, nativeRoot, native, since, check);
+    }
+
+    static void VerifyNewEventDuringRun(string root, string nativeRoot, CompressionDrive native, DateTime since, Action<bool,string> check)
+    {
+        var settings = new OverlaySettings(); var store = new SettingsStore(Path.Combine(root, "event-race-settings.json")); var now = DateTime.UtcNow;
+        var file = Path.Combine(root, "event-during-run.txt"); File.WriteAllText(file, "event fixture");
+        int runs = 0;
+        AutomaticCompressionController? controller = null;
+        using (controller = new AutomaticCompressionController(settings, store, drive: _ => new(native.Volume, 100L<<30, 25L<<30), clock: () => now,
+            run: (_, _, _, _, _) =>
+            {
+                if (++runs == 2) controller!.Queue(file);
+                return new(0, new(0,0,0,0,false,Array.Empty<string>()), null);
+            }))
+        {
+            controller.Configure(new(true, nativeRoot, native.Volume, 85,70,NewFileCompressionMode.Always,since)); Await(controller.TickAsync(true));
+            controller.Queue(file); now = now.AddMinutes(2); Await(controller.TickAsync(true));
+            check(controller.IsPending(file), "A new write notification arriving during automatic work remains queued for the next pass");
+            now = now.AddMinutes(2); Await(controller.TickAsync(true));
+            check(!controller.IsPending(file) && runs == 3, "The next pass handles and clears the preserved file notification");
+        }
+    }
+
+    static void VerifyPersistenceFailures(string root, AutomaticCompressionPolicy policy, CompressionDrive native, DateTime now, Action<bool,string> check)
+    {
+        var settings = new OverlaySettings(); var store = new SettingsStore(Path.Combine(root, "failure-settings.json")); int runs = 0;
+        using var controller = new AutomaticCompressionController(settings, store, drive: _ => new(native.Volume, 100L<<30, 10L<<30), clock: () => now,
+            run: (_, _, _, _, _) => { runs++; throw new IOException("isolated automatic failure"); });
+        controller.Configure(policy); Await(controller.TickAsync(true));
+        check(!controller.IsBusy && controller.Status.Contains("isolated automatic failure"), "Automatic failures release the work gate and expose the error");
+        now = now.AddMinutes(2); Await(controller.TickAsync(true)); check(runs == 2, "A failed automatic sweep can retry on a later check");
+        Directory.CreateDirectory(store.Path + ".tmp");
+        check(!controller.Disable() && controller.Policy.Enabled, "A failed settings write preserves the previous saved policy");
+        int previous = runs; now = now.AddMinutes(2); Await(controller.TickAsync(true));
+        check(runs == previous && controller.Status.Contains("stopped for this session"), "Disable still stops this session when its preference cannot be saved");
+    }
+
+    static void VerifyUi(string root, string data, string nativeRoot, CompressionDrive native, DateTime since, FileCompression engine, Action<bool,string> check)
+    {
+        var settings = new OverlaySettings(); var store = new SettingsStore(Path.Combine(root, "ui-settings.json"));
+        bool consent = false; string message = "";
+        using var controller = new AutomaticCompressionController(settings, store, engine, _ => new(native.Volume, 100L<<30, 10L<<30));
+        using var panel = new AutomaticCompressionPanel(controller, () => nativeRoot, text => { message = text; return consent; });
+        check(panel.High.Value == 85 && panel.Low.Value == 70 && panel.Mode.Items.Count == 2 && panel.Enabled.IsChecked == false,
+            "Automatic UI offers both new-file modes and percentage sliders with safe defaults");
+        panel.Low.Value = 90; check(panel.High.Value >= 95, "Raising the low slider keeps a five-point threshold gap");
+        panel.High.Value = 80; check(panel.Low.Value <= 75, "Lowering the high slider maintains ordered thresholds");
+        panel.Enabled.IsChecked = true; PumpUntil(() => panel.Enabled.IsChecked == false);
+        check(!controller.Policy.Enabled && message.Contains("other tools", StringComparison.OrdinalIgnoreCase), "Declining enablement leaves automatic mode off and explains existing-file decompression");
+        consent = true; panel.Enabled.IsChecked = true; PumpUntil(() => controller.Policy.Enabled && panel.ApplyButton.IsEnabled);
+        check(store.Load().AutomaticCompression.Enabled && controller.Policy.CompressAt == (int)panel.High.Value, "Enabling through the UI persists the confirmed drive and percentages");
+        panel.Mode.SelectedIndex = 1; Await(panel.ApplyAsync());
+        check(controller.Policy.NewFiles == NewFileCompressionMode.Always && message.Contains("excluded from automatic decompression"), "Applying always-new mode explains and saves its decompression exception");
+        panel.DisableButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        check(!controller.Policy.Enabled && !store.Load().AutomaticCompression.Enabled, "Stop-and-disable removes automatic authorization from saved settings");
+        controller.Configure(new(true, nativeRoot, native.Volume, 85,70,NewFileCompressionMode.AboveThreshold,since));
+        check(panel.Enabled.IsChecked == true, "An open automatic panel reflects a policy enabled by a completed background settings operation");
+        controller.Disable(); check(panel.Enabled.IsChecked == false, "An externally disabled policy also clears the visible enable switch");
+
+        // A separate controller runs only an isolated fixture, never the actual drive root.
+        var gateSettings = new OverlaySettings(); var gateStore = new SettingsStore(Path.Combine(root, "gate-settings.json"));
+        using var gate = new AutomaticCompressionController(gateSettings, gateStore, engine, _ => new(native.Volume, 100L<<30, 10L<<30),
+            run: (paths, approved, choose, token, report) => engine.ManageAutomatic(new[] { data }, approved, choose, token, report));
+        gate.Configure(new(true, nativeRoot, native.Volume, 85, 70, NewFileCompressionMode.AboveThreshold, since));
+        using var manual = new FileCompressionPanel(engine, _ => false, automatic: gate);
+        manual.SelectPaths(new[] { data }); var manualWork = manual.PreviewAsync();
+        check(gate.ManualBusy, "Starting a manual preview reserves the automatic work gate");
+        Await(gate.TickAsync(true)); check(!gate.IsBusy, "Automatic checks do not overlap a manual preview"); Await(manualWork);
+        var auto = gate.TickAsync(true);
+        check(gate.IsBusy && manual.Preview == null && !manual.PreviewButton.IsEnabled && manual.CanLeave() && !gate.CanLeave(),
+            "Background work disables manual actions, permits Settings close and makes app exit/restart wait for the current file");
+        gate.Disable(); Await(auto);
+        check(!gate.IsBusy && !gate.Policy.Enabled && manual.PreviewButton.IsEnabled, "Disabling active automatic work releases manual actions after the current file");
+    }
+
+    static void VerifyWatcher(string root, string nativeRoot, CompressionDrive native, DateTime since, Action<bool,string> check)
+    {
+        var data = Path.Combine(root, "watcher"); Directory.CreateDirectory(data);
+        var settings = new OverlaySettings(); var store = new SettingsStore(Path.Combine(root, "watcher-settings.json")); var now = DateTime.UtcNow;
+        var engine = new FileCompression(store.Path);
+        using var controller = new AutomaticCompressionController(settings, store, engine, _ => new(native.Volume, 100L<<30, 40L<<30), () => now,
+            (paths, approved, choose, token, report) => engine.ManageAutomatic(paths.Select(p => p == nativeRoot ? data : p).ToArray(), approved, choose, token, report),
+            _ => new FileSystemWatcher(data));
+        controller.Configure(new(true, nativeRoot, native.Volume, 85, 70, NewFileCompressionMode.Always, since)); controller.Start(); Await(controller.TickAsync(true));
+        var file = Path.Combine(data, "created by real Windows watcher.txt"); File.WriteAllText(file, "new watcher fixture");
+        PumpUntil(() => controller.PendingCount > 0);
+        for (int i = 0; i < 10 && (File.GetAttributes(file) & FileAttributes.Compressed) == 0; i++)
+        { Thread.Sleep(20); now = now.AddMinutes(2); Await(controller.TickAsync(true)); }
+        check((File.GetAttributes(file) & FileAttributes.Compressed) != 0 && File.ReadAllText(file) == "new watcher fixture",
+            "Real Windows file-created events queue and transparently compress only the disposable watched file");
+        var protectedPath = Path.Combine(nativeRoot, "Windows", "not-a-real-file.txt"); controller.Queue(protectedPath);
+        check(!controller.IsPending(protectedPath), "Protected Windows events are discarded before they enter the queue");
+        for (int i = 0; i < 10_050; i++) controller.Queue(Path.Combine(data, "queue-cap-" + i + ".txt"));
+        check(controller.PendingCount <= 10_000, "A burst of new-file notifications has a bounded queue");
+    }
+    static void Await(Task task) { PumpUntil(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
+    static void PumpUntil(Func<bool> complete)
+    {
+        var timer = Stopwatch.StartNew();
+        while (!complete())
+        {
+            if (timer.Elapsed > TimeSpan.FromSeconds(45)) throw new TimeoutException("Automatic compression verification timed out.");
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle); Thread.Sleep(5);
+        }
+    }
+}

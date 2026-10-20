@@ -91,7 +91,7 @@ public sealed class SettingsWindow : Window
     public DiskCleanupPanel DiskCleanupPanel { get; } = new();
     public StorageSensePanel StorageSensePanel { get; }
     public DiskAnalyserPanel DiskAnalyserPanel { get; } = new();
-    public FileCompressionPanel FileCompressionPanel { get; } = new();
+    public FileCompressionPanel FileCompressionPanel { get; }
     public ProgramsFeaturesPanel ProgramsFeaturesPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     public SecurityPanel SecurityPanel { get; } = new();
@@ -102,6 +102,7 @@ public sealed class SettingsWindow : Window
     public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null, BitLockerPanel? bitLocker = null, Func<string>? createDesktopShortcut = null)
     {
         this.overlay = overlay;
+        FileCompressionPanel = new FileCompressionPanel(new FileCompression(), null, automatic: overlay.AutomaticCompression);
         StorageSensePanel = new StorageSensePanel(overlay.StorageSense, overlay.Settings, overlay.Store);
         Closed += (_, _) => StorageSensePanel.Dispose();
         Closed += (_, _) => FileCompressionPanel.Dispose();
@@ -391,6 +392,7 @@ public sealed class SettingsWindow : Window
     }
     internal bool AllowRestart()
     {
+        if (!overlay.AutomaticCompression.CanLeave()) { ShowFileCompression(); ShowInForeground(); return false; }
         if (!FileCompressionPanel.CanLeave()) { ShowFileCompression(); ShowInForeground(); return false; }
         if (!DiskAnalyserPanel.CanClose()) { ShowDiskAnalyser(); ShowInForeground(); return false; }
         if (BitLockerPanel.IsChanging) { ShowSecurity(); ShowInForeground(); return false; }
@@ -554,7 +556,7 @@ public sealed class SettingsWindow : Window
             var plan = await AppUpdates.PrepareAsync(availableRelease, new Progress<string>(message => UpdateStatus.Text = message), updateStop.Token);
             overlay.SaveSettings();
             if (overlay.Store.LastError != null) throw new InvalidOperationException("Save your preferences before installing. " + overlay.Store.LastError);
-            if (!AllowRestart()) throw new InvalidOperationException("A diagnostic command is still running.");
+            if (!AllowRestart()) throw new InvalidOperationException("Background work is still running. Let it finish or stop before updating.");
             UpdateStatus.Text = "Starting the installer…";
             await AppUpdates.LaunchInstallerAsync(plan, updateStop.Token);
             overlay.Close();
