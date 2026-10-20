@@ -1,3 +1,8 @@
+# Geurts Performance Prefect 1.38.1
+
+- Minimizing full-screen Settings now minimizes only that window. The HUD stays visible and continues updating, whether Minimise to tray is enabled or disabled. Reopening Settings restores the full-screen window.
+- The HUD's own Minimise command still minimizes the whole app and respects the saved tray preference. Existing preferences and HUD position are retained.
+- Validated native window states, continuing readings, position, both tray modes and full-screen reopening with isolated fixtures. Local installation remains manual.
 # Geurts Performance Prefect 1.38.0
 
 - Embedded WinDirStat now samples the approved tactical Settings theme at each scan startup: backgrounds, text, borders, selected rows/tabs, font and coordinated graph colours. The scoped Settings resources are the reference, preserving the overlay's separate theme and the full-screen command deck.

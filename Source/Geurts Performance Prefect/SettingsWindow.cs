@@ -368,7 +368,8 @@ public sealed class SettingsWindow : Window
         overlay.AutoAvoidChanged += UpdateAutoAvoid;
         if (overlay.Latest != null) UpdateSensors(overlay.Latest);
         Closed += (_, _) => { overlay.SnapshotReceived -= UpdateSensors; overlay.AutoAvoidChanged -= UpdateAutoAvoid; overlay.SaveSettings(); };
-        StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) overlay.Minimise(); };
+        // Settings uses its own native minimize action. Only the HUD's minimize
+        // command should minimize the overlay or send the whole app to the tray.
         Hud = new SettingsHud(this, overlay);
     }
     internal void ShowConsole()

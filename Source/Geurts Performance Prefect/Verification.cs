@@ -340,8 +340,8 @@ public static class Verification
         Check(overlay.IsVisible && overlay.WindowState == WindowState.Normal && activePanel.IsVisible, "Restore reopens overlay and settings after taskbar minimising");
         activePanel.MinimiseToTrayToggle.IsChecked = true;
         Check(overlay.Settings.MinimiseToTray && !overlay.ShowInTaskbar, "Enabling tray mode removes the overlay from the taskbar");
-        activePanel.WindowState = WindowState.Minimized;
-        Check(overlay.WindowState == WindowState.Minimized && !overlay.IsVisible && !overlay.ShowInTaskbar && !activePanel.IsVisible, "Minimising Settings hides the complete application in tray mode");
+        overlay.Minimise();
+        Check(overlay.WindowState == WindowState.Minimized && !overlay.IsVisible && !overlay.ShowInTaskbar && !activePanel.IsVisible, "The HUD minimize command still hides the complete application in tray mode");
         overlay.RestoreOverlay();
         Check(overlay.IsVisible && overlay.WindowState == WindowState.Normal && activePanel.IsVisible && activePanel.WindowState == WindowState.Maximized, "Tray restore returns the overlay and full-screen Settings");
         overlay.Minimise(); overlay.OpenSettings();
