@@ -1,13 +1,15 @@
 Geurts Performance Prefect — third-party components
 
 WinDirStat 2.9.3 x64 — GNU General Public License v3 or later
-Copyright WinDirStat Team. Unmodified official portable executable, run as a
-separate process and hosted in the Disk analyser tab. Provided without warranty.
-Release and source: https://github.com/windirstat/windirstat/releases/tag/release/v2.9.3
+Copyright WinDirStat Team. Geurts theme adapter copyright 2026 Geurts.
+Modified, unsigned build based on release/v2.9.3; not an official WinDirStat build.
+Runs as a separate process in Disk analyser. Provided without warranty.
+Upstream: https://github.com/windirstat/windirstat/releases/tag/release/v2.9.3
 Licence: Licences/WinDirStat-LICENSE.txt
-The release's source archive is bundled inside Prefect. Use Settings > Disk
+The modified source archive (including xxHash v0.8.3 and its BSD licence) is
+bundled inside Prefect. Use Settings > Disk
 analyser > Licence and source to extract the source ZIP and licence for offline
-access. The upstream source includes build instructions and dependency scripts.
+access. PREFECT-CHANGES.md documents the changes and native build requirements.
 
 All third-party assemblies are unmodified. Their source code and licence terms
 are available at the links below. Licence copies are supplied under Licences

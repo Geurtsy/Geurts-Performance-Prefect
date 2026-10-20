@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.38.0
+
+- Embedded WinDirStat now samples the approved tactical Settings theme at each scan startup: backgrounds, text, borders, selected rows/tabs, font and coordinated graph colours. The scoped Settings resources are the reference, preserving the overlay's separate theme and the full-screen command deck.
+- Includes a modified native WinDirStat 2.9.3 build, verified by a pinned checksum, plus its complete modified GPL source and xxHash source/licence. Licence and source remains available offline. WinDirStat retains its native icons/control shapes and dialogs; Windows high contrast takes precedence.
+- Validated actual native list colours for the current theme and temporary alternate resources, plus scan/navigation/lifetime checks in disposable fixtures. Normal startup, deletion/elevation logic and standalone WinDirStat preferences are preserved. Mixed-DPI monitor transitions and live Windows high-contrast switching remain unverified. Local installation remains manual.
+
 # Geurts Performance Prefect 1.37.0
 
 - Applied the approved tactical Settings design: dark green panels, a numbered left navigation rail, bold HUD detailing, spacious controls and six-pixel bevelled action buttons. Dropdowns, sliders, switches, text fields and scrollbars share the Settings theme. Settings opens full screen and returns full screen after tray restore.

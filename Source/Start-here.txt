@@ -1,4 +1,4 @@
-GEURTS PERFORMANCE PREFECT 1.36.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.38.0 — WINDOWS x64
 
 FILE COMPRESSION
 Automatic compression is off by default. Choose one drive, then use Automatic
@@ -27,7 +27,10 @@ the current file and keeps completed changes. Decompression needs free space.
 Savings and performance vary, especially for already compressed media/archives.
 
 DISK ANALYSER PROTOTYPE
-Settings > Disk analyser embeds WinDirStat 2.9.3. Choose a drive or folder and
+Settings > Disk analyser embeds a themed WinDirStat 2.9.3 build. Each scan reads
+the current Settings colours and font, with coordinated graph colours. Native
+icons/control shapes remain WinDirStat's; Windows high contrast takes precedence.
+Choose a drive or folder and
 click Analyse to start. Browse the file tree, largest files and treemap inside
 Prefect. Close analyser before closing Settings, exiting, restarting or updating
 Prefect. Native dialogs may open separately; review deletion prompts carefully.

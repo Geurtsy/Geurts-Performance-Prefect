@@ -14,7 +14,9 @@ namespace GeurtsPerformancePrefect;
 // Owns only the bundled process. No discovery, attachment or termination of other WinDirStat instances.
 internal sealed class WinDirStatSession : IDisposable
 {
-    internal const string BinaryHash = "c6925752fe688aa72115723f23dbb95a7e1c55f094a7d7f30acb5f509a38045b";
+    readonly WinDirStatTheme theme;
+    internal WinDirStatSession(WinDirStatTheme theme) => this.theme = theme;
+    internal const string BinaryHash = "cea983f7e797d0961ed43a0803c2ea35d6e49e0a9c6ac21403d6cdf999bc927e";
     internal string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), "GeurtsPerformancePrefect", "WinDirStat", Guid.NewGuid().ToString("N"));
     internal Process? Process { get; private set; }
     internal nint Window { get; private set; }
@@ -41,7 +43,7 @@ internal sealed class WinDirStatSession : IDisposable
         // An INI beside the executable selects portable storage before WinDirStat reads any options.
         // Each session starts with warnings enabled and without automatic elevation.
         File.WriteAllText(Path.Combine(DirectoryPath, "WinDirStat.ini"),
-            "[Options]\r\nShowElevationPrompt=0\r\nAutoElevate=0\r\nShowDeletePermanentlyWarning=1\r\nShowDeleteToRecycleBinWarning=1\r\n");
+            theme.PortableSettings(), Encoding.Unicode);
     }
 
     internal void Extract(string name)
@@ -210,6 +212,8 @@ internal static class Native
     [DllImport("user32.dll")] internal static extern bool IsWindowEnabled(nint window);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern int GetClassName(nint window, StringBuilder name, int capacity);
     [DllImport("user32.dll")] internal static extern bool EnumWindows(EnumWindowCallback callback, nint parameter);
+    [DllImport("user32.dll")] internal static extern bool EnumChildWindows(nint parent, EnumWindowCallback callback, nint parameter);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern nint SendMessageTimeout(nint window, uint message, nint wParam, nint lParam, uint flags, uint timeout, out nint result);
     [DllImport("user32.dll")] internal static extern uint GetWindowThreadProcessId(nint window, out uint pid);
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] internal static extern nint GetWindowLongPtr(nint window, int index);
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)] internal static extern nint SetWindowLongPtr(nint window, int index, nint value);

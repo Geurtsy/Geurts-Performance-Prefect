@@ -204,7 +204,7 @@ dialog integration fixture; close the preview to remove its test entry.
 
 
 
-**Settings → Disk analyser** embeds the official portable WinDirStat 2.9.3
+**Settings → Disk analyser** embeds a themed build of WinDirStat 2.9.3
 interface as a prototype. Choose a drive or folder (or paste its full path), then
 click **Analyse**. Browse the folder tree, largest files and treemap inside
 Prefect. Scanning never starts from opening the tab or normal app startup.
@@ -214,16 +214,23 @@ Use **Close analyser** before closing Settings, exiting, restarting or updating
 Prefect; these actions wait while the analyser is active and do not force-stop
 native scans, cleanups or dialogs. WinDirStat's own prompts control deletion.
 
-This prototype retains WinDirStat's toolbar, colours and controls. Native dialogs
-can open separately. Small windows have less room for the file columns and chart;
-maximise Settings for detailed browsing. Open Prefect as administrator before
+The native interface samples the current Settings theme at scan startup, including
+backgrounds, text, borders, selected tabs/rows, font family/size and coordinated
+graph colours. It follows the tactical command deck's scoped resources rather
+than the overlay's older palette. Each new scan samples the theme again. Windows
+high contrast takes precedence inside WinDirStat. WinDirStat retains its native
+toolbar icons, control shapes and dialogs; dialogs can open separately.
+Settings remains full screen. Open Prefect as administrator before
 scanning protected folders. Elevating/relaunching from within WinDirStat is outside
 the embedded prototype and can open a separate window. Settings for each embedded
 session are temporary and do not reuse standalone WinDirStat preferences.
 
-The GPL licence and upstream source archive are included; **Licence and source**
-opens an offline copy. The official executable is checked against its pinned
-SHA-256 before launch. No separate WinDirStat installation is required.
+The GPL licence and complete modified source archive are included; **Licence and source**
+opens an offline copy. This unsigned themed build is identified separately from
+the official upstream release and is checked against its pinned
+SHA-256 before launch. No separate WinDirStat installation is required. The source
+includes the native changes and xxHash source/licence; developers can rebuild it
+with `scripts/Build-WinDirStat.ps1` and Visual Studio C++ v145, Windows SDK and ATL.
 
 Validation uses disposable folders and actual native windows, including Unicode
 paths, invalid targets, resize/tab/hide/restore, close/retry and app lifetime.

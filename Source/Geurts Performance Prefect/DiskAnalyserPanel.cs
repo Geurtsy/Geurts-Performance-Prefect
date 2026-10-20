@@ -32,7 +32,7 @@ public sealed class DiskAnalyserPanel : DockPanel
         var actions = new WrapPanel { Margin = new Thickness(0,8,0,0) };
         actions.Children.Add(CloseButton); actions.Children.Add(source); heading.Children.Add(actions);
         heading.Children.Add(Status);
-        heading.Children.Add(Note("WinDirStat 2.9.3 retains its own interface. Native dialogs may open separately. For protected folders, open Prefect as administrator before scanning. Close the analyser before restarting or updating Prefect."));
+        heading.Children.Add(Note("WinDirStat follows Prefect’s current colours and font when a scan starts. Native dialogs may open separately. For protected folders, open Prefect as administrator before scanning. Close the analyser before restarting or updating Prefect."));
         SetDock(heading, Dock.Top); Children.Add(heading);
         Children.Add(new Border { Background = Palette.Panel, Child = Host });
         System.Windows.Automation.AutomationProperties.SetName(Target, "Drive or folder to analyse");
@@ -66,7 +66,7 @@ public sealed class DiskAnalyserPanel : DockPanel
         {
             var target = WinDirStatSession.ValidateTarget(Target.Text);
             starting = true; UpdateButtons(); Status.Text = "Opening WinDirStat for " + target + "…";
-            Session = new WinDirStatSession();
+            Session = new WinDirStatSession(WinDirStatTheme.Capture(this));
             await Session.StartAsync(target);
             Host.Attach(Session.Window);
             Status.Text = "WinDirStat is embedded. Browse the results below; switching tabs keeps this session running.";

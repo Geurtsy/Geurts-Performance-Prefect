@@ -1,17 +1,21 @@
-WinDirStat 2.9.3, Windows x64, unmodified upstream executable.
-Copyright WinDirStat Team. GPL-3.0-or-later.
+WinDirStat 2.9.3, Windows x64, Geurts Performance Prefect theme build.
+Copyright WinDirStat Team. Theme adapter copyright 2026 Geurts. GPL-3.0-or-later.
+Modified on 2026-10-20; unsigned local build, not an official upstream binary.
 
 Release: https://github.com/windirstat/windirstat/releases/tag/release/v2.9.3
 Portable archive: https://github.com/windirstat/windirstat/releases/download/release/v2.9.3/WinDirStat.zip
 Portable archive SHA256: c980fee14389eb3a160415b0a07361900f3630f232501884863fec40f369a4a4
-x64/WinDirStat.exe SHA256: c6925752fe688aa72115723f23dbb95a7e1c55f094a7d7f30acb5f509a38045b
-Authenticode signature verified on acquisition: Open Source Developer Bryan Berns.
+x64/WinDirStat.exe SHA256: cea983f7e797d0961ed43a0803c2ea35d6e49e0a9c6ac21403d6cdf999bc927e
+Built with Visual Studio 2026 C++ v145 (14.51), Windows SDK and ATL.
 
-WinDirStat-source.zip is the unmodified upstream source archive for that release:
+Original upstream source:
 https://codeload.github.com/windirstat/windirstat/zip/refs/tags/release/v2.9.3
-Source archive SHA256: cb8c3c89a53d659c5c736a667af2b21f63a95e9e614d68e95027b19fd28df410
-Upstream project includes build instructions and dependency acquisition scripts.
-The build requires the Windows C++ toolchain and retrieves xxHash when absent.
+Original source archive SHA256: cb8c3c89a53d659c5c736a667af2b21f63a95e9e614d68e95027b19fd28df410
+Bundled modified source archive SHA256: 5ba3ca43ada97e4264dfe2875e467f899edd9f8c1d7b4428e6c49f7e1bb5cc78
+Includes all modified sources, PREFECT-CHANGES.md, and pinned xxHash v0.8.3
+source/licence. Build with scripts/Build-WinDirStat.ps1 into a fresh directory.
+The adapter reads the host's colours/font from its private portable INI at launch.
+High contrast uses Windows colours. Scanning/deletion/elevation logic is unchanged.
 
 Both binary and source ZIP are embedded resources in Prefect's assembly, so
 previous Prefect updaters can deliver them without expanding their file allowlist.
