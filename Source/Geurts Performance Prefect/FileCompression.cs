@@ -221,7 +221,13 @@ internal sealed class FileCompression
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
     }
     static bool Same(string a, string b) => string.Equals(Path.TrimEndingDirectorySeparator(a), Path.TrimEndingDirectorySeparator(b), StringComparison.OrdinalIgnoreCase);
-    static bool Contains(string parent, string child) => Same(parent, child) || child.StartsWith(Path.TrimEndingDirectorySeparator(parent) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    static bool Contains(string parent, string child)
+    {
+        parent = Path.TrimEndingDirectorySeparator(parent);
+        // Drive roots retain their trailing separator; appending another rejects every child.
+        var prefix = Path.EndsInDirectorySeparator(parent) ? parent : parent + Path.DirectorySeparatorChar;
+        return Same(parent, child) || child.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    }
     internal static string Size(long bytes) => bytes >= 1024L * 1024 * 1024 ? $"{bytes / (1024d * 1024 * 1024):0.##} GB" : bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.##} MB" : bytes >= 1024 ? $"{bytes / 1024d:0.##} KB" : $"{bytes} bytes";
 
     [StructLayout(LayoutKind.Sequential)]

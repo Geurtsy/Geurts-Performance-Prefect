@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.34.1
+
+- Fixed whole-drive compression incorrectly skipping every file as “Outside the approved drive.” Drive roots already end in a separator; the containment check now preserves that boundary when accepting their files.
+- Added a regression that reproduced the failure before the fix and validates actual drive-root approval for compression and decompression of disposable direct/nested files. Different-drive, neighbouring-folder and protected-file exclusions remain enforced.
+- Re-run Preview entire drive after manually installing this release, then confirm compression. The failed 1.34.0 run reporting zero changed files did not compress them. No real drive was compressed during validation; local installation remains manual.
+
 # Geurts Performance Prefect 1.34.0
 
 - Added Choose entire drive to Settings → File compression. Select a local NTFS drive root, preview the accessible tree, then confirm Compress or Decompress for the full eligible count. Files stay directly readable; no work starts from selecting a drive.

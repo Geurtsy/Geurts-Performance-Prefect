@@ -19,6 +19,9 @@ exclusive temporary snapshot and removed after use, replacement, cancellation,
 Settings close or process termination. Drive mode has no 10,000-file/100,000-entry
 cutoff. Only files from the completed preview may change, and excluded folders
 are never traversed. Folder and drive compression inheritance stays unchanged.
+Version 1.34.1 fixes a 1.34.0 drive-root boundary bug that could skip every file
+as “Outside the approved drive.” After installing the fix, preview again and
+confirm compression; a previous result with zero changed files changed nothing.
 
 Savings vary: photos, videos and archives often save little. Compression uses extra
 CPU during access; performance can vary. Decompression requires enough free space,

@@ -14,6 +14,7 @@ internal static class DriveCompressionVerification
         // A disposable tree stands in for a volume. No test enumerates or compresses a real drive root.
         var root = Path.Combine(folder, "drive-compression-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        VerifyActualDriveRoot(Path.Combine(folder, "actual-drive-root-" + Guid.NewGuid().ToString("N")), check);
         var excluded = new[] { "Windows/System32/protected.dll", "Program Files/tool/tool.dat", "Program Files (x86)/tool/tool.dat",
             "ProgramData/tool.dat", "Boot/BCD", "EFI/boot.dat", "Recovery/recovery.dat", "$Recycle.Bin/bin.dat",
             "System Volume Information/volume.dat", "Windows.old/old.dat", "Users/Someone/AppData/Local/preferences.json", "pagefile.sys" }
@@ -88,6 +89,38 @@ internal static class DriveCompressionVerification
             check(cancelled && !Directory.GetFiles(Path.GetTempPath(), "Prefect-compression-*.jsonl").Except(before).Any(),
                 "Cancelling a drive scan discards the partial snapshot without leaving temporary files");
         }
+        File.SetAttributes(readOnly, FileAttributes.Normal);
+    }
+    static void VerifyActualDriveRoot(string fixture, Action<bool, string> check)
+    {
+        // Exercise a real C:\-style approved root, but enumerate/change only these disposable files.
+        var data = Path.Combine(fixture, "root-boundary-fixture"); Directory.CreateDirectory(data);
+        var file = Path.Combine(data, "readable.txt");
+        var nested = Path.Combine(data, "nested", "日本語.txt"); Directory.CreateDirectory(Path.GetDirectoryName(nested)!);
+        var content = string.Concat(Enumerable.Repeat("real drive root compression regression\r\n", 16384));
+        File.WriteAllText(file, content); File.WriteAllText(nested, content);
+        var readOnly = Path.Combine(data, "read-only.txt"); File.WriteAllText(readOnly, "protected fixture"); File.SetAttributes(readOnly, FileAttributes.ReadOnly);
+        var engine = new FileCompression(); var driveRoot = Path.GetPathRoot(data)!;
+        using (var approved = engine.PreviewDriveContents(data, CancellationToken.None) with { DriveRoot = driveRoot })
+        {
+            var result = engine.Apply(approved, true, CancellationToken.None);
+            check(result.Changed == 2 && result.Skipped == 0 && result.After < result.Before &&
+                new[] { file, nested }.All(f => (File.GetAttributes(f) & FileAttributes.Compressed) != 0 && File.ReadAllText(f) == content),
+                "A real drive-root approval compresses disposable direct/nested files instead of rejecting them as outside the drive: " + result.Message + string.Join("; ", result.Issues));
+        }
+        using (var approved = engine.PreviewDriveContents(data, CancellationToken.None) with { DriveRoot = driveRoot })
+            check(engine.Apply(approved, false, CancellationToken.None).Changed == 2 &&
+                new[] { file, nested }.All(f => (File.GetAttributes(f) & FileAttributes.Compressed) == 0 && File.ReadAllText(f) == content),
+                "Real drive-root approval also supports byte-preserving decompression");
+        var wrongDrive = (char.ToUpperInvariant(driveRoot[0]) == 'Z' ? "Y" : "Z") + @":\";
+        var denied = engine.Preview(new[] { file }, CancellationToken.None) with { DriveRoot = wrongDrive };
+        var rejected = engine.Apply(denied, true, CancellationToken.None);
+        check(rejected.Changed == 0 && rejected.Skipped == 1 && rejected.Issues.Single().Contains("Outside the approved drive"),
+            "Root separator handling continues to reject a file approved for a different drive");
+        var neighbour = engine.Preview(new[] { file }, CancellationToken.None) with { DriveRoot = data[..^1] };
+        rejected = engine.Apply(neighbour, true, CancellationToken.None);
+        check(rejected.Changed == 0 && rejected.Skipped == 1 && (File.GetAttributes(readOnly) & FileAttributes.Compressed) == 0 && File.ReadAllText(readOnly) == "protected fixture",
+            "Folder boundary and read-only protections remain enforced with root approvals");
         File.SetAttributes(readOnly, FileAttributes.Normal);
     }
     static void Await(Task task)
