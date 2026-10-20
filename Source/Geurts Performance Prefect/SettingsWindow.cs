@@ -104,6 +104,7 @@ public sealed class SettingsWindow : Window
         this.overlay = overlay;
         StorageSensePanel = new StorageSensePanel(overlay.StorageSense, overlay.Settings, overlay.Store);
         Closed += (_, _) => StorageSensePanel.Dispose();
+        Closed += (_, _) => FileCompressionPanel.Dispose();
         BitLockerPanel = bitLocker ?? new BitLockerPanel(() => overlay.RestartElevated(openSecurity: true));
         Console = console ?? new DiagnosticConsole();
         this.parking = parking ?? new CoreParking();

@@ -9,26 +9,44 @@ Nothing runs automatically. Folder previews include subfolders, but only existin
 previewed files change; this action does not enable compression inheritance for
 future files. A fresh preview is required after an operation.
 
+For a whole drive, click **Choose entire drive…** and select its root (for example,
+`C:\`), then **Preview entire drive**. Selecting a drive starts no scan or changes.
+The completed preview reports totals across the accessible drive and shows the
+first 500 eligible files. **Compress eligible drive files…** and **Decompress
+eligible drive files…** explicitly confirm the drive and full eligible count,
+including files beyond the displayed rows. The complete preview is kept in an
+exclusive temporary snapshot and removed after use, replacement, cancellation,
+Settings close or process termination. Drive mode has no 10,000-file/100,000-entry
+cutoff. Only files from the completed preview may change, and excluded folders
+are never traversed. Folder and drive compression inheritance stays unchanged.
+
 Savings vary: photos, videos and archives often save little. Compression uses extra
 CPU during access; performance can vary. Decompression requires enough free space,
 including a 64 MB reserve checked before each file. **Stop** waits for the current
 file and keeps completed changes. Settings close, app exit, restart and updating
 wait until this work finishes or stops.
 
-Only local NTFS paths are supported. Whole drives, Windows, Program Files,
-ProgramData, Prefect and user application/settings folders are protected. System,
+Only available local fixed/removable NTFS drives are supported. Windows, standard
+Program Files/ProgramData directories, this copy of Prefect, application/settings
+paths, boot/recovery directories, root paging/hibernation/boot files, the Recycle
+Bin and System Volume Information are protected. These standard exclusions apply
+on secondary drives too. AppData paths for all users are excluded, and Windows
+Resource Protection is checked for individual files. System,
 read-only, encrypted, sparse, offline/cloud placeholder, hard-linked and redirected
 files are skipped, as are files over 30 GB. Windows permissions and file locks are
 respected. Changed, replaced, missing and newly locked files are rechecked after
-preview and skipped. A preview lists up to 10,000 eligible files and visits up to
-100,000 entries; limits and skipped items are reported with the first 100 issue
-details. Actual disk usage is shown after each operation. This is separate from
+preview and skipped. File/folder previews list up to 10,000 eligible files and visit
+up to 100,000 entries. Drive previews cover the full accessible tree. Skipped counts
+include excluded folders, without counting every file inside them. Limits and
+the first 100 issue details are reported. Actual disk usage is shown after each operation. This is separate from
 Windows Compact OS and does not compress the operating system.
 
 `--file-compression-test <report-file>` runs isolated real NTFS compression,
 read/edit/decompress, confirmation, cancellation and path-safety fixtures under
 the report folder. Normal startup actions, live settings and installed apps are
-bypassed. The full `--self-test` also verifies Settings layout and operation lifetime.
+bypassed. Drive-mode tests use a disposable folder representing a volume, including
+over 10,000 eligible files and protected sentinels; they never compress a real drive.
+The full `--self-test` also verifies Settings layout and operation lifetime.
 
 **Settings → Storage Sense** previews and permanently removes old files in your
 current user's `%LOCALAPPDATA%\Temp` folder. Select a minimum age (7–365 days;

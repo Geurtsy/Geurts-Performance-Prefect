@@ -1,11 +1,15 @@
-GEURTS PERFORMANCE PREFECT 1.33.0 — WINDOWS x64
+GEURTS PERFORMANCE PREFECT 1.34.0 — WINDOWS x64
 
 FILE COMPRESSION
 Settings > File compression saves disk space with lossless NTFS compression.
 Choose files or a data folder, preview sizes and states, then confirm Compress
 or Decompress. Files stay readable and editable normally; no extraction is needed.
 Nothing runs automatically. Only existing previewed files change; folder defaults
-stay unchanged. Whole drives and protected folders are excluded. Stop waits for
+stay unchanged. Choose entire drive accepts a local NTFS drive root such as C:\.
+Preview entire drive scans eligible files while skipping Windows, standard app
+and settings folders, all users' AppData, boot/recovery paths and protected files.
+Totals and confirmation include every eligible previewed file; the list displays
+the first 500. Drive preview has no file-count cutoff. Stop waits for
 the current file and keeps completed changes. Decompression needs free space.
 Savings and performance vary, especially for already compressed media/archives.
 

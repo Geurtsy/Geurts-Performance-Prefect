@@ -127,6 +127,7 @@ internal static class FileCompressionVerification
         check(File.ReadAllText(sentinel) == "outside preserved" && Hash(original) == nestedHash, "Outside sentinels and moved originals remain byte-for-byte unchanged");
         // Fixtures remain under Verification for inspection; remove the junction itself without traversing it.
         Directory.Delete(junction); File.SetAttributes(readOnly, FileAttributes.Normal);
+        DriveCompressionVerification.Run(folder, check);
     }
     static void Await(Task task)
     {

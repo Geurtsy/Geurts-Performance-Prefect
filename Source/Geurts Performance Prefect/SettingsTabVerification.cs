@@ -138,7 +138,13 @@ public static class SettingsTabVerification
                 }
                 if (selected == compressionScroll)
                 {
+                    panel.FileCompressionPanel.SelectDrive(Path.GetPathRoot(folder)!);
                     panel.Height = Math.Min(width == 600 ? 700 : 920, panel.MaxHeight); panel.UpdateLayout();
+                    selected.ScrollToTop(); selected.UpdateLayout();
+                    Capture(panel, Path.Combine(folder, "settings-drive-picker-" + width + ".png"), width, width == 600 ? 700 : 920);
+                    var pickBounds = panel.FileCompressionPanel.ChooseDrive.TransformToAncestor(selected).TransformBounds(new Rect(panel.FileCompressionPanel.ChooseDrive.RenderSize));
+                    check(pickBounds.Top >= 0 && pickBounds.Bottom <= selected.ViewportHeight && pickBounds.Right <= selected.ViewportWidth,
+                        "Entire-drive selection remains reachable at width " + width);
                     selected.ScrollToVerticalOffset(panel.FileCompressionPanel.CompressButton.TransformToAncestor((Visual)selected.Content).Transform(new Point()).Y - 20);
                     selected.UpdateLayout();
                     Capture(panel, Path.Combine(folder, "settings-file-compression-" + width + ".png"), width, width == 600 ? 700 : 920);
@@ -147,6 +153,7 @@ public static class SettingsTabVerification
                     check(actionBounds.Top >= 0 && actionBounds.Bottom <= selected.ViewportHeight && actionBounds.Right <= selected.ViewportWidth &&
                         reverseBounds.Right <= selected.ViewportWidth,
                         "Compression actions wrap and remain reachable at width " + width);
+                    panel.FileCompressionPanel.SelectPaths(new[] { compressionFixture });
                     selected.ScrollToTop(); selected.UpdateLayout();
                 }
             }

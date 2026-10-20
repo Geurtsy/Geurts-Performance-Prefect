@@ -14,7 +14,17 @@ internal sealed record CompressionFile(string Path, long Length, long DiskBytes,
 {
     public override string ToString() => $"{Path}\n{FileCompression.Size(Length)} · on disk {FileCompression.Size(DiskBytes)} · {(Compressed ? "compressed" : "uncompressed")}";
 }
-internal sealed record CompressionPreview(CompressionFile[] Files, int Skipped, string[] Issues, bool Limited);
+internal sealed record CompressionPreview(CompressionFile[] Files, int Skipped, string[] Issues, bool Limited) : IDisposable
+{
+    internal CompressionSnapshot? Snapshot { get; init; }
+    internal string? DriveRoot { get; init; }
+    internal long Count => Snapshot?.Count ?? Files.LongLength;
+    internal long Length => Snapshot?.Length ?? Files.Sum(f => f.Length);
+    internal long DiskBytes => Snapshot?.DiskBytes ?? Files.Sum(f => f.DiskBytes);
+    internal long CompressedCount => Snapshot?.CompressedCount ?? Files.LongCount(f => f.Compressed);
+    internal IEnumerable<CompressionFile> AllFiles => Snapshot?.Read() ?? Files;
+    public void Dispose() => Snapshot?.Dispose();
+}
 internal sealed record CompressionResult(int Changed, int Skipped, long Before, long After, bool Stopped, string[] Issues)
 {
     public string Message => $"{(Stopped ? "Stopped" : "Finished")}: changed {Changed} file(s), skipped {Skipped}. " +
@@ -27,6 +37,13 @@ internal sealed class FileCompression
 {
     internal const int MaxFiles = 10_000, MaxEntries = 100_000;
     readonly string[] protectedPaths;
+    static readonly HashSet<string> ProtectedRootNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Windows", "Windows.old", "Program Files", "Program Files (x86)", "ProgramData", "Recovery", "Boot", "EFI",
+        "$Recycle.Bin", "System Volume Information", "$Windows.~BT", "$Windows.~WS", "$WinREAgent", "Config.Msi", "MSOCache",
+        "Documents and Settings", "pagefile.sys", "swapfile.sys", "hiberfil.sys", "bootmgr", "BOOTNXT", "BOOTSECT.BAK",
+        "ntldr", "NTDETECT.COM", "boot.ini", "DumpStack.log", "DumpStack.log.tmp", "MEMORY.DMP"
+    };
     internal FileCompression(params string[] extraProtectedPaths)
     {
         protectedPaths = new[] { AppContext.BaseDirectory, new SettingsStore().Path,
@@ -39,55 +56,87 @@ internal sealed class FileCompression
             .Concat(extraProtectedPaths).Where(p => !string.IsNullOrWhiteSpace(p)).Select(Path.GetFullPath).ToArray();
     }
 
-    internal CompressionPreview Preview(IEnumerable<string> selections, CancellationToken stop, Action<string>? progress = null)
+    internal CompressionPreview Preview(IEnumerable<string> selections, CancellationToken stop, Action<string>? progress = null) =>
+        Scan(selections, stop, progress, null);
+
+    internal CompressionPreview PreviewDrive(string root, CancellationToken stop, Action<string>? progress = null)
     {
-        var files = new List<CompressionFile>(); var issues = new List<string>(); int skipped = 0, visited = 0;
+        root = Normalize(root);
+        if (!Same(root, Path.GetPathRoot(root)!)) throw new IOException("Select the root of one local NTFS drive, such as C:\\.");
+        ValidatePath(root, allowRoot: true);
+        return PreviewDriveContents(root, stop, progress);
+    }
+
+    // The same walker supports an isolated folder representing a drive tree in verification.
+    internal CompressionPreview PreviewDriveContents(string root, CancellationToken stop, Action<string>? progress = null) =>
+        Scan(new[] { Normalize(root) }, stop, progress, Normalize(root));
+
+    CompressionPreview Scan(IEnumerable<string> selections, CancellationToken stop, Action<string>? progress, string? driveRoot)
+    {
+        var files = new List<CompressionFile>(); var issues = new List<string>(); int skipped = 0; long visited = 0;
         bool limited = false;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var pending = new Stack<string>(selections.Select(Normalize));
-        while (pending.TryPop(out var path))
+        var pending = new Stack<IEnumerator<string>>();
+        CompressionSnapshot? snapshot = driveRoot == null ? null : new CompressionSnapshot();
+        pending.Push(selections.Select(Normalize).GetEnumerator());
+        try
         {
-            stop.ThrowIfCancellationRequested();
-            if (!seen.Add(path)) continue;
-            if (++visited > MaxEntries || files.Count >= MaxFiles) { limited = true; break; }
-            try
+            while (pending.TryPeek(out var iterator))
             {
-                ValidatePath(path);
-                if ((File.GetAttributes(path) & FileAttributes.Directory) != 0)
+                stop.ThrowIfCancellationRequested();
+                string path;
+                try
                 {
-                    // Lazy enumeration keeps even an unusually large single directory bounded.
-                    foreach (var child in Directory.EnumerateFileSystemEntries(path))
+                    if (!iterator.MoveNext()) { pending.Pop().Dispose(); continue; }
+                    path = iterator.Current;
+                }
+                catch (Exception ex) when (Expected(ex))
+                {
+                    pending.Pop().Dispose(); skipped++; if (issues.Count < 100) issues.Add("Folder enumeration: " + ex.Message); continue;
+                }
+                // A drive has one root and links are never followed, so it needs no growing path set.
+                if (driveRoot == null && !seen.Add(path)) continue;
+                if (driveRoot == null && (visited >= MaxEntries || files.Count >= MaxFiles)) { limited = true; break; }
+                visited++;
+                try
+                {
+                    ValidatePath(path, allowRoot: driveRoot != null && Same(path, driveRoot), policyRoot: driveRoot);
+                    if ((File.GetAttributes(path) & FileAttributes.Directory) != 0)
+                        pending.Push(Directory.EnumerateFileSystemEntries(path).GetEnumerator());
+                    else
                     {
-                        stop.ThrowIfCancellationRequested();
-                        if (pending.Count + visited >= MaxEntries) { limited = true; break; }
-                        pending.Push(child);
+                        CompressionFile file;
+                        using (var handle = Open(path, write: false)) file = Inspect(path, handle, driveRoot);
+                        // Snapshot write errors must abort the preview, rather than silently omit files.
+                        snapshot?.Add(file);
+                        if (snapshot == null || files.Count < CompressionSnapshot.DisplayLimit) files.Add(file);
                     }
                 }
-                else
-                {
-                    using var handle = Open(path, write: false);
-                    files.Add(Inspect(path, handle));
-                    if (files.Count % 50 == 0) progress?.Invoke($"Previewing… {files.Count} eligible file(s).");
-                }
+                catch (Exception ex) when (Expected(ex) && ex is not CompressionSnapshotException)
+                { skipped++; if (issues.Count < 100) issues.Add(path + ": " + ex.Message); }
+                if (visited % 100 == 0) progress?.Invoke($"Previewing… {snapshot?.Count ?? files.Count} eligible file(s), {skipped} skipped. {path}");
             }
-            catch (Exception ex) when (Expected(ex)) { skipped++; if (issues.Count < 100) issues.Add(path + ": " + ex.Message); }
+            snapshot?.Complete();
+            return new(files.ToArray(), skipped, issues.ToArray(), limited) { Snapshot = snapshot, DriveRoot = driveRoot };
         }
-        return new(files.ToArray(), skipped, issues.ToArray(), limited);
+        catch { snapshot?.Dispose(); throw; }
+        finally { while (pending.TryPop(out var iterator)) iterator.Dispose(); }
     }
 
     internal CompressionResult Apply(CompressionPreview preview, bool compress, CancellationToken stop, Action<string>? progress = null)
     {
         int changed = 0, skipped = 0; long before = 0, after = 0; var issues = new List<string>();
-        foreach (var file in preview.Files)
+        foreach (var file in preview.AllFiles)
         {
             if (stop.IsCancellationRequested) break;
             if (file.Compressed == compress) { skipped++; continue; }
             try
             {
-                ValidatePath(file.Path);
+                if (preview.DriveRoot != null && !Contains(preview.DriveRoot, file.Path)) throw new IOException("Outside the approved drive.");
+                ValidatePath(file.Path, policyRoot: preview.DriveRoot);
                 // No sharing: no writer, rename, replacement or deletion while checking/changing this file.
                 using var handle = Open(file.Path, write: true);
-                var current = Inspect(file.Path, handle);
+                var current = Inspect(file.Path, handle, preview.DriveRoot);
                 if (current.Identity != file.Identity || current.Volume != file.Volume || current.Length != file.Length ||
                     current.Modified != file.Modified || current.Compressed != file.Compressed)
                     throw new IOException("Changed since preview; preview again.");
@@ -97,11 +146,11 @@ internal sealed class FileCompression
                     if (drive.AvailableFreeSpace < Math.Max(0, file.Length - current.DiskBytes) + 64L * 1024 * 1024)
                         throw new IOException("Not enough free space to decompress with a 64 MB reserve.");
                 }
-                progress?.Invoke($"{(compress ? "Compressing" : "Decompressing")} {changed + skipped + 1}/{preview.Files.Length}: {file.Path}");
+                progress?.Invoke($"{(compress ? "Compressing" : "Decompressing")} {changed + skipped + 1}/{preview.Count}: {file.Path}");
                 ushort format = (ushort)(compress ? 1 : 0);
                 if (!DeviceIoControl(handle, 0x0009C040, ref format, 2, IntPtr.Zero, 0, out _, IntPtr.Zero))
                     throw NativeError();
-                var result = Inspect(file.Path, handle);
+                var result = Inspect(file.Path, handle, preview.DriveRoot);
                 if (result.Compressed != compress) throw new IOException("Windows did not confirm the requested compression state.");
                 changed++; before += current.DiskBytes; after += result.DiskBytes;
             }
@@ -110,14 +159,14 @@ internal sealed class FileCompression
         return new(changed, skipped, before, after, stop.IsCancellationRequested, issues.ToArray());
     }
 
-    void ValidatePath(string path)
+    void ValidatePath(string path, bool allowRoot = false, string? policyRoot = null)
     {
-        if (Same(path, Path.GetPathRoot(path)!)) throw new IOException("Choose files or a data folder, rather than an entire drive.");
+        if (!allowRoot && Same(path, Path.GetPathRoot(path)!)) throw new IOException("Use Choose entire drive for an explicit drive-wide preview.");
         if (path.StartsWith(@"\\", StringComparison.Ordinal) || path.IndexOf(':', 2) >= 0) throw new IOException("Only local files on an NTFS drive are supported.");
-        if (protectedPaths.Any(p => Contains(p, path))) throw new IOException("Windows, application and settings folders are protected.");
+        if (IsProtectedPath(path, policyRoot)) throw new IOException("Windows, application, boot, recovery and settings paths are protected.");
         var drive = new DriveInfo(Path.GetPathRoot(path)!);
-        if (!drive.IsReady || !drive.DriveFormat.Equals("NTFS", StringComparison.OrdinalIgnoreCase))
-            throw new IOException("This feature requires an available NTFS drive.");
+        if (drive.DriveType is not (DriveType.Fixed or DriveType.Removable) || !drive.IsReady || !drive.DriveFormat.Equals("NTFS", StringComparison.OrdinalIgnoreCase))
+            throw new IOException("This feature requires an available local NTFS drive.");
         for (string? current = path; current != null; current = Path.GetDirectoryName(current))
         {
             var attributes = File.GetAttributes(current);
@@ -127,15 +176,24 @@ internal sealed class FileCompression
         }
     }
 
-    CompressionFile Inspect(string path, SafeFileHandle handle)
+    internal bool IsProtectedPath(string path, string? policyRoot = null)
+    {
+        if (protectedPaths.Any(p => Contains(p, path))) return true;
+        var relative = Path.GetRelativePath(policyRoot ?? Path.GetPathRoot(path)!, path);
+        var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return ProtectedRootNames.Contains(parts[0]) || parts.Any(p => p.Equals("AppData", StringComparison.OrdinalIgnoreCase));
+    }
+
+    CompressionFile Inspect(string path, SafeFileHandle handle, string? policyRoot = null)
     {
         var final = new StringBuilder(32768);
         var count = GetFinalPathNameByHandle(handle, final, (uint)final.Capacity, 0);
         if (count == 0 || count >= final.Capacity) throw NativeError();
         var resolved = final.ToString();
         if (resolved.StartsWith(@"\\?\", StringComparison.Ordinal)) resolved = resolved[4..];
-        if (!Same(path, resolved) || protectedPaths.Any(p => Contains(p, resolved)))
+        if (!Same(path, resolved) || IsProtectedPath(resolved, policyRoot))
             throw new IOException("The file resolves to a different or protected location.");
+        if (SfcIsFileProtected(IntPtr.Zero, resolved)) throw new IOException("Windows Resource Protection protects this file.");
         if (!GetFileInformationByHandle(handle, out var info)) throw NativeError();
         var flags = (FileAttributes)info.Attributes;
         if ((flags & (FileAttributes.Directory | FileAttributes.ReparsePoint | FileAttributes.Encrypted | FileAttributes.SparseFile |
@@ -182,4 +240,6 @@ internal sealed class FileCompression
     static extern uint GetCompressedFileSize(string path, out uint high);
     [DllImport("kernel32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
     static extern bool DeviceIoControl(SafeFileHandle handle, uint control, ref ushort input, uint size, IntPtr output, uint outputSize, out uint returned, IntPtr overlapped);
+    [DllImport("sfc.dll", CharSet = CharSet.Unicode, ExactSpelling = true)] [return: MarshalAs(UnmanagedType.Bool)]
+    static extern bool SfcIsFileProtected(IntPtr rpcHandle, string path);
 }

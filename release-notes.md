@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.34.0
+
+- Added Choose entire drive to Settings → File compression. Select a local NTFS drive root, preview the accessible tree, then confirm Compress or Decompress for the full eligible count. Files stay directly readable; no work starts from selecting a drive.
+- Automatically excludes Windows, standard application/settings folders, all users' AppData, boot/recovery paths, root paging/hibernation/boot files, Recycle Bin and System Volume Information. Individual Windows Resource Protection, attributes, links, permissions, locks and post-preview file identity checks remain enforced. Folder and drive compression inheritance stays unchanged.
+- Drive previews use an exclusive temporary snapshot for the complete eligible list and totals, with the first 500 files displayed. This removes file/folder scan limits for drive mode without retaining the full list in memory. Snapshots are removed on use, replacement, cancellation, close or process termination. Confirmation covers all eligible previewed files, including those beyond the displayed rows.
+- Validated full snapshot processing beyond 10,000 files, protected sentinels, preview/confirmation, snapshot cleanup, cancellation, reversal and narrow/default Settings layouts using isolated fixtures. No real drive was compressed during testing. Local installation remains manual.
+
 # Geurts Performance Prefect 1.33.0
 
 - Added Settings → File compression with explicit file/folder selection, a size/state preview, confirmed Compress and Decompress actions, progress, Stop and actual disk-usage results. Windows NTFS compression is lossless; files keep their names and open and edit normally without extraction or Prefect running.
