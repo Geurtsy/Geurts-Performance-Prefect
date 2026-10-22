@@ -196,7 +196,7 @@ internal sealed class SettingsHudPreview : StackPanel
     {
         DisplayedLayout = overlay.Settings.HudLayout;
         frame.Width = CompactHud.Width(DisplayedLayout);
-        frame.Padding = new Thickness(DisplayedLayout == HudLayout.Standard ? 14 : 9);
+        frame.Padding = new Thickness(DisplayedLayout is HudLayout.Standard or HudLayout.StandardVertical ? 14 : 9);
         frame.Background = DisplayedLayout == HudLayout.Standard ? Palette.Background : CompactHud.Background;
         frame.BorderBrush = DisplayedLayout == HudLayout.Standard ? Palette.Track : CompactHud.Line;
         System.Windows.Documents.TextElement.SetFontFamily(readings,new FontFamily(DisplayedLayout == HudLayout.Standard ? "Segoe UI" : "Bahnschrift"));

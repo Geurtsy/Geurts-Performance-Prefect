@@ -44,6 +44,9 @@ internal static class HudLayoutVerification
             "Existing preferences retain Standard HUD and their original values");
         var invalid = new OverlaySettings { HudLayout = (HudLayout)999 }; invalid.Normalise();
         check(invalid.HudLayout == HudLayout.Standard,"Invalid saved HUD layouts recover to Standard");
+        check((int)HudLayout.Standard == 0 && (int)HudLayout.CompactVertical == 1 && (int)HudLayout.MinimalVertical == 2 &&
+            JsonSerializer.Deserialize<OverlaySettings>("{\"HudLayout\":2}")!.HudLayout == HudLayout.MinimalVertical,
+            "Adding Standard vertical preserves every previously saved layout identity");
         var store = new SettingsStore(Path.Combine(folder,"hud-layout-settings.json"));
         var settings = new OverlaySettings();
         var overlay = new OverlayWindow(store,settings,verification:true,cursorPosition:()=>new Point(-100000,-100000));
@@ -67,8 +70,8 @@ internal static class HudLayoutVerification
         {
             overlay.Show(); overlay.Receive(snapshot); panel.Show();
             SettingsTabVerification.Select(panel,panel.HudLayoutSelector);
-            check(panel.HudLayoutSelector.Items.Count == 3 && panel.Hud.OverlayPage == "Appearance",
-                "Overlay Appearance offers Standard, Compact vertical and Minimal vertical");
+            check(panel.HudLayoutSelector.Items.Count == 4 && panel.Hud.OverlayPage == "Appearance",
+                "Overlay Appearance offers Standard, Standard vertical, Compact vertical and Minimal vertical");
             foreach (var layout in Enum.GetValues<HudLayout>())
             {
                 panel.HudLayoutSelector.SelectedValue = layout; Pump(overlay,panel);
@@ -80,6 +83,9 @@ internal static class HudLayoutVerification
                     overlay.MetricRows[Metric.CpuUsage].ApplicationText.Contains("Prefect fixture") && overlay.DriveRows["fixture-c"].ApplicationText.Contains("/s"),
                     layout + " reuses live FPS, hardware and per-drive application readings");
                 var minimal = layout == HudLayout.MinimalVertical;
+                check(overlay.MetricRows.Values.Concat(overlay.DriveRows.Values).All(row => row.IconVisible == (layout == HudLayout.StandardVertical)) &&
+                    (layout != HudLayout.StandardVertical || overlay.MetricRows[Metric.CpuUsage].ValueFontSize == 24),
+                    layout + " uses its approved icon visibility and value size");
                 check(overlay.MetricRows.Values.Concat(overlay.DriveRows.Values).All(row => row.DetailsVisible == !minimal) &&
                     overlay.MetricRows[Metric.CpuUsage].ApplicationVisible == !minimal && overlay.MetricRows[Metric.CpuUsage].MeterVisible == !minimal,
                     layout + " shows only the information approved for that design");
@@ -90,17 +96,17 @@ internal static class HudLayoutVerification
                     layout + " persists without replacing other preferences");
                 Capture(overlay,Path.Combine(folder,"hud-" + layout + ".png"));
                 heights[layout] = overlay.ActualHeight;
-                if (layout == HudLayout.CompactVertical)
+                if (layout is HudLayout.CompactVertical or HudLayout.StandardVertical)
                 {
                     var expander = overlay.MetricRows[Metric.CpuUsage].DetailsExpander;
                     var accessible = (IExpandCollapseProvider)new ExpanderAutomationPeer(expander).GetPattern(PatternInterface.ExpandCollapse);
                     accessible.Expand(); Pump(overlay,panel);
                     check(expander.IsExpanded && ((FrameworkElement)expander.Content).IsVisible && overlay.ActualHeight > heights[layout],
-                        "Compact readings expand real sensor and application details through native accessibility");
-                    Capture(overlay,Path.Combine(folder,"hud-compact-expanded.png"));
+                        layout + " readings expand real sensor and application details through native accessibility");
+                    Capture(overlay,Path.Combine(folder,"hud-" + layout + "-expanded.png"));
                     accessible.Collapse(); Pump(overlay,panel);
                     check(!expander.IsExpanded && Math.Abs(overlay.ActualHeight - heights[layout]) < 2,
-                        "Collapsing reading details restores compact HUD height");
+                        "Collapsing reading details restores " + layout + " HUD height");
                 }
                 SettingsTabVerification.Capture(panel,Path.Combine(folder,"hud-choice-" + layout + ".png"),SystemParameters.WorkArea.Width,SystemParameters.WorkArea.Height);
                 foreach (var tray in new[] { false,true })
@@ -123,6 +129,9 @@ internal static class HudLayoutVerification
             }
             check(heights[HudLayout.MinimalVertical] < heights[HudLayout.CompactVertical] * .7 && heights[HudLayout.CompactVertical] < heights[HudLayout.Standard],
                 "Approved layouts reduce native HUD height without scaling down all text");
+            check(heights[HudLayout.StandardVertical] > heights[HudLayout.CompactVertical],
+                "Standard vertical retains more spacious rows and branding than Compact vertical");
+            panel.HudLayoutSelector.SelectedValue = HudLayout.MinimalVertical; Pump(overlay,panel);
             overlay.CollapseHudButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump(overlay,panel);
             check(overlay.HudCollapsed && overlay.ActualHeight < heights[HudLayout.MinimalVertical] / 2,"Compact header collapse preserves an accessible HUD header");
             overlay.Receive(snapshot with { CpuUsage = 37 });
@@ -143,9 +152,9 @@ internal static class HudLayoutVerification
             check(overlay.ActualHeight > 0 && overlay.ActualWidth >= 240,"An empty minimal HUD retains its Settings route and empty-state message");
             foreach (var metric in panel.MetricToggles.Values) metric.IsChecked = true;
             foreach (var drive in panel.DriveToggles.Values) drive.IsChecked = true;
-            settings.HudLayout = HudLayout.CompactVertical; overlay.Changed(); overlay.SaveSettings();
+            settings.HudLayout = HudLayout.StandardVertical; overlay.Changed(); overlay.SaveSettings();
             var restored = new OverlayWindow(new SettingsStore(store.Path),store.Load(),verification:true);
-            try { check(restored.HudWidth == 320 && restored.MetricRows.Values.All(r=>r.DetailsVisible),"A new app session restores the selected compact layout"); }
+            try { check(restored.HudWidth == 358 && restored.MetricRows.Values.All(r=>r.DetailsVisible && r.IconVisible),"A new app session restores the selected Standard vertical layout"); }
             finally { restored.Close(); }
         }
         finally { panel.Close(); overlay.Close(); Application.Current.ShutdownMode = shutdownMode; }

@@ -7,7 +7,7 @@ using System.Text.Json;
 namespace GeurtsPerformancePrefect;
 
 public enum Metric { CpuUsage, CpuTemperature, GpuUsage, GpuTemperature, MemoryUsage, MotherboardTemperature, ForegroundFps }
-public enum HudLayout { Standard, CompactVertical, MinimalVertical }
+public enum HudLayout { Standard = 0, CompactVertical = 1, MinimalVertical = 2, StandardVertical = 3 }
 
 public static class MetricInfo
 {

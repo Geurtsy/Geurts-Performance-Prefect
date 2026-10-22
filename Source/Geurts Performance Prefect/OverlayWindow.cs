@@ -24,6 +24,7 @@ public sealed class MetricRow : Border
     readonly bool fps;
     readonly TextBlock label;
     readonly Grid contentGrid;
+    readonly System.Windows.Shapes.Path readingIcon;
     readonly Expander expander;
     readonly TextBlock expandedText;
     internal Expander DetailsExpander => expander;
@@ -43,18 +44,22 @@ public sealed class MetricRow : Border
         Background = Palette.Panel; CornerRadius = new CornerRadius(8); Padding = new Thickness(12,9,12,8); Margin = new Thickness(0,0,0,6);
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
         grid.ColumnDefinitions.Add(new ColumnDefinition()); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        readingIcon = new System.Windows.Shapes.Path { Data = CompactHud.Icon(name), Stroke = CompactHud.Muted, StrokeThickness = 1,
+            Width = 17, Height = 17, Stretch = Stretch.Uniform, Margin = new Thickness(0,0,8,0), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+        grid.Children.Add(readingIcon);
         label = new TextBlock { Text = name, Foreground = Palette.Muted, FontSize = 12, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-        grid.Children.Add(label);
+        Grid.SetColumn(label,1); grid.Children.Add(label);
         value = new TextBlock { Text = "—", FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = Palette.Text };
-        Grid.SetColumn(value, 1); grid.Children.Add(value);
+        Grid.SetColumn(value, 2); grid.Children.Add(value);
         detail = new TextBlock { FontSize = 10, Foreground = Palette.Muted, Text = "Waiting for sensors", Margin = new Thickness(0,0,0,5), TextTrimming = TextTrimming.CharacterEllipsis };
-        Grid.SetRow(detail, 1); Grid.SetColumnSpan(detail, 2); grid.Children.Add(detail);
+        Grid.SetRow(detail, 1); Grid.SetColumn(detail,1); Grid.SetColumnSpan(detail, 2); grid.Children.Add(detail);
         application = new TextBlock { FontSize = 10, Foreground = Palette.Accent, Margin = new Thickness(0,0,0,6), TextTrimming = TextTrimming.CharacterEllipsis, Visibility = Visibility.Collapsed };
-        Grid.SetRow(application, 2); Grid.SetColumnSpan(application, 2); grid.Children.Add(application);
+        Grid.SetRow(application, 2); Grid.SetColumn(application,1); Grid.SetColumnSpan(application, 2); grid.Children.Add(application);
         track = new Border { Background = Palette.Track, Height = 3, CornerRadius = new CornerRadius(2), ClipToBounds = true };
         fill = new Border { Background = Palette.Accent, Width = 0, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(2) };
-        track.Child = fill; Grid.SetRow(track, 3); Grid.SetColumnSpan(track, 2); grid.Children.Add(track);
+        track.Child = fill; Grid.SetRow(track, 3); Grid.SetColumn(track,1); Grid.SetColumnSpan(track, 2); grid.Children.Add(track);
         if (fps) track.Visibility = Visibility.Collapsed;
         track.SizeChanged += (_, _) => UpdateFill();
         contentGrid = grid;
@@ -68,11 +73,18 @@ public sealed class MetricRow : Border
         Child = grid;
     }
     double fraction;
-    public void SetLabel(string name) { fullLabel = name; label.Text = layout == HudLayout.MinimalVertical ? CompactHud.ShortLabel(name) : name; }
+    public void SetLabel(string name)
+    {
+        fullLabel = name; label.Text = layout == HudLayout.MinimalVertical ? CompactHud.ShortLabel(name) : name;
+        readingIcon.Data = CompactHud.Icon(name);
+        System.Windows.Automation.AutomationProperties.SetName(expander,name + " details");
+    }
     internal HudLayout Layout => layout;
     internal bool DetailsVisible => detail.Visibility == Visibility.Visible;
     internal bool ApplicationVisible => application.Visibility == Visibility.Visible;
     internal bool MeterVisible => track.Visibility == Visibility.Visible;
+    internal bool IconVisible => readingIcon.Visibility == Visibility.Visible;
+    internal double ValueFontSize => value.FontSize;
     internal void CopyFrom(MetricRow source)
     {
         SetLabel(source.fullLabel); Update(source.lastReading, source.lastApplication, source.lastAverage, source.lastResource);
@@ -83,34 +95,39 @@ public sealed class MetricRow : Border
         layoutApplied = true;
         layout = selected;
         Child = null; expander.Header = null;
-        if (layout == HudLayout.CompactVertical) { expander.Header = contentGrid; Child = expander; }
+        var fullVertical = layout == HudLayout.StandardVertical;
+        if (layout is HudLayout.CompactVertical or HudLayout.StandardVertical) { expander.Header = contentGrid; Child = expander; }
         else { expander.IsExpanded = false; Child = contentGrid; }
         var standard = layout == HudLayout.Standard;
         var minimal = layout == HudLayout.MinimalVertical;
+        contentGrid.ColumnDefinitions[0].Width = new GridLength(fullVertical ? 30 : 0);
+        readingIcon.Visibility = fullVertical ? Visibility.Visible : Visibility.Collapsed;
         Background = standard ? Palette.Panel : Brushes.Transparent;
         BorderBrush = standard ? Brushes.Transparent : CompactHud.Line;
         BorderThickness = standard ? new Thickness(0) : new Thickness(0,0,0,1);
         CornerRadius = new CornerRadius(standard ? 8 : 0);
-        Padding = standard ? new Thickness(12,9,12,8) : minimal ? new Thickness(0,5,0,5) : new Thickness(0,6,0,6);
+        Padding = standard ? new Thickness(12,9,12,8) : fullVertical ? new Thickness(0,12,0,12) : minimal ? new Thickness(0,5,0,5) : new Thickness(0,6,0,6);
         Margin = standard ? new Thickness(0,0,0,6) : new Thickness(0);
         label.Foreground = standard ? Palette.Muted : CompactHud.Text;
         label.FontWeight = standard ? FontWeights.Normal : FontWeights.Medium;
-        label.FontSize = 12;
+        label.FontSize = fullVertical ? 13 : 12;
         label.TextWrapping = minimal ? TextWrapping.NoWrap : TextWrapping.Wrap;
         label.TextTrimming = minimal || standard ? TextTrimming.CharacterEllipsis : TextTrimming.None;
-        value.FontSize = standard ? 22 : minimal ? 18 : 20;
+        value.FontSize = standard ? 22 : fullVertical ? 24 : minimal ? 18 : 20;
         detail.Foreground = standard ? Palette.Muted : CompactHud.Muted;
         detail.FontSize = standard ? 10 : 11;
+        detail.LineHeight = fullVertical ? 16 : double.NaN;
         detail.Margin = standard ? new Thickness(0,0,0,5) : new Thickness(0,1,0,0);
         detail.Visibility = minimal ? Visibility.Collapsed : Visibility.Visible;
         detail.TextWrapping = standard ? TextWrapping.NoWrap : TextWrapping.Wrap;
         detail.TextTrimming = standard ? TextTrimming.CharacterEllipsis : TextTrimming.None;
         application.Foreground = standard ? Palette.Accent : CompactHud.Accent;
         application.FontSize = standard ? 10 : 11;
+        application.LineHeight = fullVertical ? 16 : double.NaN;
         application.Margin = standard ? new Thickness(0,0,0,6) : new Thickness(0,1,0,2);
         application.TextWrapping = standard ? TextWrapping.NoWrap : TextWrapping.Wrap;
         application.TextTrimming = standard ? TextTrimming.CharacterEllipsis : TextTrimming.None;
-        track.Height = standard ? 3 : 2;
+        track.Height = standard || fullVertical ? 3 : 2;
         track.Background = standard ? Palette.Track : CompactHud.Track;
         track.Visibility = minimal || fps ? Visibility.Collapsed : Visibility.Visible;
         SetLabel(fullLabel);
@@ -197,6 +214,9 @@ public sealed class OverlayWindow : Window
     readonly Grid header;
     readonly FrameworkElement standardTitle, standardButtons;
     readonly Grid compactHeader;
+    readonly StackPanel tacticalBrand, tacticalButtons;
+    readonly Border tacticalEmblem;
+    readonly TextBlock tacticalName, tacticalKicker, tacticalSubhead;
     readonly Button pinButton, collapseButton;
     bool hudCollapsed;
     HudLayout appliedLayout;
@@ -256,14 +276,26 @@ public sealed class OverlayWindow : Window
         standardTitle = title; standardButtons = headerButtons;
         compactHeader = new Grid { Visibility = Visibility.Collapsed };
         compactHeader.ColumnDefinitions.Add(new()); compactHeader.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
-        compactHeader.Children.Add(new TextBlock { Text = "G+ PREFECT", FontFamily = new FontFamily("Bahnschrift"), FontSize = 14,
-            FontWeight = FontWeights.SemiBold, Foreground = CompactHud.Text, VerticalAlignment = VerticalAlignment.Center });
-        var compactButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        compactHeader.RowDefinitions.Add(new() { Height = GridLength.Auto }); compactHeader.RowDefinitions.Add(new() { Height = GridLength.Auto });
+        tacticalBrand = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        tacticalEmblem = new Border { Width = 36, Height = 40, BorderBrush = CompactHud.Accent, BorderThickness = new Thickness(1),
+            Margin = new Thickness(0,0,10,0), Child = new TextBlock { Text = "G+", FontSize = 18, FontWeight = FontWeights.Bold,
+                Foreground = CompactHud.Accent, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
+        tacticalBrand.Children.Add(tacticalEmblem);
+        var brandText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        tacticalKicker = new TextBlock { Text = "GEURTS PERFORMANCE", FontFamily = new FontFamily("Consolas"), FontSize = 10, Foreground = CompactHud.Muted };
+        tacticalName = new TextBlock { FontFamily = new FontFamily("Bahnschrift"), FontWeight = FontWeights.SemiBold, Foreground = CompactHud.Text };
+        brandText.Children.Add(tacticalKicker); brandText.Children.Add(tacticalName); tacticalBrand.Children.Add(brandText);
+        compactHeader.Children.Add(tacticalBrand);
+        tacticalSubhead = new TextBlock { Text = "HUD / OVERLAY", FontFamily = new FontFamily("Consolas"), FontSize = 10,
+            Foreground = CompactHud.Muted, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetRow(tacticalSubhead,1); compactHeader.Children.Add(tacticalSubhead);
+        tacticalButtons = new StackPanel { Orientation = Orientation.Horizontal };
         pinButton = CompactHud.Button("\uE718", "Keep HUD on top", () => { Settings.AlwaysOnTop = !Settings.AlwaysOnTop; Changed(); });
         collapseButton = CompactHud.Button("\uE70E", "Collapse HUD", () => { hudCollapsed = !hudCollapsed; ApplyHudContentVisibility(); QueueAutoAvoidSnap(); });
         var compactSettings = CompactHud.Button("\uE713", "Settings", OpenSettings);
-        compactButtons.Children.Add(pinButton); compactButtons.Children.Add(collapseButton); compactButtons.Children.Add(compactSettings);
-        Grid.SetColumn(compactButtons,1); compactHeader.Children.Add(compactButtons);
+        tacticalButtons.Children.Add(pinButton); tacticalButtons.Children.Add(collapseButton); tacticalButtons.Children.Add(compactSettings);
+        Grid.SetColumn(tacticalButtons,1); compactHeader.Children.Add(tacticalButtons);
         Grid.SetColumnSpan(compactHeader,2); header.Children.Add(compactHeader);
         header.MouseLeftButtonDown += (_, e) =>
         {
@@ -445,22 +477,34 @@ public sealed class OverlayWindow : Window
         if (appliedLayout != selected || Settings.AutoAvoid) hudCollapsed = false;
         appliedLayout = selected;
         var standard = selected == HudLayout.Standard;
+        var fullVertical = selected == HudLayout.StandardVertical;
         surface.Width = CompactHud.Width(selected);
         Width = double.NaN;
         surface.Background = standard ? Palette.Background : CompactHud.Background;
         surface.BorderBrush = standard ? Palette.Track : CompactHud.Line;
         surface.BorderThickness = standard ? new Thickness(1) : new Thickness(1,3,1,1);
         surface.CornerRadius = new CornerRadius(standard ? 13 : 0);
-        surface.Padding = new Thickness(standard ? 14 : 9);
+        surface.Padding = new Thickness(standard || fullVertical ? 14 : 9);
         FontFamily = new FontFamily(standard ? "Segoe UI" : "Bahnschrift");
         header.Margin = new Thickness(0,0,0,standard ? 13 : 6);
         standardTitle.Visibility = standard ? Visibility.Visible : Visibility.Collapsed;
         standardButtons.Visibility = standard ? Visibility.Visible : Visibility.Collapsed;
         compactHeader.Visibility = standard ? Visibility.Collapsed : Visibility.Visible;
+        tacticalEmblem.Visibility = tacticalKicker.Visibility = tacticalSubhead.Visibility = fullVertical ? Visibility.Visible : Visibility.Collapsed;
+        tacticalName.Text = fullVertical ? "PREFECT" : "G+ PREFECT";
+        tacticalName.FontSize = fullVertical ? 18 : 14;
+        tacticalBrand.Margin = new Thickness(0,0,0,fullVertical ? 12 : 0);
+        Grid.SetColumnSpan(tacticalBrand,fullVertical ? 2 : 1);
+        Grid.SetRow(tacticalButtons,fullVertical ? 1 : 0);
+        foreach (Button button in tacticalButtons.Children)
+        {
+            button.Width = button.Height = button.MinHeight = fullVertical ? 31 : 25;
+            button.Margin = new Thickness(5,0,0,fullVertical ? 0 : 4);
+        }
         pinButton.Foreground = Settings.AlwaysOnTop ? CompactHud.Accent : CompactHud.Muted;
         pinButton.ToolTip = Settings.AlwaysOnTop ? "Unpin HUD" : "Keep HUD on top";
         foreach (var row in rows.Values.Concat(DriveRows.Values)) row.ApplyLayout(selected);
-        status.FontSize = standard ? 10 : 9;
+        status.FontSize = standard || fullVertical ? 10 : 9;
         status.Foreground = standard ? Palette.Muted : CompactHud.Muted;
         empty.Foreground = standard ? Palette.Muted : CompactHud.Muted;
         ApplyHudContentVisibility();

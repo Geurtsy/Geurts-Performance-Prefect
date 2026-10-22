@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.40.0
+
+- Added Standard vertical under Settings → Overlay → Appearance → HUD layout, based on the initial non-compact mockup: a 358-pixel dark green military HUD with prominent branding, hardware icons, larger values, spacious rows and bevelled controls.
+- Includes live source labels, top-application averages, memory capacity, drive details and expandable reading details. Pin, Collapse/Expand and Settings actions remain available. Layout selection saves automatically and updates the live preview; previous saved layout choices retain their identities.
+- Validated all four layouts, saved preferences, live preview, dynamic drives, details, size, visibility and independent Settings minimize behavior with isolated fixtures. No small-window Settings checks were added. Local installation remains manual.
+
 # Geurts Performance Prefect 1.39.0
 
 - Added selectable HUD layouts under Settings → Overlay → Appearance: Standard, Compact vertical (320 px, with sources and top-app/drive details), and Minimal vertical (240 px, names and values only). The compact designs use the approved dark green tactical theme and bevelled controls.

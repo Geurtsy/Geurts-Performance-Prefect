@@ -11,14 +11,16 @@ controls. Minimizing Settings leaves the HUD visible and updating.
 Use Minimise on the HUD to minimize the whole app. Sections scroll independently.
 
 Choose **Settings → Overlay → Appearance → HUD layout** to switch layouts.
-**Standard** retains the original HUD. **Compact vertical** uses the approved
+**Standard** retains the original HUD. **Standard vertical** uses the initial
+358-pixel military HUD with prominent branding, hardware icons, larger values,
+spacious rows and full source, top-app, memory and drive details. **Compact vertical** uses the approved
 320-pixel tactical design with sensor sources, top-app averages, memory capacity
 and per-drive details. **Minimal vertical** uses the approved 240-pixel design
 with names and values only. The selection saves automatically and the preview
 follows the chosen layout. All layouts use live readings and the same visibility,
-opacity, size, monitor and Auto-avoid preferences. Compact headers provide Pin,
+opacity, size, monitor and Auto-avoid preferences. Vertical headers provide Pin,
 Collapse/Expand and Settings actions; collapsing keeps monitoring active.
-Click a reading in Compact vertical to expand its live source and application
+Click a reading in Standard vertical or Compact vertical to expand its live source and application
 details. Minimal vertical omits those details and meters entirely.
 
 **Settings → File compression** uses Windows' lossless NTFS compression to save

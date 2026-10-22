@@ -342,7 +342,8 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(TopmostToggle);
         stack.Children.Add(Note("Keep the overlay above other windows. For games, use windowed or borderless mode."));
         stack.Children.Add(Label("HUD layout"));
-        HudLayoutSelector.ItemsSource = Enum.GetValues<HudLayout>().Select(layout => new HudLayoutChoice(layout,CompactHud.Name(layout))).ToArray();
+        HudLayoutSelector.ItemsSource = new[] { HudLayout.Standard, HudLayout.StandardVertical, HudLayout.CompactVertical, HudLayout.MinimalVertical }
+            .Select(layout => new HudLayoutChoice(layout,CompactHud.Name(layout))).ToArray();
         HudLayoutSelector.DisplayMemberPath = "Name"; HudLayoutSelector.SelectedValuePath = "Layout";
         HudLayoutSelector.SelectedValue = overlay.Settings.HudLayout;
         System.Windows.Automation.AutomationProperties.SetName(HudLayoutSelector,"HUD layout");
@@ -352,7 +353,7 @@ public sealed class SettingsWindow : Window
             { overlay.Settings.HudLayout = choice.Layout; overlay.Changed(); }
         };
         stack.Children.Add(HudLayoutSelector);
-        stack.Children.Add(Note("Standard keeps the original HUD. Compact vertical retains sensor sources and top-app averages; Minimal vertical shows names and values only. The layout saves automatically."));
+        stack.Children.Add(Note("Standard keeps the original HUD. Standard vertical uses the spacious military HUD with icons and full details. Compact vertical retains sources and top-app averages; Minimal vertical shows names and values only. The layout saves automatically."));
         overlay.SettingsChanged += SyncHudControls;
         Closed += (_,_) => overlay.SettingsChanged -= SyncHudControls;
         AddSlider(stack, "Opacity", .35, 1, overlay.Settings.Opacity, value => { overlay.Settings.Opacity = value; overlay.Changed(); }, value => $"{value:P0}");
