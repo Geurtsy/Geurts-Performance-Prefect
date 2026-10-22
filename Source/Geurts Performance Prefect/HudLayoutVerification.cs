@@ -36,6 +36,8 @@ internal static class HudLayoutVerification
     internal static void Run(string folder, Action<bool,string> check)
     {
         Directory.CreateDirectory(folder);
+        var shutdownMode = Application.Current.ShutdownMode;
+        Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var legacy = JsonSerializer.Deserialize<OverlaySettings>("{\"Opacity\":0.72,\"ApplicationAverageSeconds\":90}")!;
         legacy.Normalise();
         check(legacy.HudLayout == HudLayout.Standard && legacy.Opacity == .72 && legacy.ApplicationAverageSeconds == 90,
@@ -146,7 +148,7 @@ internal static class HudLayoutVerification
             try { check(restored.HudWidth == 320 && restored.MetricRows.Values.All(r=>r.DetailsVisible),"A new app session restores the selected compact layout"); }
             finally { restored.Close(); }
         }
-        finally { panel.Close(); overlay.Close(); }
+        finally { panel.Close(); overlay.Close(); Application.Current.ShutdownMode = shutdownMode; }
     }
     static void Capture(OverlayWindow overlay, string path)
     {
