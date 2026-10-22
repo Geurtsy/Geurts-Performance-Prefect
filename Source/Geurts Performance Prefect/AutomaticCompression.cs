@@ -57,7 +57,7 @@ internal sealed class AutomaticCompressionController : IDisposable
     readonly FileCompression engine;
     readonly Func<string, CompressionDrive> drive;
     readonly Func<DateTime> clock;
-    readonly Func<string[], string, Func<CompressionFile, bool?>, CancellationToken, Action<string>?, ScanCompressionResult> run;
+    readonly Func<string[], string, Func<CompressionFile, bool?>, CancellationToken, Action<AutomaticCompressionProgress>?, ScanCompressionResult> run;
     readonly Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
     readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(10) };
     readonly ConcurrentDictionary<string, (DateTime Due, int Attempts)> pending = new(StringComparer.OrdinalIgnoreCase);
@@ -75,6 +75,9 @@ internal sealed class AutomaticCompressionController : IDisposable
     internal bool ManualBusy { get; set; }
     internal string Status { get; private set; } = "Automatic compression is off.";
     internal string LastResult { get; private set; } = "";
+    internal double ProgressPercent { get; private set; }
+    internal string ProgressText { get; private set; } = "Waiting for an automatic pass.";
+    internal bool IsDrivePass { get; private set; }
     internal int PendingCount => pending.Count;
     internal bool IsPending(string path) => pending.ContainsKey(path);
     internal AutomaticCompressionPolicy Policy => settings.AutomaticCompression;
@@ -82,7 +85,7 @@ internal sealed class AutomaticCompressionController : IDisposable
     internal event Action? Changed;
     internal AutomaticCompressionController(OverlaySettings settings, SettingsStore store, FileCompression? engine = null,
         Func<string, CompressionDrive>? drive = null, Func<DateTime>? clock = null,
-        Func<string[], string, Func<CompressionFile, bool?>, CancellationToken, Action<string>?, ScanCompressionResult>? run = null,
+        Func<string[], string, Func<CompressionFile, bool?>, CancellationToken, Action<AutomaticCompressionProgress>?, ScanCompressionResult>? run = null,
         Func<string, FileSystemWatcher>? createWatcher = null)
     {
         this.settings = settings; this.store = store; this.engine = engine ?? new(); this.drive = drive ?? CompressionDrive.Read;
@@ -178,6 +181,9 @@ internal sealed class AutomaticCompressionController : IDisposable
             string[] paths = sweep ? new[] { policy.Root } : batch.Select(e => e.Key).ToArray();
             Status = $"{policy.Root} is {state.UsedPercent:0.#}% full. " + (band == 0 ? "Between thresholds; monitoring new files." : "Monitoring threshold policy.");
             if (paths.Length == 0) { Changed?.Invoke(); return; }
+            IsDrivePass = sweep; ProgressPercent = 0;
+            long usedAtStart = state.Total - state.Free;
+            ProgressText = sweep ? "Estimated drive progress: 0%" : "Checking new files…";
             Status += " Checking and changing one file at a time…";
             IsBusy = true; stop = new(); Changed?.Invoke(); var token = stop.Token;
             var result = await Task.Run(() => run(paths, policy.Root, file =>
@@ -189,8 +195,26 @@ internal sealed class AutomaticCompressionController : IDisposable
                     return Decide(policy, current, file);
                 }
                 catch (IOException) { stop?.Cancel(); throw; }
-            }, token, message => dispatcher.Invoke(() => { Status = message; Changed?.Invoke(); })));
+            }, token, progress => dispatcher.Invoke(() =>
+            {
+                if (sweep)
+                {
+                    // No pre-scan: occupied space is a fixed baseline, not a known file total.
+                    // Protected areas and changing files make this approximate. Only completion reaches 100%.
+                    ProgressPercent = Math.Max(ProgressPercent, usedAtStart > 0 ? Math.Clamp(progress.CheckedBytes * 100d / usedAtStart, 0, 99) : 0);
+                    ProgressText = $"Estimated drive progress: {ProgressPercent:0.#}% · {FileCompression.Size(progress.CheckedBytes)} file data checked";
+                }
+                else ProgressText = $"New-file pass: checked {progress.CheckedFiles} file(s)";
+                Status = progress.Message; Changed?.Invoke();
+            })));
             LastResult = $"Automatic file management: checked {result.CheckedFiles} eligible file(s). " + result.Result.Message;
+            // Record the band after our own changes so they cannot schedule an opposite sweep.
+            previousBand = Band(policy, ValidateVolume(policy).UsedPercent);
+            bool complete = !result.Result.Stopped && result.Error == null;
+            if (complete) ProgressPercent = 100;
+            ProgressText = (sweep ? "Drive pass" : "New-file pass") + (complete ? " complete: 100%" : sweep ? $" stopped at an estimated {ProgressPercent:0.#}%" : " stopped") +
+                $" · checked {result.CheckedFiles} file(s)";
+            if (result.Error != null) LastResult += " Scan ended early: " + result.Error;
             foreach (var item in batch)
             {
                 // A write/replace event arriving during this run belongs to the next pass.
@@ -199,11 +223,13 @@ internal sealed class AutomaticCompressionController : IDisposable
                     i.StartsWith(Path.TrimEndingDirectorySeparator(item.Key) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
                     pending.TryAdd(item.Key, (clock().AddMinutes(1), item.Value.Attempts + 1));
             }
-            // Record the band after our own changes so they cannot schedule an opposite sweep.
-            previousBand = Band(policy, ValidateVolume(policy).UsedPercent);
             Status = !Policy.Enabled || sessionDisabled ? "Automatic compression is off. " + LastResult : LastResult;
         }
-        catch (Exception ex) { initial = true; Status = "Automatic compression did not finish: " + ex.Message; }
+        catch (Exception ex)
+        {
+            initial = true; Status = "Automatic compression did not finish: " + ex.Message;
+            if (IsBusy) ProgressText = IsDrivePass ? $"Drive pass did not finish · estimated {ProgressPercent:0.#}%" : "New-file pass did not finish";
+        }
         finally
         {
             IsBusy = false; stop?.Dispose(); stop = null; nextCheck = clock().AddMinutes(1);

@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.41.0
+
+- Added an automatic-compression progress bar with a clearly labelled estimated drive percentage and checked-data total. Each file is still checked and changed immediately; no full-drive counting scan runs first.
+- The estimate compares file data checked with drive space used at the start. Protected/unreadable areas and changing files can make it jump at completion. It stays below 100% until traversal finishes. Stop or failure preserves partial progress; new-file batches show an activity bar.
+- Validated live bar updates, fixed starting totals, percentage limits, completion, cancellation, failure and Settings reopening with isolated fixtures. Local installation remains manual.
+
 # Geurts Performance Prefect 1.40.2
 
 - Standard vertical is now the default HUD layout for new settings and preferences without a saved layout. Invalid layout values also recover to Standard vertical. Existing saved layout choices are preserved.

@@ -36,6 +36,7 @@ internal sealed record ScanCompressionResult(long CheckedFiles, CompressionResul
     public string Message => $"Scan and compress: checked {CheckedFiles} eligible file(s). " + Result.Message +
         (Error == null ? "" : " Scan ended early: " + Error);
 }
+internal sealed record AutomaticCompressionProgress(string Message, long CheckedFiles, long CheckedBytes);
 
 // Preview actions change only approved files; the separate streaming action checks and changes each
 // discovered file immediately after drive-wide confirmation. Directory inheritance is never set.
@@ -194,14 +195,14 @@ internal sealed class FileCompression
     }
 
     internal ScanCompressionResult ManageAutomatic(string[] paths, string root, Func<CompressionFile, bool?> choose,
-        CancellationToken stop, Action<string>? progress = null)
+        CancellationToken stop, Action<AutomaticCompressionProgress>? progress = null)
     {
         root = Normalize(root);
         if (paths.Any(p => !Contains(root, Normalize(p)))) throw new IOException("Automatic targets must belong to the approved drive.");
         int changed = 0, compressed = 0, decompressed = 0, skipped = 0;
-        long checkedFiles = 0, before = 0, after = 0; var issues = new List<string>();
-        void Report(string message) => progress?.Invoke($"Checked {checkedFiles} file(s), compressed {compressed}, decompressed {decompressed}, skipped {skipped}. " +
-            (before >= after ? $"Saved {Size(before - after)}. " : $"Used {Size(after - before)} more. ") + message);
+        long checkedFiles = 0, checkedBytes = 0, before = 0, after = 0; var issues = new List<string>();
+        void Report(string message) => progress?.Invoke(new($"Checked {checkedFiles} file(s), compressed {compressed}, decompressed {decompressed}, skipped {skipped}. " +
+            (before >= after ? $"Saved {Size(before - after)}. " : $"Used {Size(after - before)} more. ") + message, checkedFiles, checkedBytes));
         Report("Checking and changing one file at a time…");
         // Process runs inside the lazy walker: finish this file before inspecting the next.
         // Automatic work never builds a preview or a complete drive snapshot.
@@ -209,6 +210,7 @@ internal sealed class FileCompression
         {
             if (stop.IsCancellationRequested) return;
             checkedFiles++;
+            checkedBytes += file.DiskBytes;
             Report("Checking file: " + file.Path);
             try
             {

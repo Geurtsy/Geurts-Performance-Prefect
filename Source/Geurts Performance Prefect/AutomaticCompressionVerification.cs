@@ -37,7 +37,7 @@ internal static class AutomaticCompressionVerification
         var sentinel = FileAt(Path.Combine(protectedRoot, "system.txt"));
         var original = File.ReadAllText(oldFile);
         int runs = 0;
-        ScanCompressionResult Run(string[] paths, string approved, Func<CompressionFile, bool?> choose, CancellationToken token, Action<string>? report)
+        ScanCompressionResult Run(string[] paths, string approved, Func<CompressionFile, bool?> choose, CancellationToken token, Action<AutomaticCompressionProgress>? report)
         {
             Interlocked.Increment(ref runs);
             return engine.ManageAutomatic(paths.Select(p => p == nativeRoot ? data : p).ToArray(), approved, choose, token, report);
@@ -110,6 +110,7 @@ internal static class AutomaticCompressionVerification
         VerifyWatcher(root, nativeRoot, native, since, check);
         VerifyNewEventDuringRun(root, nativeRoot, native, since, check);
         VerifySequentialProcessing(root, nativeRoot, check);
+        VerifyProgress(root, nativeRoot, native, since, check);
     }
 
     static void VerifySequentialProcessing(string root, string nativeRoot, Action<bool,string> check)
@@ -131,10 +132,11 @@ internal static class AutomaticCompressionVerification
             return true;
         }, CancellationToken.None, message =>
         {
-            if (!message.Contains("Compressed: ")) return;
+            if (!message.Message.Contains("Compressed: ")) return;
             completed++;
             ordered &= checkedPaths.Count == completed && checkedPaths.All(Compressed);
-            liveTotals &= message.Contains($"compressed {completed},") && message.Contains("Saved ");
+            liveTotals &= message.Message.Contains($"compressed {completed},") && message.Message.Contains("Saved ") &&
+                message.CheckedFiles == completed && message.CheckedBytes > 0;
             if (completed == 1)
                 foreach (var path in files.Except(checkedPaths)) File.AppendAllText(path, " updated after first compression");
         });
@@ -153,16 +155,83 @@ internal static class AutomaticCompressionVerification
             checkedPaths.Add(file.Path); return false;
         }, CancellationToken.None, message =>
         {
-            if (message.Contains("Decompressed: ")) { completed++; liveTotals &= message.Contains($"decompressed {completed},"); }
+            if (message.Message.Contains("Decompressed: ")) { completed++; liveTotals &= message.Message.Contains($"decompressed {completed},"); }
         });
         check(ordered && liveTotals && completed == 3 && result.Result.Changed == 3 && files.All(path => !Compressed(path)),
             "Automatic decompression also completes and reports each file before checking the next");
 
         using var stop = new CancellationTokenSource(); int inspected = 0;
         result = engine.ManageAutomatic(new[] { data }, nativeRoot, _ => { inspected++; return true; }, stop.Token,
-            message => { if (message.Contains("Compressed: ")) stop.Cancel(); });
+            message => { if (message.Message.Contains("Compressed: ")) stop.Cancel(); });
         check(result.Result.Stopped && result.Result.Changed == 1 && inspected == 1 && files.Count(Compressed) == 1,
             "Stopping automatic work after one completed file leaves later files uninspected and uncompressed");
+    }
+
+    static void VerifyProgress(string root, string nativeRoot, CompressionDrive native, DateTime since, Action<bool,string> check)
+    {
+        var settings = new OverlaySettings(); var store = new SettingsStore(Path.Combine(root, "progress-settings.json"));
+        var now = DateTime.UtcNow; long free = 1000; int outcome = 0;
+        var values = new List<double>(); bool barMatches = true, newFileActivity = false, rendered = false;
+        AutomaticCompressionController? controller = null;
+        using (controller = new AutomaticCompressionController(settings, store, drive: _ => new(native.Volume, 10_000, free), clock: () => now,
+            run: (_, _, _, token, report) =>
+            {
+                report?.Invoke(new("Checking fixture file", 1, 2250));
+                if (outcome == 1) throw new IOException("progress failure fixture");
+                report?.Invoke(new("Compressed fixture file", 2, 4500));
+                if (outcome == 2)
+                {
+                    Application.Current.Dispatcher.Invoke(() => controller!.CanLeave());
+                    return new(2, new(1,0,4500,2250,token.IsCancellationRequested,Array.Empty<string>()), null);
+                }
+                free = 2000; // Compression savings must not shrink the progress denominator mid-pass.
+                report?.Invoke(new("Checking large fixture", 3, 18_000));
+                report?.Invoke(new("Checking fixture", 4, 100));
+                return new(4, new(1,0,4500,2250,false,Array.Empty<string>()), null);
+            }))
+        using (var panel = new AutomaticCompressionPanel(controller, () => nativeRoot, _ => false))
+        {
+            var surface = new Border { Child = panel, Background = SettingsHud.Background, Padding = new Thickness(24), Width = 1000 };
+            surface.Resources.MergedDictionaries.Add(SettingsHud.CreateResources());
+            check(panel.DriveProgress.Value == 0 && !panel.DriveProgress.IsIndeterminate && panel.ProgressLabel.Text.Contains("Waiting"),
+                "Automatic progress starts idle with no invented completed percentage");
+            controller.Changed += () =>
+            {
+                if (!controller.IsBusy) return;
+                if (controller.IsDrivePass)
+                {
+                    values.Add(controller.ProgressPercent);
+                    barMatches &= !panel.DriveProgress.IsIndeterminate && panel.DriveProgress.Value == controller.ProgressPercent &&
+                        panel.ProgressLabel.Text.Contains("Estimated", StringComparison.OrdinalIgnoreCase);
+                    if (!rendered && controller.ProgressPercent == 50)
+                    {
+                        Verification.Render(surface, Path.Combine(root, "automatic-progress-preview.png"), 1000, 1600); rendered = true;
+                    }
+                }
+                else newFileActivity |= panel.DriveProgress.IsIndeterminate && panel.ProgressLabel.Text.Contains("New-file", StringComparison.OrdinalIgnoreCase);
+            };
+            controller.Configure(new(true, nativeRoot, native.Volume, 85,70,NewFileCompressionMode.AboveThreshold,since));
+            Await(controller.TickAsync(true));
+            check(barMatches && values.SequenceEqual(new double[] { 0,25,50,99,99 }),
+                "Drive progress uses fixed starting occupied space, updates the bar live, stays monotonic and cannot reach 100% early");
+            check(controller.ProgressPercent == 100 && panel.DriveProgress.Value == 100 && panel.ProgressLabel.Text.Contains("Drive pass complete"),
+                "Only a finished drive traversal sets the progress bar to 100%");
+            check(rendered && panel.DriveProgress.ActualWidth > 0 && panel.DriveProgress.ActualHeight >= 16 && panel.ProgressLabel.ActualHeight > 0,
+                "The themed automatic panel renders a visible progress bar and percentage label during a drive pass");
+            using (var reopened = new AutomaticCompressionPanel(controller, () => nativeRoot, _ => false))
+                check(reopened.DriveProgress.Value == 100 && reopened.ProgressLabel.Text == panel.ProgressLabel.Text,
+                    "Reopening automatic Settings retains the latest pass progress");
+            var queued = Path.Combine(root, "progress-new-file.txt"); File.WriteAllText(queued, "fixture");
+            controller.Queue(queued); now = now.AddMinutes(2); Await(controller.TickAsync(true));
+            check(newFileActivity && !panel.DriveProgress.IsIndeterminate && panel.ProgressLabel.Text.Contains("New-file pass complete"),
+                "New-file batches use an activity bar rather than presenting them as a whole-drive percentage");
+            outcome = 1; free = 1000; now = now.AddMinutes(2); Await(controller.TickAsync(true));
+            check(controller.ProgressPercent == 25 && panel.DriveProgress.Value == 25 && panel.ProgressLabel.Text.Contains("did not finish"),
+                "A failed drive pass retains partial progress and never claims completion");
+            outcome = 2; now = now.AddMinutes(2); Await(controller.TickAsync(true));
+            check(controller.ProgressPercent == 50 && panel.DriveProgress.Value == 50 && panel.ProgressLabel.Text.Contains("stopped"),
+                "Stopping a drive pass retains its partial estimate instead of filling the bar");
+        }
     }
 
     static void VerifyNewEventDuringRun(string root, string nativeRoot, CompressionDrive native, DateTime since, Action<bool,string> check)

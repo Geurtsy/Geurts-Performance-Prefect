@@ -91,6 +91,11 @@ sweep. Every automatic pass checks one file, immediately compresses or decompres
 it when the policy calls for it, then checks the next file. It does not collect a
 full-drive preview first. Live status shows the current file, completed compression
 and decompression counts, skipped files and disk space saved while traversal continues.
+The progress bar shows **estimated drive progress**, using file data checked against
+the drive space used at the start of the pass. Protected/unreadable areas and changing
+files make this approximate; the bar stays below 100% until traversal completes.
+No counting scan runs first. Stopping or a failure retains the partial estimate.
+New-file batches show an activity bar instead of a whole-drive percentage.
 
 Decompression checks free space per file and refuses an expansion that would bring
 usage to within one percentage point of the compression threshold. Eligible files

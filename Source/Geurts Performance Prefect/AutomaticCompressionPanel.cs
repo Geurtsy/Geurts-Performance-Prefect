@@ -14,6 +14,9 @@ internal sealed class AutomaticCompressionPanel : StackPanel, IDisposable
     internal Button ApplyButton { get; } = new() { Content = "Apply automatic settings…", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
     internal Button DisableButton { get; } = new() { Content = "Stop and disable automatic compression", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,8,0,0) };
     internal TextBlock Status { get; } = Note("");
+    internal ProgressBar DriveProgress { get; } = new() { Minimum = 0, Maximum = 100, Height = 16, Margin = new Thickness(0,12,0,0),
+        Foreground = Palette.Accent, Background = Palette.Track, BorderBrush = Palette.Muted, BorderThickness = new Thickness(1) };
+    internal TextBlock ProgressLabel { get; } = Note("");
     readonly TextBlock highLabel = Note(""), lowLabel = Note(""), driveLabel = Note("");
     readonly AutomaticCompressionController controller;
     readonly Func<string?> selectedDrive;
@@ -32,11 +35,13 @@ internal sealed class AutomaticCompressionPanel : StackPanel, IDisposable
         Children.Add(Note("The sliders measure drive space used, not space saved. Defaults: compress at 85% full, decompress at 70% full. Keep at least five percentage points between them. Between thresholds, existing file states are kept. New means a file created after this policy was enabled; moving an older file keeps it in the older-file policy."));
         Children.Add(Note("Always mode keeps those new files compressed even below the low threshold; only older files are automatically decompressed. Decompression checks free space and skips a file that would bring the drive near the compression threshold. Windows, application/settings folders and protected files remain excluded."));
         Children.Add(Note("Each pass checks one file, compresses or decompresses it immediately when the policy allows, then moves to the next file. It starts changing files before the drive scan finishes. Live status shows the current file, completed changes and disk space saved."));
-        Children.Add(ApplyButton); Children.Add(DisableButton); Children.Add(Status);
+        Children.Add(ApplyButton); Children.Add(DisableButton); Children.Add(DriveProgress); Children.Add(ProgressLabel); Children.Add(Status);
+        Children.Add(Note("Drive progress is an estimate: file data checked compared with space used when the pass began. Protected or unreadable areas can make it jump at completion. No full-drive count is performed first. New-file passes show an activity bar instead."));
         Children.Add(Note("Changes to sliders or mode take effect after Apply. New files settle for at least ten seconds and are checked on the next one-minute pass. Locked files are retried. Missed Windows notifications can trigger a recovery scan, at most once per hour; crossing a threshold can also scan the drive. Folder defaults stay unchanged. Manual work waits while automatic work is active. Turning this off stops after the current file. Closing Settings keeps monitoring active; exit, restart and updates wait for active work to stop."));
         System.Windows.Automation.AutomationProperties.SetName(High, "Compress when drive is this percentage full");
         System.Windows.Automation.AutomationProperties.SetName(Low, "Decompress when drive is this percentage full");
         System.Windows.Automation.AutomationProperties.SetName(Mode, "Automatic new-file compression mode");
+        System.Windows.Automation.AutomationProperties.SetName(DriveProgress, "Automatic drive pass progress");
         LoadPolicy();
         High.ValueChanged += (_, _) => Adjust(true); Low.ValueChanged += (_, _) => Adjust(false);
         Mode.SelectionChanged += (_, _) => Labels();
@@ -103,6 +108,9 @@ internal sealed class AutomaticCompressionPanel : StackPanel, IDisposable
         driveLabel.Text = "Configured drive: " + (controller.Policy.Root.Length == 0 ? "none" : controller.Policy.Root) +
             " · Apply target: " + (selectedDrive() ?? controller.Policy.Root);
         Status.Text = controller.Status + (controller.LastResult.Length == 0 ? "" : "\nLast result: " + controller.LastResult);
+        DriveProgress.IsIndeterminate = controller.IsBusy && !controller.IsDrivePass;
+        DriveProgress.Value = controller.ProgressPercent; ProgressLabel.Text = controller.ProgressText;
+        System.Windows.Automation.AutomationProperties.SetHelpText(DriveProgress, controller.ProgressText);
         RefreshControls();
     }
     void RefreshControls()
