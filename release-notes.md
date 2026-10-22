@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.39.0
+
+- Added selectable HUD layouts under Settings → Overlay → Appearance: Standard, Compact vertical (320 px, with sources and top-app/drive details), and Minimal vertical (240 px, names and values only). The compact designs use the approved dark green tactical theme and bevelled controls.
+- Layout changes apply immediately, save with existing preferences and update the live Settings preview. Older preferences keep Standard. All layouts use the same real readings, visibility switches, refresh, opacity, scale and monitor/Auto-avoid behavior; unavailable values stay unavailable. Newly discovered drives follow the selected layout.
+- Compact headers provide synchronized Pin, Collapse/Expand and Settings actions. Compact readings expand live source/application details through native mouse, keyboard and accessibility controls. Minimal omits details and meters. Collapsed HUDs keep receiving readings. Auto-avoid exposes readings before hiding the header. Minimizing Settings continues to leave the HUD running.
+- Validated layout switching and persistence, real native dimensions, live preview, readings/details, drive changes, visibility, pin/collapse, scale and independent Settings minimize behavior in isolated fixtures. No small-window Settings checks were added. Local installation remains manual.
+
 # Geurts Performance Prefect 1.38.1
 
 - Minimizing full-screen Settings now minimizes only that window. The HUD stays visible and continues updating, whether Minimise to tray is enabled or disabled. Reopening Settings restores the full-screen window.

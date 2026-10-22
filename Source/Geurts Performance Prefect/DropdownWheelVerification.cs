@@ -12,7 +12,7 @@ public static class DropdownWheelVerification
     {
         var choices = panel.Hud.Choices;
         panel.UpdateLayout();
-        check(choices.Length == 5, "Wheel verification covers all five Settings dropdowns");
+        check(choices.Length == 6, "Wheel verification covers all six Settings dropdowns including HUD layout");
         foreach (var choice in choices)
         {
             var scroll = SettingsTabVerification.Select(panel, choice);

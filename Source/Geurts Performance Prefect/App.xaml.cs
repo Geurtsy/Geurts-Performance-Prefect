@@ -26,6 +26,14 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Length == 2 && e.Args[0] == "--hud-layout-test")
+        {
+            var report = Path.GetFullPath(e.Args[1]); Directory.CreateDirectory(Path.GetDirectoryName(report)!);
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            try { HudLayoutVerification.RunIsolated(report); Shutdown(0); }
+            catch (Exception ex) { File.WriteAllText(report,ex.ToString()); Shutdown(1); }
+            return;
+        }
         if (e.Args.Length == 2 && e.Args[0] == "--settings-window-test")
         {
             var report = Path.GetFullPath(e.Args[1]); Directory.CreateDirectory(Path.GetDirectoryName(report)!);

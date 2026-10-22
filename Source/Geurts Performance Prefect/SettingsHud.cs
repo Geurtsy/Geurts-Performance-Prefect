@@ -87,7 +87,7 @@ internal sealed class SettingsHud
         var original = (StackPanel)overlayScroll.Content;
         var nodes = original.Children.Cast<UIElement>().ToArray(); original.Children.Clear();
         var placementStart = Array.FindIndex(nodes,node => node is TextBlock label && label.Text == "Window");
-        var appearanceStart = Array.FindIndex(nodes,node => node is TextBlock label && label.Text.StartsWith("Opacity ·",StringComparison.Ordinal));
+        var appearanceStart = Array.FindIndex(nodes,node => node is TextBlock label && (label.Text == "HUD layout" || label.Text.StartsWith("Opacity ·",StringComparison.Ordinal)));
         if (placementStart < 0 || appearanceStart <= placementStart) throw new InvalidOperationException("Overlay control groups could not be identified.");
         var readings = new StackPanel();
         // Keep the existing controls and their event handlers; only their containers change.
@@ -168,55 +168,56 @@ internal sealed class SettingsHud
 internal sealed class SettingsHudPreview : StackPanel
 {
     readonly OverlayWindow overlay;
-    readonly Dictionary<Metric,(Border Row,TextBlock Label,TextBlock Value,ProgressBar Meter)> rows = new();
+    readonly Dictionary<Metric,MetricRow> rows = new();
+    readonly Border frame;
     readonly StackPanel driveRows = new();
     readonly TextBlock caption = new() { Foreground = SettingsHud.Muted, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,18,0,0) };
     readonly StackPanel readings = new();
     readonly TextBlock empty = new() { Text = "Enable a reading to see it here.", Foreground = SettingsHud.Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap };
-    internal string DisplayedValue(Metric metric) => rows[metric].Value.Text;
-    internal bool IsDisplayed(Metric metric) => rows[metric].Row.Visibility == Visibility.Visible;
+    internal string DisplayedValue(Metric metric) => rows[metric].ValueText;
+    internal bool IsDisplayed(Metric metric) => rows[metric].Visibility == Visibility.Visible;
+    internal HudLayout DisplayedLayout { get; private set; }
     internal SettingsHudPreview(OverlayWindow overlay)
     {
         this.overlay = overlay;
         Children.Add(new TextBlock { Text = "OVERLAY PREVIEW / LIVE", FontFamily = new FontFamily("Consolas"), FontSize = 11, Foreground = SettingsHud.Muted, Margin = new Thickness(0,0,0,13) });
-        readings.Children.Add(new TextBlock { Text = "GEURTS +", Foreground = SettingsHud.Accent, FontFamily = new FontFamily("Bahnschrift"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0,0,0,15) });
+        readings.Children.Add(new TextBlock { Text = "G+ PREFECT", Foreground = SettingsHud.Accent, FontFamily = new FontFamily("Bahnschrift"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0,0,0,12) });
         foreach (var metric in MetricInfo.All)
         {
-            var label = new TextBlock { Foreground = SettingsHud.Muted, FontFamily = new FontFamily("Consolas"), FontSize = 11, TextWrapping = TextWrapping.Wrap };
-            var value = new TextBlock { Foreground = SettingsHud.Text, FontFamily = new FontFamily("Bahnschrift"), FontSize = 22, TextWrapping = TextWrapping.Wrap };
-            var meter = new ProgressBar { Minimum = 0, Maximum = 100, Height = 4, BorderThickness = new Thickness(0), Foreground = SettingsHud.Accent, Background = SettingsHud.Line, Margin = new Thickness(0,8,0,0) };
-            var body = new StackPanel(); body.Children.Add(label); body.Children.Add(value); body.Children.Add(meter);
-            var row = new Border { Child = body, Padding = new Thickness(0,10,0,12), BorderBrush = SettingsHud.Line, BorderThickness = new Thickness(0,1,0,0) };
-            rows[metric] = (row,label,value,meter); readings.Children.Add(row);
+            var row = new MetricRow(metric);
+            rows[metric] = row; readings.Children.Add(row);
         }
         readings.Children.Add(driveRows); readings.Children.Add(empty);
-        Children.Add(new Border { Child = readings, Background = SettingsHud.Brush("#09160E"), BorderBrush = SettingsHud.Brush("#5D7650"), BorderThickness = new Thickness(1), Padding = new Thickness(16) });
+        frame = new Border { Child = readings, BorderThickness = new Thickness(1) };
+        Children.Add(new Viewbox { Child = frame, Width = 218, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left });
         Children.Add(caption);
     }
     internal void Refresh()
     {
-        var source = overlay.Latest == null ? null : SensorSelection.Select(overlay.Latest,overlay.Settings);
+        DisplayedLayout = overlay.Settings.HudLayout;
+        frame.Width = CompactHud.Width(DisplayedLayout);
+        frame.Padding = new Thickness(DisplayedLayout == HudLayout.Standard ? 14 : 9);
+        frame.Background = DisplayedLayout == HudLayout.Standard ? Palette.Background : CompactHud.Background;
+        frame.BorderBrush = DisplayedLayout == HudLayout.Standard ? Palette.Track : CompactHud.Line;
+        System.Windows.Documents.TextElement.SetFontFamily(readings,new FontFamily(DisplayedLayout == HudLayout.Standard ? "Segoe UI" : "Bahnschrift"));
         var count = 0;
         foreach (var metric in MetricInfo.All)
         {
             var row = rows[metric]; var live = overlay.MetricRows[metric];
-            row.Row.Visibility = overlay.Settings.Visible[metric] ? Visibility.Visible : Visibility.Collapsed;
+            row.ApplyLayout(DisplayedLayout); row.CopyFrom(live);
+            row.Visibility = overlay.Settings.Visible[metric] ? Visibility.Visible : Visibility.Collapsed;
             if (overlay.Settings.Visible[metric]) count++;
-            row.Label.Text = live.LabelText.ToUpperInvariant(); row.Value.Text = live.ValueText;
-            row.Value.FontSize = row.Value.Text.Length > 10 ? 14 : 22;
-            row.Meter.Visibility = metric == Metric.ForegroundFps || source == null || !source[metric].Value.HasValue ? Visibility.Collapsed : Visibility.Visible;
-            if (source != null) row.Meter.Value = Math.Clamp(source[metric].Value ?? 0,0,100);
         }
         driveRows.Children.Clear();
         foreach (var drive in overlay.DriveRows.Where(pair => overlay.Settings.IsDriveVisible(pair.Key)))
         {
             count++;
-            driveRows.Children.Add(new TextBlock { Text = drive.Value.LabelText.ToUpperInvariant() + "\n" + drive.Value.ValueText,
-                Foreground = SettingsHud.Text, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,12,0,0) });
+            var row = new MetricRow(drive.Value.LabelText); row.ApplyLayout(DisplayedLayout); row.CopyFrom(drive.Value);
+            driveRows.Children.Add(row);
         }
         empty.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
         readings.Opacity = overlay.Settings.Opacity;
         caption.Text = (overlay.Latest == null ? "Waiting for live readings." : "Live values from the overlay.") +
-            $"\nSize {overlay.Settings.Scale:P0} · Opacity {overlay.Settings.Opacity:P0}\nPosition: {overlay.Settings.AutoAvoidCorner}";
+            $"\n{CompactHud.Name(DisplayedLayout)}\nSize {overlay.Settings.Scale:P0} · Opacity {overlay.Settings.Opacity:P0}\nPosition: {overlay.Settings.AutoAvoidCorner}";
     }
 }

@@ -58,6 +58,15 @@ public sealed class SettingsWindow : Window
     public CheckBox MinimiseToTrayToggle { get; }
     public CheckBox AutoAvoidToggle { get; }
     public ComboBox OverlayMonitorSelector { get; } = new();
+    public ComboBox HudLayoutSelector { get; } = new();
+    bool updatingHudControls;
+    sealed record HudLayoutChoice(HudLayout Layout, string Name);
+    void SyncHudControls()
+    {
+        updatingHudControls = true;
+        try { HudLayoutSelector.SelectedValue = overlay.Settings.HudLayout; TopmostToggle.IsChecked = overlay.Settings.AlwaysOnTop; }
+        finally { updatingHudControls = false; }
+    }
     bool updatingMonitors;
     public Dictionary<ScreenCorner, CheckBox> AutoAvoidCornerToggles { get; } = new();
     bool updatingAutoAvoidCorners;
@@ -328,10 +337,24 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(MinimiseToTrayToggle);
         stack.Children.Add(Note("Hide the application in the notification area when minimised. Double-click its tray icon or choose Restore to reopen it. Turn this off to minimise to the taskbar."));
         TopmostToggle = new CheckBox { Content = "Always on top", IsChecked = overlay.Settings.AlwaysOnTop };
-        TopmostToggle.Checked += (_, _) => { overlay.Settings.AlwaysOnTop = true; overlay.Changed(); };
-        TopmostToggle.Unchecked += (_, _) => { overlay.Settings.AlwaysOnTop = false; overlay.Changed(); };
+        TopmostToggle.Checked += (_, _) => { if (!updatingHudControls) { overlay.Settings.AlwaysOnTop = true; overlay.Changed(); } };
+        TopmostToggle.Unchecked += (_, _) => { if (!updatingHudControls) { overlay.Settings.AlwaysOnTop = false; overlay.Changed(); } };
         stack.Children.Add(TopmostToggle);
         stack.Children.Add(Note("Keep the overlay above other windows. For games, use windowed or borderless mode."));
+        stack.Children.Add(Label("HUD layout"));
+        HudLayoutSelector.ItemsSource = Enum.GetValues<HudLayout>().Select(layout => new HudLayoutChoice(layout,CompactHud.Name(layout))).ToArray();
+        HudLayoutSelector.DisplayMemberPath = "Name"; HudLayoutSelector.SelectedValuePath = "Layout";
+        HudLayoutSelector.SelectedValue = overlay.Settings.HudLayout;
+        System.Windows.Automation.AutomationProperties.SetName(HudLayoutSelector,"HUD layout");
+        HudLayoutSelector.SelectionChanged += (_,_) =>
+        {
+            if (!updatingHudControls && HudLayoutSelector.SelectedItem is HudLayoutChoice choice)
+            { overlay.Settings.HudLayout = choice.Layout; overlay.Changed(); }
+        };
+        stack.Children.Add(HudLayoutSelector);
+        stack.Children.Add(Note("Standard keeps the original HUD. Compact vertical retains sensor sources and top-app averages; Minimal vertical shows names and values only. The layout saves automatically."));
+        overlay.SettingsChanged += SyncHudControls;
+        Closed += (_,_) => overlay.SettingsChanged -= SyncHudControls;
         AddSlider(stack, "Opacity", .35, 1, overlay.Settings.Opacity, value => { overlay.Settings.Opacity = value; overlay.Changed(); }, value => $"{value:P0}");
         AddSlider(stack, "Size", .8, 1.6, overlay.Settings.Scale, value => { overlay.Settings.Scale = value; overlay.Changed(); }, value => $"{value:P0}");
         stack.Children.Add(Label("Update every"));

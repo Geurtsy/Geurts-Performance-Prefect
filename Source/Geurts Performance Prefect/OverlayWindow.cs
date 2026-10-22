@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -18,13 +19,25 @@ public sealed class MetricRow : Border
 {
     readonly TextBlock value, detail;
     readonly TextBlock application;
-    readonly Border fill;
+    readonly Border fill, track;
     readonly bool temperature;
     readonly bool fps;
     readonly TextBlock label;
+    readonly Grid contentGrid;
+    readonly Expander expander;
+    readonly TextBlock expandedText;
+    internal Expander DetailsExpander => expander;
+    HudLayout layout;
+    bool layoutApplied;
+    string fullLabel;
+    Reading lastReading = new(null, "Waiting for sensors");
+    TopApplication? lastApplication;
+    int lastAverage = 60;
+    string? lastResource;
     public MetricRow(Metric metric) : this(MetricInfo.Label(metric), MetricInfo.IsTemperature(metric), metric == Metric.ForegroundFps) { }
     public MetricRow(string name, bool temperature = false, bool fps = false)
     {
+        fullLabel = name;
         this.temperature = temperature;
         this.fps = fps;
         Background = Palette.Panel; CornerRadius = new CornerRadius(8); Padding = new Thickness(12,9,12,8); Margin = new Thickness(0,0,0,6);
@@ -39,15 +52,70 @@ public sealed class MetricRow : Border
         Grid.SetRow(detail, 1); Grid.SetColumnSpan(detail, 2); grid.Children.Add(detail);
         application = new TextBlock { FontSize = 10, Foreground = Palette.Accent, Margin = new Thickness(0,0,0,6), TextTrimming = TextTrimming.CharacterEllipsis, Visibility = Visibility.Collapsed };
         Grid.SetRow(application, 2); Grid.SetColumnSpan(application, 2); grid.Children.Add(application);
-        var track = new Border { Background = Palette.Track, Height = 3, CornerRadius = new CornerRadius(2), ClipToBounds = true };
+        track = new Border { Background = Palette.Track, Height = 3, CornerRadius = new CornerRadius(2), ClipToBounds = true };
         fill = new Border { Background = Palette.Accent, Width = 0, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(2) };
         track.Child = fill; Grid.SetRow(track, 3); Grid.SetColumnSpan(track, 2); grid.Children.Add(track);
         if (fps) track.Visibility = Visibility.Collapsed;
         track.SizeChanged += (_, _) => UpdateFill();
+        contentGrid = grid;
+        expandedText = new TextBlock { FontSize = 11, Foreground = CompactHud.Muted, TextWrapping = TextWrapping.Wrap };
+        var expanded = new StackPanel(); expanded.Children.Add(expandedText);
+        expander = new Expander { Style = CompactHud.Style("HudReadingExpander") };
+        expanded.Children.Add(CompactHud.Button("\uE711", "Close reading details", () => expander.IsExpanded = false));
+        expander.Content = new Border { Background = CompactHud.Panel, BorderBrush = CompactHud.Accent, BorderThickness = new Thickness(2,0,0,0),
+            Padding = new Thickness(8), Margin = new Thickness(0,4,0,4), Child = expanded };
+        System.Windows.Automation.AutomationProperties.SetName(expander,name + " details");
         Child = grid;
     }
     double fraction;
-    public void SetLabel(string name) => label.Text = name;
+    public void SetLabel(string name) { fullLabel = name; label.Text = layout == HudLayout.MinimalVertical ? CompactHud.ShortLabel(name) : name; }
+    internal HudLayout Layout => layout;
+    internal bool DetailsVisible => detail.Visibility == Visibility.Visible;
+    internal bool ApplicationVisible => application.Visibility == Visibility.Visible;
+    internal bool MeterVisible => track.Visibility == Visibility.Visible;
+    internal void CopyFrom(MetricRow source)
+    {
+        SetLabel(source.fullLabel); Update(source.lastReading, source.lastApplication, source.lastAverage, source.lastResource);
+    }
+    internal void ApplyLayout(HudLayout selected)
+    {
+        if (layoutApplied && layout == selected) return;
+        layoutApplied = true;
+        layout = selected;
+        Child = null; expander.Header = null;
+        if (layout == HudLayout.CompactVertical) { expander.Header = contentGrid; Child = expander; }
+        else { expander.IsExpanded = false; Child = contentGrid; }
+        var standard = layout == HudLayout.Standard;
+        var minimal = layout == HudLayout.MinimalVertical;
+        Background = standard ? Palette.Panel : Brushes.Transparent;
+        BorderBrush = standard ? Brushes.Transparent : CompactHud.Line;
+        BorderThickness = standard ? new Thickness(0) : new Thickness(0,0,0,1);
+        CornerRadius = new CornerRadius(standard ? 8 : 0);
+        Padding = standard ? new Thickness(12,9,12,8) : minimal ? new Thickness(0,5,0,5) : new Thickness(0,6,0,6);
+        Margin = standard ? new Thickness(0,0,0,6) : new Thickness(0);
+        label.Foreground = standard ? Palette.Muted : CompactHud.Text;
+        label.FontWeight = standard ? FontWeights.Normal : FontWeights.Medium;
+        label.FontSize = 12;
+        label.TextWrapping = minimal ? TextWrapping.NoWrap : TextWrapping.Wrap;
+        label.TextTrimming = minimal || standard ? TextTrimming.CharacterEllipsis : TextTrimming.None;
+        value.FontSize = standard ? 22 : minimal ? 18 : 20;
+        detail.Foreground = standard ? Palette.Muted : CompactHud.Muted;
+        detail.FontSize = standard ? 10 : 11;
+        detail.Margin = standard ? new Thickness(0,0,0,5) : new Thickness(0,1,0,0);
+        detail.Visibility = minimal ? Visibility.Collapsed : Visibility.Visible;
+        detail.TextWrapping = standard ? TextWrapping.NoWrap : TextWrapping.Wrap;
+        detail.TextTrimming = standard ? TextTrimming.CharacterEllipsis : TextTrimming.None;
+        application.Foreground = standard ? Palette.Accent : CompactHud.Accent;
+        application.FontSize = standard ? 10 : 11;
+        application.Margin = standard ? new Thickness(0,0,0,6) : new Thickness(0,1,0,2);
+        application.TextWrapping = standard ? TextWrapping.NoWrap : TextWrapping.Wrap;
+        application.TextTrimming = standard ? TextTrimming.CharacterEllipsis : TextTrimming.None;
+        track.Height = standard ? 3 : 2;
+        track.Background = standard ? Palette.Track : CompactHud.Track;
+        track.Visibility = minimal || fps ? Visibility.Collapsed : Visibility.Visible;
+        SetLabel(fullLabel);
+        Update(lastReading,lastApplication,lastAverage,lastResource);
+    }
     void UpdateFill() => fill.Width = Math.Max(0, ((FrameworkElement)fill.Parent).ActualWidth * fraction);
     public string ApplicationText => application.Text;
     public string ValueText => value.Text;
@@ -55,17 +123,25 @@ public sealed class MetricRow : Border
     public string DetailText => detail.Text;
     public void Update(Reading reading, TopApplication? topApplication = null, int averageSeconds = 60, string? resource = null)
     {
+        lastReading = reading; lastApplication = topApplication; lastAverage = averageSeconds; lastResource = resource;
         var valid = reading.Value.HasValue && double.IsFinite(reading.Value.Value);
         value.Text = valid ? $"{reading.Value:0}{(fps ? " FPS" : temperature ? " °C" : " %")}" : "—";
+        if (layout != HudLayout.Standard && valid)
+        {
+            value.Inlines.Clear();
+            value.Inlines.Add(new Run($"{reading.Value:0}"));
+            value.Inlines.Add(new Run(fps ? " FPS" : temperature ? " °C" : " %") { FontSize = 11, Foreground = CompactHud.Muted });
+        }
         var separator = reading.Source.LastIndexOf(" / ", StringComparison.Ordinal);
         var sourceLabel = separator >= 0 ? reading.Source[(separator + 3)..] : reading.Source;
         detail.Text = valid || fps ? (string.IsNullOrEmpty(reading.Detail) ? sourceLabel : reading.Detail) : "Unavailable · open Settings";
         ToolTip = valid ? reading.Source + "\n" + reading.Detail : reading.Source + "\nNo reading is available. Check Settings.";
+        if (layout == HudLayout.MinimalVertical) ToolTip = null;
         fraction = valid ? Math.Clamp(reading.Value!.Value / 100d, 0, 1) : 0;
         var hot = temperature && reading.Value >= 85;
-        fill.Background = hot ? Palette.Amber : Palette.Accent;
-        value.Foreground = hot ? Palette.Amber : Palette.Text;
-        application.Visibility = resource == null ? Visibility.Collapsed : Visibility.Visible;
+        fill.Background = hot ? (layout == HudLayout.Standard ? Palette.Amber : CompactHud.Amber) : layout == HudLayout.Standard ? Palette.Accent : CompactHud.Accent;
+        value.Foreground = hot ? (layout == HudLayout.Standard ? Palette.Amber : CompactHud.Amber) : layout == HudLayout.Standard ? Palette.Text : CompactHud.Text;
+        application.Visibility = resource == null || layout == HudLayout.MinimalVertical ? Visibility.Collapsed : Visibility.Visible;
         if (resource != null)
         {
             topApplication ??= new(null, 0, 0, "Waiting for application samples");
@@ -82,6 +158,8 @@ public sealed class MetricRow : Border
                 resource.StartsWith("gpu:", StringComparison.Ordinal) ? "Busiest GPU engine on the selected card, grouped by executable name." :
                 "Share of total CPU capacity, grouped by executable name. Protected or very short-lived processes may not be sampled.");
         }
+        expandedText.Text = reading.Source + (string.IsNullOrWhiteSpace(reading.Detail) ? "" : "\n" + reading.Detail) +
+            (resource == null ? "" : "\n\n" + application.Text + "\n" + application.ToolTip);
         UpdateFill();
     }
     static string FormatBytes(double bytes) => bytes >= 1073741824 ? $"{bytes / 1073741824:0.0} GB" :
@@ -117,6 +195,15 @@ public sealed class OverlayWindow : Window
     readonly TextBlock status, empty;
     readonly Border surface;
     readonly Grid header;
+    readonly FrameworkElement standardTitle, standardButtons;
+    readonly Grid compactHeader;
+    readonly Button pinButton, collapseButton;
+    bool hudCollapsed;
+    HudLayout appliedLayout;
+    internal Button CollapseHudButton => collapseButton;
+    internal Button PinHudButton => pinButton;
+    internal bool HudCollapsed => hudCollapsed;
+    internal double HudWidth => surface.Width;
     readonly Func<Point> cursorPosition;
     readonly Func<ProcessStartInfo, bool>? restartStart;
     readonly DispatcherTimer saveTimer, staleTimer;
@@ -166,6 +253,18 @@ public sealed class OverlayWindow : Window
         System.Windows.Automation.AutomationProperties.SetName(MinimiseButton, "Minimise");
         MinimiseButton.Click += (_, _) => Minimise(); headerButtons.Children.Add(MinimiseButton); headerButtons.Children.Add(settingsButton);
         Grid.SetColumn(headerButtons, 1); header.Children.Add(headerButtons);
+        standardTitle = title; standardButtons = headerButtons;
+        compactHeader = new Grid { Visibility = Visibility.Collapsed };
+        compactHeader.ColumnDefinitions.Add(new()); compactHeader.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
+        compactHeader.Children.Add(new TextBlock { Text = "G+ PREFECT", FontFamily = new FontFamily("Bahnschrift"), FontSize = 14,
+            FontWeight = FontWeights.SemiBold, Foreground = CompactHud.Text, VerticalAlignment = VerticalAlignment.Center });
+        var compactButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        pinButton = CompactHud.Button("\uE718", "Keep HUD on top", () => { Settings.AlwaysOnTop = !Settings.AlwaysOnTop; Changed(); });
+        collapseButton = CompactHud.Button("\uE70E", "Collapse HUD", () => { hudCollapsed = !hudCollapsed; ApplyHudContentVisibility(); QueueAutoAvoidSnap(); });
+        var compactSettings = CompactHud.Button("\uE713", "Settings", OpenSettings);
+        compactButtons.Children.Add(pinButton); compactButtons.Children.Add(collapseButton); compactButtons.Children.Add(compactSettings);
+        Grid.SetColumn(compactButtons,1); compactHeader.Children.Add(compactButtons);
+        Grid.SetColumnSpan(compactHeader,2); header.Children.Add(compactHeader);
         header.MouseLeftButtonDown += (_, e) =>
         {
             if (e.OriginalSource is DependencyObject source && IsInsideButton(source)) return;
@@ -299,6 +398,7 @@ public sealed class OverlayWindow : Window
         {
             if (!DriveRows.TryGetValue(drive.Id, out var row))
             { row = new MetricRow(drive.Label + " usage"); DriveRows.Add(drive.Id, row); }
+            row.ApplyLayout(Settings.HudLayout);
             row.SetLabel(drive.Label + " usage");
             var resource = UsageResource.Drive(drive.Id);
             row.Update(drive.Reading, Top(resource), Settings.ApplicationAverageSeconds, resource);
@@ -320,6 +420,7 @@ public sealed class OverlayWindow : Window
     public void ApplySettings()
     {
         Settings.Normalise(); Topmost = Settings.AlwaysOnTop; Opacity = Settings.Opacity;
+        ApplyHudLayout();
         ShowInTaskbar = !Settings.MinimiseToTray;
         header.Visibility = Settings.AutoAvoid ? Visibility.Collapsed : Visibility.Visible;
         if (WindowState == WindowState.Minimized) ApplyMinimise();
@@ -337,7 +438,42 @@ public sealed class OverlayWindow : Window
         QueueAutoAvoidSnap();
     }
     public void Changed() { ApplySettings(); saveTimer.Stop(); saveTimer.Start(); SettingsChanged?.Invoke(); }
-    void UpdateEmpty() => empty.Visibility = rows.Values.Concat(DriveRows.Values).Any(r => r.Visibility == Visibility.Visible) ? Visibility.Collapsed : Visibility.Visible;
+    void UpdateEmpty() => empty.Visibility = hudCollapsed || rows.Values.Concat(DriveRows.Values).Any(r => r.Visibility == Visibility.Visible) ? Visibility.Collapsed : Visibility.Visible;
+    void ApplyHudLayout()
+    {
+        var selected = Settings.HudLayout;
+        if (appliedLayout != selected || Settings.AutoAvoid) hudCollapsed = false;
+        appliedLayout = selected;
+        var standard = selected == HudLayout.Standard;
+        surface.Width = CompactHud.Width(selected);
+        Width = double.NaN;
+        surface.Background = standard ? Palette.Background : CompactHud.Background;
+        surface.BorderBrush = standard ? Palette.Track : CompactHud.Line;
+        surface.BorderThickness = standard ? new Thickness(1) : new Thickness(1,3,1,1);
+        surface.CornerRadius = new CornerRadius(standard ? 13 : 0);
+        surface.Padding = new Thickness(standard ? 14 : 9);
+        FontFamily = new FontFamily(standard ? "Segoe UI" : "Bahnschrift");
+        header.Margin = new Thickness(0,0,0,standard ? 13 : 6);
+        standardTitle.Visibility = standard ? Visibility.Visible : Visibility.Collapsed;
+        standardButtons.Visibility = standard ? Visibility.Visible : Visibility.Collapsed;
+        compactHeader.Visibility = standard ? Visibility.Collapsed : Visibility.Visible;
+        pinButton.Foreground = Settings.AlwaysOnTop ? CompactHud.Accent : CompactHud.Muted;
+        pinButton.ToolTip = Settings.AlwaysOnTop ? "Unpin HUD" : "Keep HUD on top";
+        foreach (var row in rows.Values.Concat(DriveRows.Values)) row.ApplyLayout(selected);
+        status.FontSize = standard ? 10 : 9;
+        status.Foreground = standard ? Palette.Muted : CompactHud.Muted;
+        empty.Foreground = standard ? Palette.Muted : CompactHud.Muted;
+        ApplyHudContentVisibility();
+    }
+    void ApplyHudContentVisibility()
+    {
+        readingsScroll.Visibility = hudCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        status.Visibility = hudCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        UpdateEmpty();
+        collapseButton.Content = hudCollapsed ? "\uE70D" : "\uE70E";
+        collapseButton.ToolTip = hudCollapsed ? "Expand HUD" : "Collapse HUD";
+        System.Windows.Automation.AutomationProperties.SetName(collapseButton,hudCollapsed ? "Expand HUD" : "Collapse HUD");
+    }
     public void SaveSettings()
     {
         UpdateSavedPosition();
