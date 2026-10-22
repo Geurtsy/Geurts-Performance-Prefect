@@ -239,7 +239,7 @@ public static class Verification
         File.WriteAllText(store.Path, "{\"AutoAvoidCorner\":99}");
         Check(store.Load().AutoAvoidCorner == ScreenCorner.TopLeft, "Invalid saved corner recovers to top left");
         var simulatedPointer = new Point(-100000,-100000);
-        var overlay = new OverlayWindow(store, new OverlaySettings(), verification: true, cursorPosition: () => simulatedPointer);
+        var overlay = new OverlayWindow(store, new OverlaySettings { HudLayout = HudLayout.Standard }, verification: true, cursorPosition: () => simulatedPointer);
         overlay.Receive(firmware);
         var boardLabel = ((Grid)overlay.MetricRows[Metric.MotherboardTemperature].Child).Children.OfType<TextBlock>().First();
         Check(boardLabel.Text == "System temperature (ACPI)", "Firmware fallback is labelled as a system temperature in the overlay");

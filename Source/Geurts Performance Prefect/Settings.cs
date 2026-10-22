@@ -23,7 +23,7 @@ public static class MetricInfo
 
 public sealed class OverlaySettings
 {
-    public HudLayout HudLayout { get; set; } = HudLayout.Standard;
+    public HudLayout HudLayout { get; set; } = HudLayout.StandardVertical;
     public Dictionary<Metric, bool> Visible { get; set; } = MetricInfo.All.ToDictionary(m => m, _ => true);
     public bool AlwaysOnTop { get; set; } = true;
     public bool MinimiseToTray { get; set; } = true;
@@ -60,7 +60,7 @@ public sealed class OverlaySettings
     public Dictionary<Guid, uint> CoreParkingPreviousValues { get; set; } = new();
     public void Normalise()
     {
-        if (!Enum.IsDefined(HudLayout)) HudLayout = HudLayout.Standard;
+        if (!Enum.IsDefined(HudLayout)) HudLayout = HudLayout.StandardVertical;
         Visible ??= new();
         AutomaticCompression = (AutomaticCompression ?? new()).Normalise();
         StorageSenseAgeDays = Math.Clamp(StorageSenseAgeDays, 7, 365);

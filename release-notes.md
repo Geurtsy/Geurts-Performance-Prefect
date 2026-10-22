@@ -1,3 +1,8 @@
+# Geurts Performance Prefect 1.40.2
+
+- Standard vertical is now the default HUD layout for new settings and preferences without a saved layout. Invalid layout values also recover to Standard vertical. Existing saved layout choices are preserved.
+- Validated first-launch defaults, Settings selection and live preview, saved choices and all four HUD layouts using isolated fixtures. Local installation remains manual.
+
 # Geurts Performance Prefect 1.40.1
 
 - Automatic compression now makes its per-file sequence visible: check a file, immediately compress or decompress it when the selected policy allows, then check the next file. Live status includes completed counts and disk space saved during traversal. Automatic passes use no full-drive preview.

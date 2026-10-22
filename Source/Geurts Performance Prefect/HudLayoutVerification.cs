@@ -40,14 +40,16 @@ internal static class HudLayoutVerification
         Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var legacy = JsonSerializer.Deserialize<OverlaySettings>("{\"Opacity\":0.72,\"ApplicationAverageSeconds\":90}")!;
         legacy.Normalise();
-        check(legacy.HudLayout == HudLayout.Standard && legacy.Opacity == .72 && legacy.ApplicationAverageSeconds == 90,
-            "Existing preferences retain Standard HUD and their original values");
+        check(legacy.HudLayout == HudLayout.StandardVertical && legacy.Opacity == .72 && legacy.ApplicationAverageSeconds == 90,
+            "Preferences without a layout use Standard vertical and retain their other values");
         var invalid = new OverlaySettings { HudLayout = (HudLayout)999 }; invalid.Normalise();
-        check(invalid.HudLayout == HudLayout.Standard,"Invalid saved HUD layouts recover to Standard");
+        check(invalid.HudLayout == HudLayout.StandardVertical,"Invalid saved HUD layouts recover to Standard vertical");
         check((int)HudLayout.Standard == 0 && (int)HudLayout.CompactVertical == 1 && (int)HudLayout.MinimalVertical == 2 &&
             JsonSerializer.Deserialize<OverlaySettings>("{\"HudLayout\":2}")!.HudLayout == HudLayout.MinimalVertical,
             "Adding Standard vertical preserves every previously saved layout identity");
         var store = new SettingsStore(Path.Combine(folder,"hud-layout-settings.json"));
+        var freshStore = new SettingsStore(Path.Combine(folder,"hud-default-settings.json"));
+        check(freshStore.Load().HudLayout == HudLayout.StandardVertical,"First launch without saved settings defaults to Standard vertical");
         var settings = new OverlaySettings();
         var overlay = new OverlayWindow(store,settings,verification:true,cursorPosition:()=>new Point(-100000,-100000));
         var panel = new SettingsWindow(overlay,new CoreParking(new Verification.ParkingFixture()));
@@ -69,6 +71,9 @@ internal static class HudLayoutVerification
         try
         {
             overlay.Show(); overlay.Receive(snapshot); panel.Show();
+            check(settings.HudLayout == HudLayout.StandardVertical && overlay.HudWidth == 358 &&
+                panel.Hud.Preview.DisplayedLayout == HudLayout.StandardVertical && Equals(panel.HudLayoutSelector.SelectedValue,HudLayout.StandardVertical),
+                "A fresh HUD, Settings selector and live preview all start in Standard vertical");
             SettingsTabVerification.Select(panel,panel.HudLayoutSelector);
             check(panel.HudLayoutSelector.Items.Count == 4 && panel.Hud.OverlayPage == "Appearance",
                 "Overlay Appearance offers Standard, Standard vertical, Compact vertical and Minimal vertical");
