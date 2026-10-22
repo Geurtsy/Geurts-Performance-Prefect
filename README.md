@@ -86,7 +86,10 @@ contents. Missed/overflowed events request a reconciliation scan, limited to onc
 per hour. Threshold transitions and startup catch-up for always-new mode can scan
 the accessible drive. An unchanged fullness band does not repeatedly trigger a
 drive sweep, and changes made by Prefect do not immediately schedule an opposite
-sweep. Large drive scans may take time; live status appears in the section.
+sweep. Every automatic pass checks one file, immediately compresses or decompresses
+it when the policy calls for it, then checks the next file. It does not collect a
+full-drive preview first. Live status shows the current file, completed compression
+and decompression counts, skipped files and disk space saved while traversal continues.
 
 Decompression checks free space per file and refuses an expansion that would bring
 usage to within one percentage point of the compression threshold. Eligible files

@@ -178,6 +178,7 @@ internal sealed class AutomaticCompressionController : IDisposable
             string[] paths = sweep ? new[] { policy.Root } : batch.Select(e => e.Key).ToArray();
             Status = $"{policy.Root} is {state.UsedPercent:0.#}% full. " + (band == 0 ? "Between thresholds; monitoring new files." : "Monitoring threshold policy.");
             if (paths.Length == 0) { Changed?.Invoke(); return; }
+            Status += " Checking and changing one file at a time…";
             IsBusy = true; stop = new(); Changed?.Invoke(); var token = stop.Token;
             var result = await Task.Run(() => run(paths, policy.Root, file =>
             {

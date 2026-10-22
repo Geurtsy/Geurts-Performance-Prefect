@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -42,6 +43,8 @@ internal static class AutomaticCompressionVerification
             return engine.ManageAutomatic(paths.Select(p => p == nativeRoot ? data : p).ToArray(), approved, choose, token, report);
         }
         using var controller = new AutomaticCompressionController(settings, store, engine, _ => volume, () => now, Run);
+        bool liveStatus = false;
+        controller.Changed += () => liveStatus |= controller.IsBusy && controller.Status.Contains("Compressed: ") && controller.Status.Contains("compressed 1,");
         Await(controller.TickAsync(true));
         check(runs == 0 && !settings.AutomaticCompression.Enabled, "Automatic compression defaults off and performs no drive work");
         var legacy = JsonSerializer.Deserialize<OverlaySettings>("{\"AutomaticCompression\":null}")!; legacy.Normalise();
@@ -57,6 +60,7 @@ internal static class AutomaticCompressionVerification
         controller.ManualBusy = false; Await(controller.TickAsync(true));
         check(Compressed(oldFile) && Compressed(newFile) && !Compressed(sentinel) && File.ReadAllText(oldFile) == original,
             "Above the high threshold automatic mode compresses eligible old/new files and preserves protected files and bytes");
+        check(liveStatus, "Automatic Settings status reports completed compression while the pass is still running");
         int previous = runs; now = now.AddMinutes(2); Await(controller.TickAsync(true));
         check(runs == previous, "An unchanged fullness band does not repeatedly rescan the whole drive");
         volume = volume with { Free = 25 * GiB }; Await(controller.TickAsync(true));
@@ -105,6 +109,60 @@ internal static class AutomaticCompressionVerification
         VerifyUi(root, data, nativeRoot, native, since, engine, check);
         VerifyWatcher(root, nativeRoot, native, since, check);
         VerifyNewEventDuringRun(root, nativeRoot, native, since, check);
+        VerifySequentialProcessing(root, nativeRoot, check);
+    }
+
+    static void VerifySequentialProcessing(string root, string nativeRoot, Action<bool,string> check)
+    {
+        var data = Path.Combine(root, "sequential"); Directory.CreateDirectory(data);
+        var files = new[] { "first.txt", "second.txt", "third.txt" }.Select(name => Path.Combine(data, name)).ToArray();
+        var content = string.Concat(Enumerable.Repeat("automatic sequential readable fixture\r\n", 8192));
+        foreach (var path in files) File.WriteAllText(path, content);
+        bool Compressed(string path) => (File.GetAttributes(path) & FileAttributes.Compressed) != 0;
+        var engine = new FileCompression(); var checkedPaths = new List<string>();
+        int completed = 0; bool ordered = true, fresh = true, liveTotals = true;
+        var snapshots = Directory.GetFiles(Path.GetTempPath(), "Prefect-compression-*.jsonl");
+        var result = engine.ManageAutomatic(new[] { data }, nativeRoot, file =>
+        {
+            ordered &= checkedPaths.Count == completed && checkedPaths.All(Compressed);
+            checkedPaths.Add(file.Path);
+            // Remaining files change after the first compression. A pre-scan would hold stale sizes.
+            fresh &= file.Length == new FileInfo(file.Path).Length;
+            return true;
+        }, CancellationToken.None, message =>
+        {
+            if (!message.Contains("Compressed: ")) return;
+            completed++;
+            ordered &= checkedPaths.Count == completed && checkedPaths.All(Compressed);
+            liveTotals &= message.Contains($"compressed {completed},") && message.Contains("Saved ");
+            if (completed == 1)
+                foreach (var path in files.Except(checkedPaths)) File.AppendAllText(path, " updated after first compression");
+        });
+        check(ordered && fresh && completed == 3 && result.Result.Changed == 3 && result.CheckedFiles == 3,
+            "Automatic traversal finishes compression before inspecting the next file, using its current contents rather than a full-drive preview");
+        check(liveTotals && result.Result.Before > result.Result.After && files.All(Compressed) &&
+            files.All(path => File.ReadAllText(path) == content + (path == checkedPaths[0] ? "" : " updated after first compression")),
+            "Automatic progress confirms each completed file and live savings while keeping files readable");
+        check(!Directory.GetFiles(Path.GetTempPath(), "Prefect-compression-*.jsonl").Except(snapshots).Any(),
+            "Automatic compression creates no full-drive snapshot");
+
+        checkedPaths.Clear(); completed = 0; ordered = true;
+        result = engine.ManageAutomatic(new[] { data }, nativeRoot, file =>
+        {
+            ordered &= checkedPaths.Count == completed && checkedPaths.All(path => !Compressed(path));
+            checkedPaths.Add(file.Path); return false;
+        }, CancellationToken.None, message =>
+        {
+            if (message.Contains("Decompressed: ")) { completed++; liveTotals &= message.Contains($"decompressed {completed},"); }
+        });
+        check(ordered && liveTotals && completed == 3 && result.Result.Changed == 3 && files.All(path => !Compressed(path)),
+            "Automatic decompression also completes and reports each file before checking the next");
+
+        using var stop = new CancellationTokenSource(); int inspected = 0;
+        result = engine.ManageAutomatic(new[] { data }, nativeRoot, _ => { inspected++; return true; }, stop.Token,
+            message => { if (message.Contains("Compressed: ")) stop.Cancel(); });
+        check(result.Result.Stopped && result.Result.Changed == 1 && inspected == 1 && files.Count(Compressed) == 1,
+            "Stopping automatic work after one completed file leaves later files uninspected and uncompressed");
     }
 
     static void VerifyNewEventDuringRun(string root, string nativeRoot, CompressionDrive native, DateTime since, Action<bool,string> check)
@@ -153,7 +211,8 @@ internal static class AutomaticCompressionVerification
         panel.Low.Value = 90; check(panel.High.Value >= 95, "Raising the low slider keeps a five-point threshold gap");
         panel.High.Value = 80; check(panel.Low.Value <= 75, "Lowering the high slider maintains ordered thresholds");
         panel.Enabled.IsChecked = true; PumpUntil(() => panel.Enabled.IsChecked == false);
-        check(!controller.Policy.Enabled && message.Contains("other tools", StringComparison.OrdinalIgnoreCase), "Declining enablement leaves automatic mode off and explains existing-file decompression");
+        check(!controller.Policy.Enabled && message.Contains("other tools", StringComparison.OrdinalIgnoreCase) && message.Contains("no full-drive preview"),
+            "Declining enablement leaves automatic mode off and explains immediate per-file processing and existing-file decompression");
         consent = true; panel.Enabled.IsChecked = true; PumpUntil(() => controller.Policy.Enabled && panel.ApplyButton.IsEnabled);
         check(store.Load().AutomaticCompression.Enabled && controller.Policy.CompressAt == (int)panel.High.Value, "Enabling through the UI persists the confirmed drive and percentages");
         panel.Mode.SelectedIndex = 1; Await(panel.ApplyAsync());

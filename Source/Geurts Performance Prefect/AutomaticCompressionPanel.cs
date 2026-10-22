@@ -31,6 +31,7 @@ internal sealed class AutomaticCompressionPanel : StackPanel, IDisposable
         Children.Add(Mode); Children.Add(highLabel); Children.Add(High); Children.Add(lowLabel); Children.Add(Low);
         Children.Add(Note("The sliders measure drive space used, not space saved. Defaults: compress at 85% full, decompress at 70% full. Keep at least five percentage points between them. Between thresholds, existing file states are kept. New means a file created after this policy was enabled; moving an older file keeps it in the older-file policy."));
         Children.Add(Note("Always mode keeps those new files compressed even below the low threshold; only older files are automatically decompressed. Decompression checks free space and skips a file that would bring the drive near the compression threshold. Windows, application/settings folders and protected files remain excluded."));
+        Children.Add(Note("Each pass checks one file, compresses or decompresses it immediately when the policy allows, then moves to the next file. It starts changing files before the drive scan finishes. Live status shows the current file, completed changes and disk space saved."));
         Children.Add(ApplyButton); Children.Add(DisableButton); Children.Add(Status);
         Children.Add(Note("Changes to sliders or mode take effect after Apply. New files settle for at least ten seconds and are checked on the next one-minute pass. Locked files are retried. Missed Windows notifications can trigger a recovery scan, at most once per hour; crossing a threshold can also scan the drive. Folder defaults stay unchanged. Manual work waits while automatic work is active. Turning this off stops after the current file. Closing Settings keeps monitoring active; exit, restart and updates wait for active work to stop."));
         System.Windows.Automation.AutomationProperties.SetName(High, "Compress when drive is this percentage full");
@@ -59,6 +60,7 @@ internal sealed class AutomaticCompressionPanel : StackPanel, IDisposable
         if (!confirm($"Enable automatic compression on {root}?\n\nCompress eligible files at {(int)High.Value}% full or higher; decompress at {(int)Low.Value}% full or lower. " +
             (Mode.SelectedIndex == 1 ? "Always compress files created after enabling this policy; these new files are excluded from automatic decompression. " : "New files are compressed only at the high threshold. ") +
             "Windows and protected files are skipped. Eligible files compressed by other tools may also be decompressed below the low threshold. " +
+            "Each file is checked and changed immediately before checking the next file; there is no full-drive preview first. " +
             "Runs while Prefect is open, including in the tray, and resumes after launch. The first check is in one minute. Stop/disable keeps completed changes."))
         { LoadPolicy(); return; }
         saving = true; Refresh();

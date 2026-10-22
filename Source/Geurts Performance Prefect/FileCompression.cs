@@ -198,17 +198,26 @@ internal sealed class FileCompression
     {
         root = Normalize(root);
         if (paths.Any(p => !Contains(root, Normalize(p)))) throw new IOException("Automatic targets must belong to the approved drive.");
-        int changed = 0, skipped = 0; long checkedFiles = 0, before = 0, after = 0; var issues = new List<string>();
-        using var scan = Scan(paths, stop, progress, root, file =>
+        int changed = 0, compressed = 0, decompressed = 0, skipped = 0;
+        long checkedFiles = 0, before = 0, after = 0; var issues = new List<string>();
+        void Report(string message) => progress?.Invoke($"Checked {checkedFiles} file(s), compressed {compressed}, decompressed {decompressed}, skipped {skipped}. " +
+            (before >= after ? $"Saved {Size(before - after)}. " : $"Used {Size(after - before)} more. ") + message);
+        Report("Checking and changing one file at a time…");
+        // Process runs inside the lazy walker: finish this file before inspecting the next.
+        // Automatic work never builds a preview or a complete drive snapshot.
+        using var scan = Scan(paths, stop, Report, root, file =>
         {
             if (stop.IsCancellationRequested) return;
             checkedFiles++;
+            Report("Checking file: " + file.Path);
             try
             {
                 var compress = choose(file);
                 if (compress == null || file.Compressed == compress.Value) { skipped++; return; }
-                var bytes = ChangeFile(file, compress.Value, root, () => progress?.Invoke((compress.Value ? "Auto-compressing: " : "Auto-decompressing: ") + file.Path));
+                var bytes = ChangeFile(file, compress.Value, root, () => Report((compress.Value ? "Auto-compressing: " : "Auto-decompressing: ") + file.Path));
                 changed++; before += bytes.Before; after += bytes.After;
+                if (compress.Value) compressed++; else decompressed++;
+                Report((compress.Value ? "Compressed: " : "Decompressed: ") + file.Path);
             }
             catch (Exception ex) when (Expected(ex)) { skipped++; if (issues.Count < 100) issues.Add(file.Path + ": " + ex.Message); }
         });

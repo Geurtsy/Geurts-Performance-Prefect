@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.40.1
+
+- Automatic compression now makes its per-file sequence visible: check a file, immediately compress or decompress it when the selected policy allows, then check the next file. Live status includes completed counts and disk space saved during traversal. Automatic passes use no full-drive preview.
+- Clarified this sequence in the automatic settings and confirmation. Existing thresholds, new-file modes and protected-file checks still apply.
+- Added real NTFS regression checks for operation order, fresh inspection of later files, per-file progress, cancellation and readable contents. Local installation remains manual.
+
 # Geurts Performance Prefect 1.40.0
 
 - Added Standard vertical under Settings → Overlay → Appearance → HUD layout, based on the initial non-compact mockup: a 358-pixel dark green military HUD with prominent branding, hardware icons, larger values, spacious rows and bevelled controls.
