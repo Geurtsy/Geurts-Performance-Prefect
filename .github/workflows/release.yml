@@ -1,0 +1,73 @@
+name: Build, validate and publish Windows release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Source/**'
+      - 'scripts/**'
+      - 'release-notes.md'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-stable-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check release scripts
+        run: ./scripts/Test-ReleaseGuards.ps1
+      - name: Build from clean committed source
+        run: ./scripts/Build-Release.ps1 -OutputDirectory Build/Hosted-release
+      - name: Validate package and run isolated application tests
+        run: ./scripts/Test-Release.ps1 -PackageDirectory Build/Hosted-release
+      - name: Prepare older disposable updater fixture
+        run: ./scripts/Prepare-UpdateFixture.ps1 -PackageDirectory Build/Hosted-release
+      - name: Extract current release notes
+        run: |
+          $manifest = Get-Content Build/Hosted-release/package/update-manifest.json -Raw | ConvertFrom-Json
+          $heading = '# Geurts Performance Prefect ' + $manifest.Version
+          $notes = Get-Content release-notes.md -Raw
+          if (!$notes.StartsWith($heading + "`r`n") -and !$notes.StartsWith($heading + "`n")) { throw 'Release notes do not start with the current version.' }
+          $section = ($notes -split '(?m)^# Geurts Performance Prefect ', 3)[1]
+          [IO.File]::WriteAllText((Join-Path (Get-Location) 'Build/Hosted-release/notes.md'), '# Geurts Performance Prefect ' + $section.Trim())
+      - name: Publish validated Windows ZIP and checksum
+        run: ./scripts/Publish-Release.ps1 -PackageDirectory Build/Hosted-release -NotesFile Build/Hosted-release/notes.md
+      - name: Verify public download and disposable updater
+        run: ./scripts/Verify-PublishedRelease.ps1 -PackageDirectory Build/Hosted-release
+      - name: Report the delivered release
+        run: |
+          $receipt = Get-Content Build/Hosted-release/published.json -Raw | ConvertFrom-Json
+          "Published [$($receipt.Version)]($($receipt.Url)) from $($receipt.Commit)." >> $env:GITHUB_STEP_SUMMARY
+          "Public Windows ZIP verified: SHA256 $($receipt.Sha256)." >> $env:GITHUB_STEP_SUMMARY
+          $receipt.UpdaterSmoke >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain verification and delivery evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-release-verification
+          path: |
+            Verification/**
+            Build/Hosted-release/*.json
+            Build/Hosted-release/*.sha256
+            Build/Updater-release-fixture/updater-smoke.txt
+          if-no-files-found: warn

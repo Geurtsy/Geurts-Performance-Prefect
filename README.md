@@ -1,5 +1,26 @@
 # Geurts Performance Prefect
 
+Application updates are delivered by the **Build, validate and publish Windows
+release** GitHub Actions workflow. Application-source, release-script and release-note
+changes on `main` trigger a clean Windows build, package checks, isolated application
+tests, publication of the Windows ZIP and checksum, a public download check, and an
+updater test using an older disposable package when available. This never installs
+an update on the developer's computer.
+
+An update is available only after that workflow succeeds and GitHub's latest stable
+release exposes its verified package. A source commit or development build alone
+does not make an update available in the app. Failed runs keep verification evidence
+under the `windows-release-verification` Actions artifact. Review that failure and
+rerun the workflow after fixing it; failed drafts can resume for the same commit.
+Published version assets are never overwritten. Bump the application version and
+release notes for subsequent application changes.
+
+Local release publishing uses `scripts/Build-Release.ps1`, then
+`scripts/Test-Release.ps1`, `scripts/Prepare-UpdateFixture.ps1`,
+`scripts/Publish-Release.ps1` and `scripts/Verify-PublishedRelease.ps1` with the same
+package directory. A clean committed checkout, successful matching test receipt and
+GitHub access are required. Development builds can still use `dotnet publish`.
+
 Settings uses a dark green tactical command deck with bevelled controls and a
 numbered left navigation rail. **Overlay** opens first, with **Readings**,
 **Placement** and **Appearance** pages plus a preview of actual overlay readings.

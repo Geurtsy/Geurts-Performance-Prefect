@@ -20,6 +20,17 @@ testing and publishing changes do not authorize updating the user's installed ap
   its asset checksum matches the validated package. Verify the updater using
   an older disposable packaged fixture when available. Report any publication
   blocker; do not claim delivery is complete until the package is published.
+- Check delivery access at the start of application work. If local Git metadata
+  or publishing network access is restricted, use the hosted Windows release
+  workflow in `.github/workflows/release.yml` after committing to `main`.
+  Follow its run through completion; a pushed source commit alone is not an
+  application update. If the workflow cannot run or fails, lead the delivery
+  report with **Release pending**, the concrete blocker and the remaining step.
+- Release builds must pass the clean-source checks in `Build-Release.ps1` and
+  `Test-Release.ps1`. Publishing requires the matching successful test receipt.
+  Confirm `published.json` records the expected version, commit, public download
+  checksum and disposable updater result before saying an update is available.
+  Never edit a manifest or fabricate a receipt to bypass a failed gate.
 - Never copy or publish build output into a local installation folder, replace
   installed executables or libraries, or change an installed update manifest.
   This includes the ignored `Geurts Performance Prefect/` and
@@ -49,6 +60,10 @@ testing and publishing changes do not authorize updating the user's installed ap
 - `scripts/Build-Release.ps1` creates a package in a fresh output directory.
   `scripts/Publish-Release.ps1` publishes that package to GitHub. Neither step
   requires deploying it to the user's installation.
+- GitHub Actions builds and tests releases on a disposable Windows runner.
+  It uses a short-lived repository token, not credentials copied from the user's
+  machine. Retain the workflow's verification artifact when investigating a
+  failed release. Never replace an already published version's assets.
 - Report what was changed, validated and published, with any material testing
   limitations. Leave local installation to the user; never describe a repository
   update as an installed update.

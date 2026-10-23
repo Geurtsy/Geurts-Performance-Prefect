@@ -1,6 +1,11 @@
 param([string]$OutputDirectory = '', [string]$Version = '')
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
+$sourceCommit = git -C $repoRoot rev-parse HEAD
+if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Release builds require a committed Git checkout.' }
+$sourceStatus = git -C $repoRoot status --porcelain
+if ($LASTEXITCODE -ne 0) { throw 'Could not verify the release source status.' }
+if ($sourceStatus) { throw 'Commit all source changes before building a release. Use dotnet publish for a development build.' }
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $repoRoot 'Build\Release' }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 $packageDirectory = Join-Path $OutputDirectory 'package'
@@ -18,10 +23,11 @@ Get-ChildItem -LiteralPath $packageDirectory -File -Recurse | Sort-Object FullNa
     $relativePath = [IO.Path]::GetRelativePath($packageDirectory, $_.FullName).Replace('\', '/')
     $files[$relativePath] = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 }
-$sourceCommit = git -C $repoRoot rev-parse HEAD 2>$null
-if ($LASTEXITCODE -ne 0) { $sourceCommit = '' }
-$sourceDirty = [bool](git -C $repoRoot status --porcelain)
-$manifest = @{ Version = $releaseVersion; Files = $files; Commit = $sourceCommit; SourceDirty = $sourceDirty } | ConvertTo-Json -Depth 4
+$finalCommit = git -C $repoRoot rev-parse HEAD
+if ($LASTEXITCODE -ne 0 -or $finalCommit -ne $sourceCommit) { throw 'Source commit changed while building. Rebuild from a clean checkout.' }
+$finalStatus = git -C $repoRoot status --porcelain
+if ($LASTEXITCODE -ne 0 -or $finalStatus) { throw 'Source changed while building. Rebuild from a clean checkout.' }
+$manifest = @{ Version = $releaseVersion; Files = $files; Commit = $sourceCommit; SourceDirty = $false } | ConvertTo-Json -Depth 4
 [IO.File]::WriteAllText((Join-Path $packageDirectory 'update-manifest.json'), $manifest, [Text.UTF8Encoding]::new($false))
 $archivePath = Join-Path $OutputDirectory 'GeurtsPerformancePrefect-win-x64.zip'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
