@@ -130,10 +130,16 @@ public static class DownloadsCleanupVerification
         // Encoded PowerShell uses literal, quoted fixture paths; no shell interpolation.
         string Literal(string value) => "'" + value.Replace("'", "''") + "'";
         var script = "$ErrorActionPreference = 'Stop'; New-Item -ItemType Junction -Path " + Literal(link) + " -Value " + Literal(target) + " | Out-Null";
-        var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true };
+        var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardOutput = true, RedirectStandardError = true };
         start.ArgumentList.Add("-NoProfile"); start.ArgumentList.Add("-EncodedCommand");
         start.ArgumentList.Add(Convert.ToBase64String(Encoding.Unicode.GetBytes(script)));
         using var process = Process.Start(start) ?? throw new IOException("Could not create the test junction.");
-        if (!process.WaitForExit(10000) || process.ExitCode != 0) throw new IOException("Test junction creation failed.");
+        var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+        // Cold Windows PowerShell startup on a hosted runner can exceed ten seconds.
+        // Retain the real junction check and expose failures rather than masking them.
+        if (!process.WaitForExit(60000)) { process.Kill(entireProcessTree: true); throw new IOException("Test junction PowerShell startup exceeded 60 seconds."); }
+        Task.WaitAll(output, error);
+        if (process.ExitCode != 0) throw new IOException("Test junction creation failed (exit " + process.ExitCode + "): " + error.Result.Trim() + " " + output.Result.Trim());
     }
 }
