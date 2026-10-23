@@ -20,6 +20,8 @@ public sealed record Snapshot(DateTimeOffset Time, IReadOnlyList<SensorValue> Se
     public string? BoardTemperatureError { get; init; }
     public ApplicationUsageSample? Applications { get; init; }
     public Reading? ForegroundFps { get; init; }
+    public IReadOnlyList<FanControlReading> FanControls { get; init; } = Array.Empty<FanControlReading>();
+    public string FanStatus { get; init; } = "Waiting for fan detection.";
 }
 
 public static class SensorSelection
@@ -79,6 +81,8 @@ public static class SensorSelection
 
 public sealed class HardwareSampler : IDisposable
 {
+    readonly FanControlService fans;
+    public HardwareSampler(FanControlService? fans = null) { this.fans = fans ?? new(); }
     readonly Computer computer = new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true };
     readonly WindowsMetrics windows = new();
     readonly DriveSampler drives = new();
@@ -98,31 +102,40 @@ public sealed class HardwareSampler : IDisposable
     public Snapshot Sample(bool monitorFps = true)
     {
         var sensors = new List<SensorValue>();
+        var fanEndpoints = new List<FanEndpoint>();
         var errors = new List<string>();
         if (initialError != null) errors.Add(initialError);
-        foreach (var hardware in computer.Hardware) Read(hardware, false, sensors, errors);
+        foreach (var hardware in computer.Hardware) Read(hardware, false, sensors, errors, fanEndpoints);
         sensors.AddRange(thermalZones.Sample());
+        var fanReadings = fans.Process(fanEndpoints, sensors);
         var memory = windows.ReadMemory();
         var driveReadings = drives.Sample();
         return new(DateTimeOffset.Now, sensors, windows.ReadCpu(), memory.Percent, memory.Detail,
             errors.Count > 0 ? string.Join("; ", errors.Distinct()) : null)
-            { Drives = driveReadings, DriveError = drives.LastError, BoardTemperatureError = thermalZones.LastError, Applications = applications.Sample(sensors, driveReadings), ForegroundFps = fps.Sample(monitorFps) };
+            { FanControls = fanReadings, FanStatus = fans.Status, Drives = driveReadings, DriveError = drives.LastError, BoardTemperatureError = thermalZones.LastError, Applications = applications.Sample(sensors, driveReadings), ForegroundFps = fps.Sample(monitorFps) };
     }
-    static void Read(IHardware hardware, bool onBoard, List<SensorValue> values, List<string> errors)
+    static void Read(IHardware hardware, bool onBoard, List<SensorValue> values, List<string> errors, List<FanEndpoint> fanEndpoints)
     {
         onBoard |= hardware.HardwareType == HardwareType.Motherboard;
         try
         {
             hardware.Update();
             foreach (var sensor in hardware.Sensors)
-                if (sensor.SensorType is SensorType.Load or SensorType.Temperature)
+            {
+                if (sensor.SensorType is SensorType.Load or SensorType.Temperature or SensorType.Fan or SensorType.Control)
                     values.Add(new(sensor.Identifier.ToString(), hardware.Identifier.ToString(), hardware.Name, sensor.Name,
                         hardware.HardwareType, sensor.SensorType, sensor.Value, onBoard));
+                if (sensor.SensorType == SensorType.Control && sensor.Control is { } control &&
+                    (SensorSelection.IsGpu(hardware.HardwareType) || hardware.HardwareType == HardwareType.SuperIO ||
+                     hardware.Sensors.Any(s => s.SensorType == SensorType.Fan)))
+                    fanEndpoints.Add(new(sensor.Identifier.ToString(), hardware.Name + " / " + sensor.Name,
+                        control.MinSoftwareValue, control.MaxSoftwareValue, sensor.Value, control.SetSoftware, retry => FanHardwareAccess.Restore(control, retry)));
+            }
         }
         catch (Exception ex) { errors.Add(hardware.Name + ": " + ex.Message); }
-        foreach (var child in hardware.SubHardware) Read(child, onBoard, values, errors);
+        foreach (var child in hardware.SubHardware) Read(child, onBoard, values, errors, fanEndpoints);
     }
-    public void Dispose() { fps.Dispose(); applications.Dispose(); drives.Dispose(); thermalZones.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
+    public void Dispose() { fans.Shutdown(); fps.Dispose(); applications.Dispose(); drives.Dispose(); thermalZones.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
 }
 
 public sealed class WindowsMetrics

@@ -53,7 +53,7 @@ internal sealed class SettingsHud
         var panels = oldTabs.Select(tab => ((ScrollViewer)tab.Content).Content).OfType<System.Windows.Controls.Panel>();
         Choices = panels.SelectMany(panel => panel.Children.OfType<ComboBox>()).ToArray();
         Sliders = panels.SelectMany(panel => panel.Children.OfType<Slider>()).ToArray();
-        var order = new[] { "Overlay", "Performance", "Startup", "Security", "Storage Sense", "File compression", "Console", "Disk analyser", "Programs and Features", "Sensor sources", "Application updates" };
+        var order = new[] { "Overlay", "Performance", "Fan control", "Startup", "Security", "Storage Sense", "File compression", "Console", "Disk analyser", "Programs and Features", "Sensor sources", "Application updates" };
         var tabs = oldTabs.OrderBy(tab => Array.IndexOf(order,(string)tab.Header)).ToArray();
         window.Sections.Items.Clear();
         for (var index = 0; index < tabs.Length; index++)
@@ -63,6 +63,7 @@ internal sealed class SettingsHud
             {
                 "Overlay" => "Choose what appears on your overlay and how it behaves.",
                 "Performance" => "Choose power behavior and optional performance controls.",
+                "Fan control" => "Monitor fan speeds and apply session-only cooling controls.",
                 "Startup" => "Control how Prefect opens when you sign in.",
                 "Security" => "Review administrator access and Windows security controls.",
                 "Storage Sense" => "Review automatic cleanup and Downloads settings.",

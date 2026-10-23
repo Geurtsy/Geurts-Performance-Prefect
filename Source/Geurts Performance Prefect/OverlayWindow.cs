@@ -391,18 +391,26 @@ public sealed class OverlayWindow : Window
     }
     void SampleLoop()
     {
-        using var sampler = new HardwareSampler();
+        using var sampler = new HardwareSampler(Fans);
         sampler.Open();
         while (!stop.IsCancellationRequested)
         {
             Snapshot snapshot;
             try { snapshot = sampler.Sample(Volatile.Read(ref monitorFps)); }
-            catch (Exception ex) { snapshot = new(DateTimeOffset.Now, Array.Empty<SensorValue>(), null, null, "", ex.Message); }
+            catch (Exception ex)
+            {
+                var fanReadings = Fans.Process(Array.Empty<FanEndpoint>(), Array.Empty<SensorValue>());
+                snapshot = new(DateTimeOffset.Now, Array.Empty<SensorValue>(), null, null, "", ex.Message)
+                    { FanControls = fanReadings, FanStatus = Fans.Status };
+            }
             if (stop.IsCancellationRequested) break;
             Dispatcher.BeginInvoke(() => { if (!closing) Receive(snapshot); });
-            if (stop.Token.WaitHandle.WaitOne(Volatile.Read(ref refreshMilliseconds))) break;
+            var delay = Volatile.Read(ref refreshMilliseconds);
+            if (Fans.HasWork) delay = Math.Min(delay, 1000);
+            if (stop.Token.WaitHandle.WaitOne(delay)) break;
         }
     }
+    public FanControlService Fans { get; } = new();
     public void Receive(Snapshot snapshot)
     {
         Latest = snapshot;

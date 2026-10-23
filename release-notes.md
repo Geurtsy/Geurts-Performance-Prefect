@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.42.0
+
+- Added Settings → Fan control with live fan speeds, supported writable channels, manual speed and temperature curves. Curves have editable 40, 55 and 70°C points and reach maximum at 85°C. Reported percentages and requested speeds remain separate from fan rotation readings.
+- Fan changes require Apply and last for the current app session. Restore all and normal exit return session-controlled channels to hardware automatic; no fan policy is saved or applied on startup. Requests respect a 30% floor and the device range. Hot CPU/GPU readings and unavailable curve sensors request maximum cooling. Write failures and disconnections trigger hardware restore attempts, with retries after failed restoration.
+- Hardware compatibility depends on LibreHardwareMonitor and the device. Some laptops expose monitoring only. Forced termination, sleep or a stalled driver can prevent updates/restoration. Validated fan behaviour and Settings using simulated controls without changing physical fans. Local installation remains manual.
+
 # Geurts Performance Prefect 1.41.0
 
 - Added an automatic-compression progress bar with a clearly labelled estimated drive percentage and checked-data total. Each file is still checked and changed immediately; no full-drive counting scan runs first.

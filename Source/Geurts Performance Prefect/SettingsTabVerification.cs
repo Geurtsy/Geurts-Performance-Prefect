@@ -28,8 +28,8 @@ public static class SettingsTabVerification
     {
         panel.Show();
         var tabs = panel.Sections.Items.Cast<TabItem>().ToArray();
-        check(tabs.Length == 11 && tabs.Select(t => t.Header).Distinct().Count() == 11 && tabs.All(t => (string)t.Header != "Downloads cleanup"),
-            "All eleven Settings sections have distinct tabs and Downloads cleanup has no separate tab");
+        check(tabs.Length == 12 && tabs.Select(t => t.Header).Distinct().Count() == 12 && tabs.All(t => (string)t.Header != "Downloads cleanup"),
+            "All twelve Settings sections have distinct tabs and Downloads cleanup has no separate tab");
         var compressionScroll = Select(panel, panel.FileCompressionPanel.PreviewButton);
         check((string)((TabItem)panel.Sections.SelectedItem).Header == "File compression" && !panel.FileCompressionPanel.IsBusy && !panel.FileCompressionPanel.CompressButton.IsEnabled,
             "File compression opens idle in its own tab and requires a preview before changes");

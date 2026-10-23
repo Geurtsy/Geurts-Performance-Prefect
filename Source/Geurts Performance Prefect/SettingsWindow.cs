@@ -104,6 +104,7 @@ public sealed class SettingsWindow : Window
     public FileCompressionPanel FileCompressionPanel { get; }
     public ProgramsFeaturesPanel ProgramsFeaturesPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
+    public FanControlPanel FanControlPanel { get; }
     public SecurityPanel SecurityPanel { get; } = new();
     public FirewallPanel FirewallPanel { get; } = new();
     public BitLockerPanel BitLockerPanel { get; }
@@ -113,6 +114,7 @@ public sealed class SettingsWindow : Window
     {
         Resources.MergedDictionaries.Add(SettingsHud.CreateResources());
         this.overlay = overlay;
+        FanControlPanel = new FanControlPanel(overlay.Fans);
         FileCompressionPanel = new FileCompressionPanel(new FileCompression(), null, automatic: overlay.AutomaticCompression);
         StorageSensePanel = new StorageSensePanel(overlay.StorageSense, overlay.Settings, overlay.Store);
         Closed += (_, _) => StorageSensePanel.Dispose();
@@ -217,6 +219,8 @@ public sealed class SettingsWindow : Window
         UpdateDownloads();
         stack = AddTab("File compression");
         stack.Children.Add(FileCompressionPanel);
+        stack = AddTab("Fan control");
+        stack.Children.Add(FanControlPanel);
         stack = AddTab("Performance");
         stack.Children.Add(VisualEffectsPanel);
         stack.Children.Add(DiskCleanupPanel);
@@ -721,6 +725,7 @@ public sealed class SettingsWindow : Window
     }
     void UpdateSensors(Snapshot snapshot)
     {
+        FanControlPanel.Update(snapshot);
         UpdateDrives(snapshot);
         var gpuChoices = SensorSelection.Graphics(snapshot);
         var boardChoices = SensorSelection.BoardSensors(snapshot);

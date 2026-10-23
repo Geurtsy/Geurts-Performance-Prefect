@@ -10,6 +10,32 @@ screen and restores full screen from the tray, with native minimize and close
 controls. Minimizing Settings leaves the HUD visible and updating.
 Use Minimise on the HUD to minimize the whole app. Sections scroll independently.
 
+**Settings → Fan control** shows live fan speeds and supported writable fan
+channels from LibreHardwareMonitor. Select a channel, choose **Hardware automatic**,
+**Manual speed** or **Temperature curve**, then click **Apply to selected fan**.
+Curves use an explicitly selected temperature sensor, with editable speeds at
+40, 55 and 70°C, interpolating to maximum at 85°C. Requests are limited to 30–100%
+and the device's supported range. The reported percentage is separate from the
+requested percentage; fan speed sensors are listed separately because their
+physical mapping to controls cannot be assumed.
+
+Fan overrides are session-only and remain active when Settings closes. They are
+never saved or applied on startup. **Restore all session-controlled fans** and
+normal application exit return only channels overridden by this session to
+hardware control. Any available CPU or GPU temperature at least 85°C requests
+maximum cooling during an override; a missing or invalid curve source does too.
+Writes run on the hardware sampling thread, with a maximum one-second wait
+between samples while active, plus sensor collection time. Failed writes or
+disconnected controls trigger restoration attempts; failed restores retry on
+subsequent samples. Crashes, forced termination, sleep and stalled drivers can
+prevent updates or restoration. Avoid other fan controllers managing the same
+channels, and ensure sufficient cooling for your hardware.
+
+Hardware support varies: some laptops and boards report speeds without exposing
+writable channels. Unsupported controls remain unavailable. Administrator access
+and PawnIO may be required for motherboard access; see **Sensor sources**.
+The automated fan tests use simulated callbacks and never write real fan settings.
+
 Choose **Settings → Overlay → Appearance → HUD layout** to switch layouts.
 **Standard** retains the original HUD. **Standard vertical** is the default for new
 settings and uses the initial
