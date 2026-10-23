@@ -12,6 +12,7 @@ public sealed record SensorValue(string Id, string DeviceId, string Device, stri
     public bool IsFirmwareThermalZone { get; init; }
 }
 public sealed record DeviceChoice(string Id, string Name);
+public sealed record HardwareDevice(string Id, string Name, HardwareType Type, bool? IsIntegrated = null);
 public sealed record Reading(double? Value, string Source, string Detail = "");
 public sealed record Snapshot(DateTimeOffset Time, IReadOnlyList<SensorValue> Sensors, double? CpuUsage, double? MemoryUsage, string MemoryDetail, string? Error)
 {
@@ -22,16 +23,18 @@ public sealed record Snapshot(DateTimeOffset Time, IReadOnlyList<SensorValue> Se
     public Reading? ForegroundFps { get; init; }
     public IReadOnlyList<FanControlReading> FanControls { get; init; } = Array.Empty<FanControlReading>();
     public string FanStatus { get; init; } = "Waiting for fan detection.";
+    public IReadOnlyList<HardwareDevice> Hardware { get; init; } = Array.Empty<HardwareDevice>();
 }
 
 public static class SensorSelection
 {
     public static bool IsGpu(HardwareType type) => type is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel;
     public static string GraphicsId(Snapshot snapshot, OverlaySettings settings) => !string.IsNullOrEmpty(settings.GraphicsId)
-        ? settings.GraphicsId : snapshot.Sensors.Where(s => IsGpu(s.HardwareType))
-            .OrderBy(s => s.HardwareType == HardwareType.GpuIntel ? 1 : 0).Select(s => s.DeviceId).FirstOrDefault() ?? "";
-    public static IReadOnlyList<DeviceChoice> Graphics(Snapshot snapshot) => snapshot.Sensors.Where(s => IsGpu(s.HardwareType))
-        .GroupBy(s => s.DeviceId).Select(g => new DeviceChoice(g.Key, g.First().Device)).ToArray();
+        ? settings.GraphicsId : GraphicsHardware(snapshot).OrderBy(d => d.IsIntegrated == false ? 0 : d.IsIntegrated == true ? 3 : d.Type == HardwareType.GpuIntel ? 2 : 1).Select(d => d.Id).FirstOrDefault() ?? "";
+    static IEnumerable<HardwareDevice> GraphicsHardware(Snapshot snapshot) => snapshot.Hardware.Where(d => IsGpu(d.Type))
+        .Concat(snapshot.Sensors.Where(s => IsGpu(s.HardwareType)).Select(s => new HardwareDevice(s.DeviceId, s.Device, s.HardwareType)))
+        .GroupBy(d => d.Id).Select(g => g.First());
+    public static IReadOnlyList<DeviceChoice> Graphics(Snapshot snapshot) => GraphicsHardware(snapshot).Select(d => new DeviceChoice(d.Id, d.Name)).ToArray();
     public static IReadOnlyList<DeviceChoice> BoardSensors(Snapshot snapshot) => snapshot.Sensors
         .Where(s => s.OnMotherboard && s.Type == SensorType.Temperature)
         .Select(s => new DeviceChoice(s.Id, s.Device + " / " + s.Name)).ToArray();
@@ -83,7 +86,9 @@ public sealed class HardwareSampler : IDisposable
 {
     readonly FanControlService fans;
     public HardwareSampler(FanControlService? fans = null) { this.fans = fans ?? new(); }
-    readonly Computer computer = new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true };
+    internal static Computer CreateComputer() => new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true,
+        IsMemoryEnabled = true, IsStorageEnabled = true, IsControllerEnabled = true, IsBatteryEnabled = true };
+    readonly Computer computer = CreateComputer();
     readonly WindowsMetrics windows = new();
     readonly DriveSampler drives = new();
     readonly ThermalZoneSampler thermalZones = new();
@@ -103,28 +108,29 @@ public sealed class HardwareSampler : IDisposable
     {
         var sensors = new List<SensorValue>();
         var fanEndpoints = new List<FanEndpoint>();
+        var devices = new List<HardwareDevice>();
         var errors = new List<string>();
         if (initialError != null) errors.Add(initialError);
-        foreach (var hardware in computer.Hardware) Read(hardware, false, sensors, errors, fanEndpoints);
+        foreach (var hardware in computer.Hardware) Read(hardware, false, sensors, errors, fanEndpoints, devices);
         sensors.AddRange(thermalZones.Sample());
         var fanReadings = fans.Process(fanEndpoints, sensors);
         var memory = windows.ReadMemory();
         var driveReadings = drives.Sample();
         return new(DateTimeOffset.Now, sensors, windows.ReadCpu(), memory.Percent, memory.Detail,
             errors.Count > 0 ? string.Join("; ", errors.Distinct()) : null)
-            { FanControls = fanReadings, FanStatus = fans.Status, Drives = driveReadings, DriveError = drives.LastError, BoardTemperatureError = thermalZones.LastError, Applications = applications.Sample(sensors, driveReadings), ForegroundFps = fps.Sample(monitorFps) };
+            { Hardware = devices, FanControls = fanReadings, FanStatus = fans.Status, Drives = driveReadings, DriveError = drives.LastError, BoardTemperatureError = thermalZones.LastError, Applications = applications.Sample(sensors, driveReadings), ForegroundFps = fps.Sample(monitorFps) };
     }
-    static void Read(IHardware hardware, bool onBoard, List<SensorValue> values, List<string> errors, List<FanEndpoint> fanEndpoints)
+    static void Read(IHardware hardware, bool onBoard, List<SensorValue> values, List<string> errors, List<FanEndpoint> fanEndpoints, List<HardwareDevice> devices)
     {
+        devices.Add(new(hardware.Identifier.ToString(), hardware.Name, hardware.HardwareType));
         onBoard |= hardware.HardwareType == HardwareType.Motherboard;
         try
         {
             hardware.Update();
             foreach (var sensor in hardware.Sensors)
             {
-                if (sensor.SensorType is SensorType.Load or SensorType.Temperature or SensorType.Fan or SensorType.Control)
-                    values.Add(new(sensor.Identifier.ToString(), hardware.Identifier.ToString(), hardware.Name, sensor.Name,
-                        hardware.HardwareType, sensor.SensorType, sensor.Value, onBoard));
+                values.Add(new(sensor.Identifier.ToString(), hardware.Identifier.ToString(), hardware.Name, sensor.Name,
+                    hardware.HardwareType, sensor.SensorType, sensor.Value, onBoard));
                 if (sensor.SensorType == SensorType.Control && sensor.Control is { } control &&
                     (SensorSelection.IsGpu(hardware.HardwareType) || hardware.HardwareType == HardwareType.SuperIO ||
                      hardware.Sensors.Any(s => s.SensorType == SensorType.Fan)))
@@ -133,7 +139,7 @@ public sealed class HardwareSampler : IDisposable
             }
         }
         catch (Exception ex) { errors.Add(hardware.Name + ": " + ex.Message); }
-        foreach (var child in hardware.SubHardware) Read(child, onBoard, values, errors, fanEndpoints);
+        foreach (var child in hardware.SubHardware) Read(child, onBoard, values, errors, fanEndpoints, devices);
     }
     public void Dispose() { fans.Shutdown(); fps.Dispose(); applications.Dispose(); drives.Dispose(); thermalZones.Dispose(); try { computer.Close(); } catch { /* Shutdown must always release the UI. */ } }
 }

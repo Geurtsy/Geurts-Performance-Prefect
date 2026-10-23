@@ -6,6 +6,11 @@ below creates a development build; the packaging script is required for updates.
 
 Requires the .NET 10 SDK on Windows x64. No package download is needed: sensor
 assemblies are included under Geurts Performance Prefect\Dependencies.
+Release packaging also runs scripts/Get-HardwareTools.ps1 to download the pinned
+Fastfetch 2.70.0 Windows archive into Build/HardwareTools and verify its SHA256.
+The archive is embedded, so packaged hardware inventory works offline without
+installing Fastfetch. A verified cached archive can be reused for offline builds.
+Raw development builds can omit that optional archive and use Windows inventory.
 
 From the source archive's root folder, run:
 

@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.43.0
+
+- Embedded the open-source Fastfetch 2.70.0 Windows hardware tool, pinned by archive SHA256. Added a background inventory with Windows WMI fallback for computer model, CPU, graphics, memory modules, motherboard, firmware, displays and drives. View and refresh it under Sensor sources; each item shows its source and unavailable categories have diagnostics. Inventory does not require a new driver or internet access at runtime.
+- Enabled LibreHardwareMonitor memory, storage, controller and battery probes in addition to CPU, GPU and motherboard detection. Retained all exposed sensor types and devices without usable sensors. Exact, unambiguous graphics-name matches distinguish integrated and discrete devices for automatic selection; explicit saved choices remain intact. Detected hardware and live sensor/fan-control availability are shown separately.
+- Hardware scans run independently of live sampling, use a fixed hardware-only command with external configuration disabled, enforce output/time limits, and clean up their private helper process and temporary folder. The display model excludes serial numbers and machine identifiers. Added parser, fallback, selection, UI and embedded-tool regression coverage. Hardware-specific sensor access remains dependent on firmware, permissions and supported drivers. Local installation remains manual.
+
 # Geurts Performance Prefect 1.42.0
 
 - Added an automatic Windows release workflow. It builds from clean committed source, validates the package and application tests, publishes the Windows ZIP and checksum, verifies the public download, and tests the updater in an older disposable app copy. Release tools now reject dirty source, untested packages and incomplete latest-release publication. Failed draft uploads can resume; published versions cannot be overwritten.

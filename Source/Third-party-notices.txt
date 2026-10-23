@@ -1,5 +1,18 @@
 Geurts Performance Prefect — third-party components
 
+Fastfetch 2.70.0 Windows x64 - MIT
+Copyright (c) 2021-2023 Linus Dierheimer; (c) 2022-2026 Carter Li.
+Unmodified official Windows archive embedded in GeurtsPerformancePrefect.dll.
+Source: https://github.com/fastfetch-cli/fastfetch/tree/2.70.0
+Official archive: https://github.com/fastfetch-cli/fastfetch/releases/download/2.70.0/fastfetch-windows-amd64.zip
+Archive SHA256: 89e5a20f46ac04b154c7d0ea13dbac97e43f799a98d7ae4c598863ba357a8c7f
+Licence: Licences/Fastfetch-LICENSE.txt
+The build downloads this pinned archive and verifies its checksum. The packaged
+application runs the embedded executable offline in a private temporary folder,
+with its own fixed hardware-only module list and user configuration disabled.
+No Fastfetch installation, driver or service is installed. The original archive
+and its bundled documentation remain embedded without modification.
+
 WinDirStat 2.9.3 x64 — GNU General Public License v3 or later
 Copyright WinDirStat Team. Geurts theme adapter copyright 2026 Geurts.
 Modified, unsigned build based on release/v2.9.3; not an official WinDirStat build.

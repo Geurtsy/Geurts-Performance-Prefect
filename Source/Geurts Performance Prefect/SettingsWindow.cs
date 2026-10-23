@@ -105,6 +105,7 @@ public sealed class SettingsWindow : Window
     public ProgramsFeaturesPanel ProgramsFeaturesPanel { get; } = new();
     public VisualEffectsPanel VisualEffectsPanel { get; } = new();
     public FanControlPanel FanControlPanel { get; }
+    public HardwareDetectionPanel HardwareDetectionPanel { get; }
     public SecurityPanel SecurityPanel { get; } = new();
     public FirewallPanel FirewallPanel { get; } = new();
     public BitLockerPanel BitLockerPanel { get; }
@@ -115,6 +116,8 @@ public sealed class SettingsWindow : Window
         Resources.MergedDictionaries.Add(SettingsHud.CreateResources());
         this.overlay = overlay;
         FanControlPanel = new FanControlPanel(overlay.Fans);
+        HardwareDetectionPanel = new HardwareDetectionPanel(overlay.HardwareInventory);
+        Closed += (_, _) => HardwareDetectionPanel.Dispose();
         FileCompressionPanel = new FileCompressionPanel(new FileCompression(), null, automatic: overlay.AutomaticCompression);
         StorageSensePanel = new StorageSensePanel(overlay.StorageSense, overlay.Settings, overlay.Store);
         Closed += (_, _) => StorageSensePanel.Dispose();
@@ -392,6 +395,7 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(driver);
         stack.Children.Add(Note("PawnIO is installed on first launch when missing. Windows asks for administrator approval. If you decline, the app tries again next launch. Reopen the overlay as administrator after installation."));
         if (overlay.Store.LastError != null) stack.Children.Add(Note(overlay.Store.LastError));
+        stack.Children.Add(HardwareDetectionPanel);
         overlay.SnapshotReceived += UpdateSensors;
         overlay.AutoAvoidChanged += UpdateAutoAvoid;
         if (overlay.Latest != null) UpdateSensors(overlay.Latest);
@@ -726,6 +730,7 @@ public sealed class SettingsWindow : Window
     void UpdateSensors(Snapshot snapshot)
     {
         FanControlPanel.Update(snapshot);
+        HardwareDetectionPanel.Update(snapshot);
         UpdateDrives(snapshot);
         var gpuChoices = SensorSelection.Graphics(snapshot);
         var boardChoices = SensorSelection.BoardSensors(snapshot);

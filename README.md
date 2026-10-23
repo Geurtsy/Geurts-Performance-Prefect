@@ -1,5 +1,31 @@
 # Geurts Performance Prefect
 
+**Settings → Sensor sources → Detected hardware** shows a local hardware inventory
+from the embedded open-source Fastfetch 2.70.0 command-line tool. It reports the
+computer model, processor and core counts, integrated/discrete graphics, memory
+capacity and modules, motherboard, firmware, displays and physical drives. Windows
+WMI fills categories the tool cannot read. Discovery runs in the background at
+startup; **Refresh hardware inventory** repeats it without restarting the app.
+Each item identifies its source, and detection diagnostics explain missing results.
+
+Live monitoring uses the existing LibreHardwareMonitor library with CPU, graphics,
+motherboard, memory, storage, battery and controller probes enabled. Devices remain
+listed even when they expose no readable sensors. Clock, power and other available
+sensor types are retained in the sampling data. A recognised device is separate
+from an available temperature or writable fan channel; unsupported firmware can
+still restrict those readings. Exact, unambiguous inventory name matches improve
+automatic dedicated-graphics selection, including discrete Intel cards. Explicit
+saved sensor choices are retained.
+
+Fastfetch is checksum-pinned and embedded by the release build. The application
+uses it offline, with a fixed hardware-only module list and external configuration
+disabled; no separate installation or new driver is required for inventory.
+Serial numbers and machine identifiers returned by the tool are not included in
+the inventory model or display. Raw development builds without the optional tool
+archive use Windows inventory instead. For a development build with the helper,
+run `scripts/Get-HardwareTools.ps1` first. Sensor access still depends on hardware,
+administrator permissions and the existing PawnIO driver where required.
+
 Application updates are delivered by the **Build, validate and publish Windows
 release** GitHub Actions workflow. Application-source, release-script and release-note
 changes on `main` trigger a clean Windows build, package checks, isolated application

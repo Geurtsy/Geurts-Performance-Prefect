@@ -198,6 +198,7 @@ public sealed class OverlayWindow : Window
     internal StorageSenseController StorageSense { get; }
     internal AutomaticCompressionController AutomaticCompression { get; }
     public PowerOptionsController PowerOptions { get; }
+    public HardwareInventoryController HardwareInventory { get; }
     public Snapshot? Latest { get; private set; }
     public event Action<Snapshot>? SnapshotReceived;
     public event Action<bool>? AutoAvoidChanged;
@@ -243,9 +244,10 @@ public sealed class OverlayWindow : Window
     bool restoringOverlay;
     bool placingAutoAvoid, autoAvoidSnapPending, draggingOverlay;
     public Button MinimiseButton { get; }
-    public OverlayWindow(SettingsStore store, OverlaySettings settings, bool verification = false, Func<Point>? cursorPosition = null, DownloadsCleanup? downloads = null, PowerOptionsController? powerOptions = null, Func<ProcessStartInfo, bool>? restartStart = null)
+    public OverlayWindow(SettingsStore store, OverlaySettings settings, bool verification = false, Func<Point>? cursorPosition = null, DownloadsCleanup? downloads = null, PowerOptionsController? powerOptions = null, Func<ProcessStartInfo, bool>? restartStart = null, HardwareInventoryController? hardwareInventory = null)
     {
         Store = store; Settings = settings;
+        HardwareInventory = hardwareInventory ?? new();
         this.restartStart = restartStart;
         PowerOptions = powerOptions ?? new PowerOptionsController(settings, store);
         Downloads = downloads ?? new DownloadsCleanup();
@@ -367,6 +369,7 @@ public sealed class OverlayWindow : Window
             QueueAutoAvoidSnap();
             if (!verification) StorageSense.Start();
             if (!verification) AutomaticCompression.Start();
+            if (!verification) _ = HardwareInventory.RefreshAsync();
             if (!verification && worker == null) { staleTimer.Start(); worker = Task.Factory.StartNew(SampleLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default); }
         };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.F2) { OpenSettings(); e.Handled = true; } };
@@ -413,6 +416,7 @@ public sealed class OverlayWindow : Window
     public FanControlService Fans { get; } = new();
     public void Receive(Snapshot snapshot)
     {
+        snapshot = HardwareInventoryParser.Enrich(snapshot, HardwareInventory.Current);
         Latest = snapshot;
         applicationHistory.Add(snapshot.Applications);
         var readings = SensorSelection.Select(snapshot, Settings);
@@ -754,6 +758,7 @@ public sealed class OverlayWindow : Window
         if (settingsWindow != null && !settingsWindow.RequestApplicationExit()) { e.Cancel = true; return; }
         closing = true; saveTimer.Stop(); staleTimer.Stop(); stop.Cancel();
         StorageSense.Dispose();
+        HardwareInventory.Dispose();
         AutomaticCompression.Dispose();
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
         settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();

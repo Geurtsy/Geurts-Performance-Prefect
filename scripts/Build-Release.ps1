@@ -6,12 +6,14 @@ if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'R
 $sourceStatus = git -C $repoRoot status --porcelain
 if ($LASTEXITCODE -ne 0) { throw 'Could not verify the release source status.' }
 if ($sourceStatus) { throw 'Commit all source changes before building a release. Use dotnet publish for a development build.' }
+& (Join-Path $PSScriptRoot 'Get-HardwareTools.ps1')
+if (!$?) { throw 'Hardware detection helper preparation failed.' }
 if (!$OutputDirectory) { $OutputDirectory = Join-Path $repoRoot 'Build\Release' }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 $packageDirectory = Join-Path $OutputDirectory 'package'
 if (Test-Path $packageDirectory) { throw "Choose an empty output location: $packageDirectory already exists." }
 $project = Join-Path $repoRoot 'Source\Geurts Performance Prefect\GeurtsPerformancePrefect.csproj'
-$publishArguments = @('publish', $project, '-c', 'Release', '--self-contained', 'false', '-o', $packageDirectory, '--configfile', (Join-Path $repoRoot 'Source\NuGet.Config'))
+$publishArguments = @('publish', $project, '-c', 'Release', '--self-contained', 'false', '-o', $packageDirectory, '--configfile', (Join-Path $repoRoot 'Source\NuGet.Config'), '-p:RequireHardwareTools=true')
 if ($Version) { $publishArguments += "-p:Version=$Version" }
 & dotnet @publishArguments
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }

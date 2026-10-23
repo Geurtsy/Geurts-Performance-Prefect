@@ -36,7 +36,7 @@ $reportDirectory = Join-Path (Split-Path $PSScriptRoot -Parent) 'Verification\Re
 New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null
 $receiptPath = Join-Path $PackageDirectory 'validation.json'
 if (Test-Path -LiteralPath $receiptPath) { Remove-Item -LiteralPath $receiptPath }
-foreach ($mode in @('--self-test', '--fan-control-test', '--settings-hud-test', '--settings-window-test')) {
+foreach ($mode in @('--self-test', '--hardware-detection-test', '--fan-control-test', '--settings-hud-test', '--settings-window-test')) {
     $report = Join-Path $reportDirectory ($mode.TrimStart('-') + '.txt')
     if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report }
     $process = Start-Process -FilePath $application -ArgumentList $mode, ('"' + $report + '"') -WindowStyle Hidden -PassThru
