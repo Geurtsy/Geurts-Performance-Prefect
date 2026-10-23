@@ -41,6 +41,7 @@ foreach ($mode in @('--self-test', '--fan-control-test', '--settings-hud-test', 
     if (Test-Path -LiteralPath $report) { Remove-Item -LiteralPath $report }
     $process = Start-Process -FilePath $application -ArgumentList $mode, ('"' + $report + '"') -WindowStyle Hidden -PassThru
     if (!$process.WaitForExit(600000)) { $process.Kill(); throw "Packaged $mode timed out." }
+    if (Test-Path -LiteralPath $report) { Get-Content -LiteralPath $report | Write-Output }
     if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $report)) { throw "Packaged $mode failed. See $report" }
     $result = Get-Content -LiteralPath $report -Raw
     if ($result -match '(?im)^(FAILED\b|[A-Za-z0-9_.]*Exception:)' -or $result -notmatch '(?m)^PASS: ' -or
