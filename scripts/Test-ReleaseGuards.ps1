@@ -93,6 +93,12 @@ try {
     $global:PrefectReleaseGuardState.GitFailed = $true
     Rejects { & "$PSScriptRoot/Build-Release.ps1" -OutputDirectory (Join-Path $folder 'failed-git-build') } 'committed Git checkout'
     Check $true 'Git command failures cannot be mistaken for a clean source checkout'
+    $previousActions = $env:GITHUB_ACTIONS
+    try {
+        $env:GITHUB_ACTIONS = 'false'
+        Rejects { & "$PSScriptRoot/Set-ReleaseTestDisplay.ps1" } 'GitHub-hosted CI runner only'
+        Check $true 'CI display preparation refuses to change a local development display'
+    } finally { $env:GITHUB_ACTIONS = $previousActions }
     $global:PrefectReleaseGuardState.GitFailed = $false; $global:PrefectReleaseGuardState.Dirty = $false
     & "$PSScriptRoot/Test-Release.ps1" -PackageDirectory $bundle -ValidateOnly | Out-Null
     Check $true 'A complete clean fixture passes file, archive and version validation'

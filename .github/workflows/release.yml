@@ -38,6 +38,8 @@ jobs:
         run: ./scripts/Test-ReleaseGuards.ps1
       - name: Build from clean committed source
         run: ./scripts/Build-Release.ps1 -OutputDirectory Build/Hosted-release
+      - name: Prepare disposable runner desktop for native UI tests
+        run: ./scripts/Set-ReleaseTestDisplay.ps1
       - name: Validate package and run isolated application tests
         run: ./scripts/Test-Release.ps1 -PackageDirectory Build/Hosted-release
       - name: Prepare older disposable updater fixture
