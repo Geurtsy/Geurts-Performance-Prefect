@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.44.1
+
+- Closing the Settings window with X, or choosing Exit application / tray Exit, now shows a brief informational warning, stops active app-owned work automatically, and exits after cleanup. No confirmation, manual Stop action, or second exit click is required. Done still closes only Settings; minimising still keeps monitoring active.
+- Exit cancels manual and automatic compression after the current file, stops cleanup and diagnostic commands, closes the private embedded analyser even when a native dialog is open, waits for owned workers and temporary analyser files, saves preferences, and returns session-controlled fans to hardware automatic. Completed file changes remain. Interrupted checks, repairs or optimization may be incomplete; Windows-managed services such as BitLocker decryption can continue independently.
+- Added isolated exit coverage for one-click Settings exit, duplicate clicks, restart rejection during shutdown, analyser process and temporary-file cleanup, preview cancellation, informational warning layout, and repair/servicing transport cancellation using harmless command fixtures. No installed app, real repair, physical fan setting, or system tuning is changed by these tests. Installation remains manual.
+
 # Geurts Performance Prefect 1.44.0
 
 - Added Full-On Mode at the top of Settings → Fan control. One switch requests the device maximum on every supported writable fan channel, independent of temperature, selected graphics card or individual fan curves. Newly detected or reconnected controls join automatically while the mode is active.

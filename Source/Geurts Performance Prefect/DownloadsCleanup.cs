@@ -19,6 +19,8 @@ public sealed class DownloadsCleanup
     readonly Func<string> resolvePath;
     readonly string[] protectedPaths;
     int busy;
+    readonly CancellationTokenSource stop = new();
+    public void Stop() => stop.Cancel();
     public bool IsBusy => Volatile.Read(ref busy) != 0;
     public string Status { get; private set; } = "No cleanup has run this session.";
     public event Action? Changed;
@@ -59,7 +61,7 @@ public sealed class DownloadsCleanup
 
     public async Task<DownloadsCleanupResult?> RunAsync(string? approvedPath = null)
     {
-        if (Interlocked.CompareExchange(ref busy, 1, 0) != 0) return null;
+        if (stop.IsCancellationRequested || Interlocked.CompareExchange(ref busy, 1, 0) != 0) return null;
         Status = "Wiping Downloads…";
         Changed?.Invoke();
         try
@@ -71,7 +73,7 @@ public sealed class DownloadsCleanup
                     var path = GetPath();
                     if (approvedPath != null && !Same(path, approvedPath))
                         throw new IOException("The Downloads location changed after confirmation. Try again.");
-                    return WipeContents(path);
+                    return WipeContents(path, stop.Token);
                 }
                 catch (Exception ex) when (ExpectedFailure(ex))
                 {
@@ -88,7 +90,7 @@ public sealed class DownloadsCleanup
         }
     }
 
-    static DownloadsCleanupResult WipeContents(string root)
+    static DownloadsCleanupResult WipeContents(string root, CancellationToken stop)
     {
         int files = 0, folders = 0, skipped = 0;
         string? firstError = null;
@@ -98,6 +100,7 @@ public sealed class DownloadsCleanup
         pending.Push((root, false));
         while (pending.TryPop(out var entry))
         {
+            if (stop.IsCancellationRequested) return new(files, folders, skipped, "Cleanup stopped; remaining files were kept.");
             try
             {
                 EnsureNoLinks(entry.Path);

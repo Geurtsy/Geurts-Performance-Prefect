@@ -240,6 +240,10 @@ public sealed class OverlayWindow : Window
     int refreshMilliseconds;
     bool monitorFps;
     bool closing;
+    bool exitRequested;
+    readonly bool verification;
+    internal bool IsExiting => exitRequested || closing;
+    internal bool OwnsSettings(SettingsWindow window) => settingsWindow == window;
     bool restoreSettingsAfterMinimise;
     bool restoringOverlay;
     bool placingAutoAvoid, autoAvoidSnapPending, draggingOverlay;
@@ -247,6 +251,7 @@ public sealed class OverlayWindow : Window
     public OverlayWindow(SettingsStore store, OverlaySettings settings, bool verification = false, Func<Point>? cursorPosition = null, DownloadsCleanup? downloads = null, PowerOptionsController? powerOptions = null, Func<ProcessStartInfo, bool>? restartStart = null, HardwareInventoryController? hardwareInventory = null)
     {
         Store = store; Settings = settings;
+        this.verification = verification;
         HardwareInventory = hardwareInventory ?? new();
         this.restartStart = restartStart;
         PowerOptions = powerOptions ?? new PowerOptionsController(settings, store);
@@ -666,12 +671,14 @@ public sealed class OverlayWindow : Window
         try { MessageBox.Show("Desktop shortcut ready: " + DesktopShortcut.Create(), "Geurts Performance Prefect"); }
         catch (Exception ex) { MessageBox.Show("Could not create the desktop shortcut: " + ex.Message, "Geurts Performance Prefect", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
-    public void OpenSettings()
+    public void OpenSettings() => OpenSettings(window => new SettingsWindow(window));
+    internal void OpenSettings(Func<OverlayWindow, SettingsWindow> create)
     {
+        if (IsExiting) return;
         RestoreOverlay();
         if (settingsWindow == null)
         {
-            settingsWindow = new SettingsWindow(this);
+            settingsWindow = create(this);
             settingsWindow.Closed += (_, _) => settingsWindow = null;
         }
         settingsWindow.ShowInForeground();
@@ -724,7 +731,7 @@ public sealed class OverlayWindow : Window
     }
     internal bool RestartApplication()
     {
-        if (closing) return false;
+        if (IsExiting) return false;
         if (!AutomaticCompression.CanLeave()) { OpenSettings(); settingsWindow!.ShowFileCompression(); return false; }
         if (settingsWindow != null && !settingsWindow.AllowRestart()) return false;
         UpdateSavedPosition();
@@ -739,6 +746,7 @@ public sealed class OverlayWindow : Window
     }
     public void RestartElevated(bool openConsole = false, bool openSecurity = false)
     {
+        if (IsExiting) return;
         if (HardwareSampler.IsAdministrator) return;
         if (!AutomaticCompression.CanLeave()) { OpenSettings(); settingsWindow!.ShowFileCompression(); return; }
         if (settingsWindow != null && !settingsWindow.AllowRestart()) return;
@@ -754,14 +762,53 @@ public sealed class OverlayWindow : Window
     void OnClosing(object? sender, CancelEventArgs e)
     {
         if (closing) return;
-        if (!AutomaticCompression.CanLeave()) { e.Cancel = true; OpenSettings(); settingsWindow!.ShowFileCompression(); return; }
-        if (settingsWindow != null && !settingsWindow.RequestApplicationExit()) { e.Cancel = true; return; }
+        // Idle verification/restart sessions retain synchronous close. User exits show
+        // a non-modal warning and keep pumping the dispatcher until workers finish.
+        if (!exitRequested && (verification && !HasExitWork)) { CompleteExit(); return; }
+        e.Cancel = true;
+        if (exitRequested) return;
+        exitRequested = true;
+        Dispatcher.BeginInvoke(new Action(ExitAsync));
+    }
+    bool HasExitWork => AutomaticCompression.IsBusy || StorageSense.IsBusy || Downloads.IsBusy || HardwareInventory.Busy ||
+        settingsWindow?.HasExitWork == true;
+    async void ExitAsync()
+    {
+        var warning = new ExitWarning();
+        if (!verification) warning.Show();
+        try
+        {
+            IsEnabled = false;
+            AutomaticCompression.Dispose(); StorageSense.Dispose(); Downloads.Stop();
+            HardwareInventory.Dispose();
+            settingsWindow?.StopForExit();
+            stop.Cancel();
+            // A current compression/deletion finishes before disposal. Do not block
+            // the dispatcher: worker completions and console output need it.
+            var visibleUntil = DateTime.UtcNow.AddMilliseconds(1200);
+            while (HasExitWork || worker?.IsCompleted == false || (!verification && DateTime.UtcNow < visibleUntil))
+                await Task.Delay(50);
+            if (settingsWindow != null) await settingsWindow.DiskAnalyserPanel.ExitCleanup;
+            CompleteExit();
+            Close();
+        }
+        catch (Exception ex)
+        {
+            // Never abandon a failed cleanup or claim that the app has exited.
+            warning.ReportFailure(ex.Message);
+            IsEnabled = true; exitRequested = false;
+            return;
+        }
+        warning.Close();
+    }
+    void CompleteExit()
+    {
         closing = true; saveTimer.Stop(); staleTimer.Stop(); stop.Cancel();
         StorageSense.Dispose();
         HardwareInventory.Dispose();
         AutomaticCompression.Dispose();
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
-        settingsWindow?.Close(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();
+        settingsWindow?.CloseAfterExit(); SaveSettings(); tray?.Dispose(); trayIcon?.Dispose(); trayMenu.Dispose();
         // Sampling owns the monitor and disposes it; never race its hardware update.
         worker?.Wait(TimeSpan.FromSeconds(8));
     }

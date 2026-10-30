@@ -32,8 +32,9 @@ the current Settings colours and font, with coordinated graph colours. Native
 icons/control shapes remain WinDirStat's; Windows high contrast takes precedence.
 Choose a drive or folder and
 click Analyse to start. Browse the file tree, largest files and treemap inside
-Prefect. Close analyser before closing Settings, exiting, restarting or updating
-Prefect. Native dialogs may open separately; review deletion prompts carefully.
+Prefect. Close analyser before Done, restarting or updating Prefect. App exit
+automatically stops its private analyser and dialogs. Completed changes remain;
+interrupted operations may be incomplete. Review deletion prompts carefully.
 Protected-folder scans need Prefect opened as administrator first. Each session
 uses temporary portable preferences. Licence and source opens the bundled offline
 GPL licence and upstream source archive. No separate installation is needed.
@@ -82,7 +83,7 @@ Choose a local drive and Analyze drive to review fragmentation without changing
 it. Optimize drive asks for confirmation and lets Windows choose the appropriate
 operation for the media type, including SSDs. Administrator access is required.
 Progress and Windows' report appear in the console. Analysis can be stopped;
-optimization keeps Prefect open until Windows finishes. No operation starts
+Done waits for optimization; app exit stops its command automatically. No operation starts
 automatically, restarts Windows or changes scheduled optimization settings.
 
 Settings now opens wider and taller, capped to fit your screen.
@@ -91,7 +92,8 @@ checks/repairs. Use Restart as administrator there when required; Windows asks
 for approval and Prefect reopens Console. Choosing a mode never starts a command.
 Output survives switching tabs and minimising. Stop cancels read-only checks;
 closing waits for them to stop. Repairs retain their confirmation and prompt
-controls, and keep Settings/app exit blocked until finished. Restart/update
+controls. App exit shows a warning, stops owned commands and exits automatically;
+interrupted repairs may be incomplete. Done waits until repairs finish. Restart/update
 installation waits for active commands. No check or repair runs automatically.
 
 CLOSE BORING APPLICATIONS

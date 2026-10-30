@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using System.Threading;
+using System.ComponentModel;
 
 namespace GeurtsPerformancePrefect;
 
@@ -23,11 +25,19 @@ public static class WindowsImage
 
     public static Task<int> RunAsync(WindowsImageAction action, Action<string> output)
         => RunProcessAsync(Info(action), output);
+    internal static Task<int> RunAsync(WindowsImageAction action, Action<string> output, CancellationToken stop)
+        => RunProcessAsync(Info(action), output, stop);
 
-    internal static async Task<int> RunProcessAsync(ProcessStartInfo info, Action<string> output)
+    internal static async Task<int> RunProcessAsync(ProcessStartInfo info, Action<string> output, CancellationToken stop = default)
     {
+        stop.ThrowIfCancellationRequested();
         using var process = new Process { StartInfo = info };
         if (!process.Start()) throw new IOException("Windows did not start the diagnostic process.");
+        using var registration = stop.Register(() =>
+        {
+            try { if (!process.HasExited) process.Kill(); }
+            catch (Exception ex) when (ex is InvalidOperationException or Win32Exception) { }
+        });
         process.StandardInput.Close();
         async Task ReadAsync(StreamReader reader)
         {
@@ -40,6 +50,7 @@ public static class WindowsImage
         {
             await Task.WhenAll(ReadAsync(process.StandardOutput), ReadAsync(process.StandardError),
                 process.WaitForExitAsync()).ConfigureAwait(false);
+            stop.ThrowIfCancellationRequested();
             return process.ExitCode;
         }
         finally
@@ -51,7 +62,7 @@ public static class WindowsImage
 
     internal const string Confirmation = "Repair the running Windows system image with DISM /RestoreHealth?\n\n" +
         "This changes the Windows component store and may download repair files from Windows Update. " +
-        "Save your work and keep this console open until DISM finishes. Stop and Close are unavailable while servicing runs. " +
+        "Save your work and keep this console open until DISM finishes. Exiting Prefect stops its command and may leave servicing incomplete. " +
         "Automatic restart is suppressed; Windows may still require a manual restart afterward.";
 
     internal static string Result(int code) => code switch

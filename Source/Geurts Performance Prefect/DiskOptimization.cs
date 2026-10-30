@@ -26,13 +26,13 @@ public static class DiskOptimization
     {
         var info = Info(root, action);
         return action == DiskOptimizationAction.Analyze ? DiskCheck.RunProcessAsync(info, output, stop)
-            : WindowsImage.RunProcessAsync(info, output);
+            : WindowsImage.RunProcessAsync(info, output, stop);
     }
 
     internal static string Confirmation(string root) => "Optimize " + DiskCheck.VolumeArgument(root) + " with Windows?\n\n" +
         "Windows will choose the appropriate optimization for this drive's media type, including SSDs. " +
         "This changes the selected drive and may take some time. Save your work and keep Prefect open until it finishes. " +
-        "Stop and Close are unavailable during optimization. No restart or schedule change is requested.";
+        "Exiting Prefect stops its command and may leave optimization incomplete. No restart or schedule change is requested.";
 
     internal static string Result(DiskOptimizationAction action, int code) => code == 0
         ? (action == DiskOptimizationAction.Analyze ? "Fragmentation analysis completed." : "Drive optimization completed.") + " Review Windows' full report below."

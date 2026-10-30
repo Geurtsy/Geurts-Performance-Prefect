@@ -74,11 +74,11 @@ public sealed class DiagnosticConsole : UserControl
             "Geurts Performance Prefect · Optimize drive", MessageBoxButton.YesNo, MessageBoxImage.Question,
             MessageBoxResult.No) == MessageBoxResult.Yes);
         this.integrityRun = integrityRun ?? SystemIntegrity.RunAsync;
-        this.repairRun = repairRun ?? DiskRepair.RunAsync;
+        this.repairRun = repairRun ?? ((root, output, input) => DiskRepair.RunAsync(root, output, input, cancellation!.Token));
         this.confirmRepair = confirmRepair ?? (root => MessageBox.Show(Window.GetWindow(this), DiskRepair.Confirmation(root),
             "Geurts Performance Prefect · Fix disk", MessageBoxButton.YesNo, MessageBoxImage.Warning,
             MessageBoxResult.No) == MessageBoxResult.Yes);
-        this.imageRun = imageRun ?? WindowsImage.RunAsync;
+        this.imageRun = imageRun ?? ((action, output) => WindowsImage.RunAsync(action, output, cancellation!.Token));
         this.confirmImageRepair = confirmImageRepair ?? (() => MessageBox.Show(Window.GetWindow(this), WindowsImage.Confirmation,
             "Geurts Performance Prefect · Repair Windows image", MessageBoxButton.YesNo, MessageBoxImage.Warning,
             MessageBoxResult.No) == MessageBoxResult.Yes);
@@ -134,6 +134,12 @@ public sealed class DiagnosticConsole : UserControl
         else { closeAfterStop = afterStop; Stop(); }
         return false;
     }
+    internal void StopForExit()
+    {
+        closeAfterStop = null;
+        cancellation?.Cancel();
+        Status.Text = "Stopping the diagnostic command for application exit…";
+    }
     void UpdateCheckType()
     {
         if (cancellation != null) return;
@@ -150,7 +156,7 @@ public sealed class DiagnosticConsole : UserControl
             description.Text = analyze ? "Analyze fragmentation on the selected drive without optimizing it. Windows reports fragmentation statistics and whether optimization is needed."
                 : "Optimize the selected drive. Windows chooses the appropriate operation for the drive's media type, including SSDs. Confirm before starting.";
             guidance.Text = "Administrator access is required. Review Windows' full report below. Unsupported, locked or damaged volumes may be refused by Windows. " +
-                (analyze ? "Analysis does not repair or optimize the drive." : "Keep Prefect open until optimization finishes; Stop and Close are unavailable. No restart or schedule change is requested.");
+                (analyze ? "Analysis does not repair or optimize the drive." : "Keep Prefect open until optimization finishes. Exiting Prefect stops its command; optimization may be incomplete. No restart or schedule change is requested.");
             Status.Text = !administrator ? "Restart Prefect as administrator to analyze and optimize drives in this tab."
                 : Drive.SelectedItem == null ? "No ready local drives are available. Reopen Settings after connecting or unlocking a drive."
                 : analyze ? "Choose a drive, then Analyze drive." : "Choose a drive, then Optimize drive to review the confirmation.";
@@ -164,7 +170,7 @@ public sealed class DiagnosticConsole : UserControl
                 WindowsImageAction.ScanHealth => "Scan the running Windows image for component-store corruption with DISM. This does not repair the image and can take several minutes.",
                 _ => "Repair the running Windows image with DISM /RestoreHealth. Repair files may be downloaded from Windows Update. Confirm before starting."
             };
-            guidance.Text = @"Administrator access is required. Drive selection does not apply. Keep this console open until DISM finishes; Stop and Close are unavailable while servicing runs. Automatic restart is suppressed. Details: %WINDIR%\Logs\DISM\dism.log.";
+            guidance.Text = @"Administrator access is required. Drive selection does not apply. Keep this console open until DISM finishes. Exiting Prefect stops its command; servicing may be incomplete. Automatic restart is suppressed. Details: %WINDIR%\Logs\DISM\dism.log.";
             Status.Text = ImageAction == WindowsImageAction.RestoreHealth ? "Choose Start repair to review the confirmation." : "Choose Start check to check the Windows image.";
             if (!administrator) Status.Text = "Restart Prefect as administrator to run checks and repairs in this tab.";
             return;
@@ -172,7 +178,7 @@ public sealed class DiagnosticConsole : UserControl
         description.Text = Repair ? "Fix file-system errors with CHKDSK /f. Select a drive and confirm before starting. Administrator access is required. Keep this console open until the repair finishes." : Integrity
             ? "Scan protected Windows system files using SFC /verifyonly. No repairs or restart are requested. Administrator access is required; scanning can take several minutes."
             : "Run a read-only CHKDSK file-system check. This does not repair errors or schedule a restart. Checks can take several minutes.";
-        guidance.Text = Repair ? "Read the console before replying. Prefect does not answer prompts, force a dismount or restart Windows automatically. Let the repair finish before closing; Stop is unavailable during repairs." : Integrity
+        guidance.Text = Repair ? "Read the console before replying. Prefect does not answer prompts, force a dismount or restart Windows automatically. Let the repair finish; exiting Prefect stops its command and repairs may be incomplete." : Integrity
             ? "This scans the running Windows installation; the drive selection does not apply. Review Windows Resource Protection's full findings below. Detailed results are recorded by Windows in Logs\\CBS\\CBS.log under the Windows folder."
             : "Read-only checks on a drive in use can report temporary inconsistencies. Review CHKDSK's full output before deciding on repairs. This checks the file system, not the drive's physical health.";
         Status.Text = Repair && Drive.SelectedItem != null ? "Choose a drive, then Start repair to review the confirmation." : Integrity ? "Choose Start check to scan Windows system integrity."

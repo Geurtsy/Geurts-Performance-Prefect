@@ -100,6 +100,15 @@ internal sealed class WinDirStatSession : IDisposable
         }
     }
 
+    internal void StopForExit()
+    {
+        // Explicit app exit owns this exact private process, including its dialogs.
+        // Do not discover or terminate other WinDirStat instances or system services.
+        try { if (IsRunning) Process!.Kill(); }
+        catch (InvalidOperationException) when (!IsRunning) { }
+        catch (Win32Exception) when (!IsRunning) { }
+    }
+
     public void Dispose()
     {
         if (IsRunning || disposed) return;

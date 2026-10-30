@@ -1,5 +1,15 @@
 # Geurts Performance Prefect
 
+Click **X** on Settings, **Exit application**, or tray **Exit** to close Prefect.
+A brief warning appears, active app-owned work stops automatically, and Prefect
+exits after cleanup, without a confirmation or another click. Compression and
+cleanup finish the current file and keep completed changes. Diagnostic commands
+and the private embedded analyser stop; interrupted repairs or optimization may
+be incomplete. Preferences save and session-controlled fans return to hardware
+automatic. Windows-managed background services, including accepted BitLocker
+decryption, can continue independently. **Done** closes only Settings;
+minimising keeps monitoring active.
+
 **Settings → Sensor sources → Detected hardware** shows a local hardware inventory
 from the embedded open-source Fastfetch 2.70.0 command-line tool. It reports the
 computer model, processor and core counts, integrated/discrete graphics, memory
@@ -137,7 +147,8 @@ count is unknown before starting, and eligible files discovered during the run,
 including newly added files, may be compressed. There is no file-count cutoff.
 Already compressed files are skipped. **Stop** keeps completed changes and finishes
 the current file; a fresh scan can process the remaining eligible files. Closing,
-restarting and updating wait until the operation finishes or stops. Selecting a
+restarting and updating wait until the operation finishes or stops. Exiting stops
+it automatically after the current file. Selecting a
 drive alone starts nothing. The existing preview/confirm workflow stays available
 for reviewing a fixed list before changes; decompression still uses that workflow.
 
@@ -185,8 +196,9 @@ checked before work and for each candidate, so a replacement volume under the sa
 letter requires fresh approval. Manual/automatic operations do not overlap; an
 automatic run invalidates open manual previews. **Stop and disable automatic
 compression** stops after the current file and saves the disabled policy. Completed
-changes remain. Exit/restart/update requests stop active automatic work and wait
-for the current file; retry the action once it stops. File/folder inheritance and
+changes remain. Exit stops active automatic work and closes after the current file.
+Restart/update requests stop active automatic work; retry those actions once it
+stops. File/folder inheritance and
 Windows' own compression configuration are unchanged. If saving a disabled policy
 fails, work stays stopped for this session and the persistence error is shown.
 
@@ -194,7 +206,8 @@ Savings vary: photos, videos and archives often save little. Compression uses ex
 CPU during access; performance can vary. Decompression requires enough free space,
 including a 64 MB reserve checked before each file. **Stop** waits for the current
 file and keeps completed changes. Settings close, app exit, restart and updating
-wait until this work finishes or stops.
+wait until this work finishes or stops. App exit requests Stop automatically and
+continues closing when the current file finishes.
 
 Only available local fixed/removable NTFS drives are supported. Windows, standard
 Program Files/ProgramData directories, this copy of Prefect, application/settings
@@ -314,9 +327,10 @@ click **Analyse**. Browse the folder tree, largest files and treemap inside
 Prefect. Scanning never starts from opening the tab or normal app startup.
 
 Switching tabs, minimising and restoring Settings keep the same scan alive.
-Use **Close analyser** before closing Settings, exiting, restarting or updating
-Prefect; these actions wait while the analyser is active and do not force-stop
-native scans, cleanups or dialogs. WinDirStat's own prompts control deletion.
+Use **Close analyser** before Done, restarting or updating Prefect; those actions
+wait while the analyser is active. App exit automatically stops the private
+analyser, including its native dialogs. Completed changes remain; interrupted
+operations may be incomplete. WinDirStat's own prompts control deletion.
 
 The native interface samples the current Settings theme at scan startup, including
 backgrounds, text, borders, selected tabs/rows, font family/size and coordinated
@@ -420,8 +434,9 @@ Progress, the full report and exit codes appear in the embedded console. Run
 Prefect as administrator first. Nothing starts on opening, mode selection or
 startup, and Windows' scheduled optimization settings are preserved.
 
-Keep Prefect open until optimization finishes. Stop, Close, app exit, restart
-and update installation wait for the operation to finish. No restart is requested.
+Keep Prefect open until optimization finishes. Done, restart and update installation
+wait for the operation to finish. App exit stops Prefect's command automatically;
+optimization may be incomplete. No restart is requested.
 Windows may refuse unsupported, locked or damaged volumes; review its report
 before taking further action. This does not repair file-system errors or failing
 hardware. See [Microsoft's drive optimization reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/defrag).
@@ -442,7 +457,8 @@ for confirmation before running `DISM /Online /Cleanup-Image /RestoreHealth /NoR
 It repairs the running Windows installation and may download files from Windows
 Update. Run Prefect as administrator first; drive selection does not
 apply. Progress, findings, errors and exit codes remain in the console. Let DISM
-finish before closing: Stop and Close do not terminate Windows servicing.
+finish before closing. App exit stops Prefect's DISM command automatically;
+servicing may be incomplete. Done waits for servicing to finish.
 Automatic restart is suppressed; a restart-required result asks you to restart
 manually. If repair files are missing, review the console and
 `%WINDIR%\Logs\DISM\dism.log`; a matching Windows repair source may be required.

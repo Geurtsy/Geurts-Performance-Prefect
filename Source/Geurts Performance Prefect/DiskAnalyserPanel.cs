@@ -18,6 +18,15 @@ public sealed class DiskAnalyserPanel : DockPanel
     readonly Button browse = new() { Content = "Browse…", Margin = new Thickness(8,0,0,0) };
     readonly Button source = new() { Content = "Licence and source", Margin = new Thickness(8,0,0,0) };
     bool starting;
+    bool exiting;
+    internal System.Threading.Tasks.Task ExitCleanup { get; private set; } = System.Threading.Tasks.Task.CompletedTask;
+    internal void StopForExit()
+    {
+        exiting = true;
+        Session?.StopForExit();
+        Status.Text = "Stopping the analyser automatically…";
+        timer.Start();
+    }
     internal bool IsActive => starting || Session?.IsRunning == true;
 
     public DiskAnalyserPanel()
@@ -61,13 +70,14 @@ public sealed class DiskAnalyserPanel : DockPanel
 
     internal async System.Threading.Tasks.Task StartAsync()
     {
-        if (IsActive) return;
+        if (IsActive || exiting) return;
         try
         {
             var target = WinDirStatSession.ValidateTarget(Target.Text);
             starting = true; UpdateButtons(); Status.Text = "Opening WinDirStat for " + target + "…";
             Session = new WinDirStatSession(WinDirStatTheme.Capture(this));
             await Session.StartAsync(target);
+            if (exiting) { Session.StopForExit(); return; }
             Host.Attach(Session.Window);
             Status.Text = "WinDirStat is embedded. Browse the results below; switching tabs keeps this session running.";
         }
@@ -92,8 +102,9 @@ public sealed class DiskAnalyserPanel : DockPanel
     }
     void Poll()
     {
+        if (starting) return;
         if (Session?.IsRunning == true) return;
-        timer.Stop(); Host.Release(); Session?.Dispose(); Session = null;
+        timer.Stop(); Host.Release(); Session?.Dispose(); ExitCleanup = Session?.Cleanup ?? ExitCleanup; Session = null;
         Status.Text = "Analyser closed. Choose a drive or folder to start another scan."; UpdateButtons();
     }
     internal bool CanClose()

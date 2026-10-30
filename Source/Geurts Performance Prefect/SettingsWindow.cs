@@ -31,6 +31,17 @@ public sealed class SettingsWindow : Window
     }
 
     readonly OverlayWindow overlay;
+    bool closeAfterExit, settingsOnly;
+    internal bool HasExitWork => FileCompressionPanel.IsBusy || DiskAnalyserPanel.IsActive || DiskAnalyserPanel.Session != null ||
+        Console.IsRunning || BitLockerPanel.IsChanging || parkingBusy;
+    internal void StopForExit()
+    {
+        // Disable new actions before asking every owned worker to stop.
+        IsEnabled = false; updateStop.Cancel(); FileCompressionPanel.Stop();
+        DiskAnalyserPanel.StopForExit(); Console.StopForExit();
+    }
+    internal void CloseAfterExit() { closeAfterExit = true; Close(); }
+    void CloseSettings() { settingsOnly = true; Close(); settingsOnly = false; }
     internal SettingsHud Hud { get; }
     internal void ApplyTopmostPreference()
     {
@@ -111,14 +122,14 @@ public sealed class SettingsWindow : Window
     public BitLockerPanel BitLockerPanel { get; }
     readonly TextBlock batteryCpuCaption = Label("");
     bool updatingPowerOptions;
-    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null, BitLockerPanel? bitLocker = null, Func<string>? createDesktopShortcut = null)
+    public SettingsWindow(OverlayWindow overlay, CoreParking? parking = null, Func<string, bool>? confirmDownloads = null, WindowsStartup? startup = null, DiagnosticConsole? console = null, BitLockerPanel? bitLocker = null, Func<string>? createDesktopShortcut = null, FileCompressionPanel? fileCompression = null)
     {
         Resources.MergedDictionaries.Add(SettingsHud.CreateResources());
         this.overlay = overlay;
         FanControlPanel = new FanControlPanel(overlay.Fans);
         HardwareDetectionPanel = new HardwareDetectionPanel(overlay.HardwareInventory);
         Closed += (_, _) => HardwareDetectionPanel.Dispose();
-        FileCompressionPanel = new FileCompressionPanel(new FileCompression(), null, automatic: overlay.AutomaticCompression);
+        FileCompressionPanel = fileCompression ?? new FileCompressionPanel(new FileCompression(), null, automatic: overlay.AutomaticCompression);
         StorageSensePanel = new StorageSensePanel(overlay.StorageSense, overlay.Settings, overlay.Store);
         Closed += (_, _) => StorageSensePanel.Dispose();
         Closed += (_, _) => FileCompressionPanel.Dispose();
@@ -146,7 +157,7 @@ public sealed class SettingsWindow : Window
         var footerButtons = new Grid(); footerButtons.ColumnDefinitions.Add(new()); footerButtons.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
         var quit = new Button { Content = "Exit application", HorizontalAlignment = HorizontalAlignment.Left }; quit.Click += (_, _) => overlay.Close();
         footerButtons.Children.Add(quit);
-        var done = new Button { Content = "Done", MinWidth = 90 }; done.Click += (_, _) => Close(); Grid.SetColumn(done, 1); footerButtons.Children.Add(done);
+        var done = new Button { Content = "Done", MinWidth = 90 }; done.Click += (_, _) => CloseSettings(); Grid.SetColumn(done, 1); footerButtons.Children.Add(done);
         footer.Children.Add(new TextBlock { Text = "Overlay changes save automatically. Performance changes may require administrator approval.", TextWrapping = TextWrapping.Wrap, Foreground = Palette.Muted, FontSize = 11, Margin = new Thickness(0,0,0,10) });
         footer.Children.Add(footerButtons); DockPanel.SetDock(footer, Dock.Bottom); dock.Children.Add(footer);
         System.Windows.Automation.AutomationProperties.SetName(Sections, "Settings sections");
@@ -254,6 +265,13 @@ public sealed class SettingsWindow : Window
         };
         Closing += (_, e) =>
         {
+            if (closeAfterExit) return;
+            if (!settingsOnly && overlay.OwnsSettings(this))
+            {
+                e.Cancel = true;
+                Dispatcher.BeginInvoke(new Action(overlay.Close));
+                return;
+            }
             if (!FileCompressionPanel.CanLeave()) { e.Cancel = true; ShowFileCompression(); return; }
             if (!DiskAnalyserPanel.CanClose()) { e.Cancel = true; ShowDiskAnalyser(); return; }
             if (BitLockerPanel.IsChanging) { e.Cancel = true; ShowSecurity(); return; }
