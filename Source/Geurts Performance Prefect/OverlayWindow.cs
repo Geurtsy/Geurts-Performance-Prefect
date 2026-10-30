@@ -770,7 +770,7 @@ public sealed class OverlayWindow : Window
         exitRequested = true;
         Dispatcher.BeginInvoke(new Action(ExitAsync));
     }
-    bool HasExitWork => AutomaticCompression.IsBusy || StorageSense.IsBusy || Downloads.IsBusy || HardwareInventory.Busy ||
+    bool HasExitWork => AutomaticCompression.IsBusy || StorageSense.IsBusy || Downloads.IsBusy || HardwareInventory.Busy || PowerOptions.Busy ||
         settingsWindow?.HasExitWork == true;
     async void ExitAsync()
     {

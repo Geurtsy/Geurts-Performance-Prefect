@@ -33,7 +33,8 @@ public sealed class SettingsWindow : Window
     readonly OverlayWindow overlay;
     bool closeAfterExit, settingsOnly;
     internal bool HasExitWork => FileCompressionPanel.IsBusy || DiskAnalyserPanel.IsActive || DiskAnalyserPanel.Session != null ||
-        Console.IsRunning || BitLockerPanel.IsChanging || parkingBusy;
+        Console.IsRunning || !BitLockerPanel.Operation.IsCompleted || !SecurityPanel.Operation.IsCompleted ||
+        !FirewallPanel.Operation.IsCompleted || !VisualEffectsPanel.Operation.IsCompleted || parkingBusy;
     internal void StopForExit()
     {
         // Disable new actions before asking every owned worker to stop.
