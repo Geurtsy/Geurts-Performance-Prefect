@@ -659,8 +659,19 @@ approval leaves the current plan active. Settings save failure stops before
 application. The separate **Remove Core Parking** control is unavailable while
 the Prefect plan is active, so it cannot override the preset.
 
-Unavailable optional settings are listed after application; missing required
-CPU, parking, sleep or display settings prevent activation. Read-back confirms
+Each preset adapts to the settings available on the PC. Windows' advertised
+numeric ranges are checked before writing, including vendor-modified zero limits.
+Missing settings and rejected or locked values are skipped for each AC/battery
+value; the status lists limitations and how many values were confirmed. A missing
+CPU, parking, sleep, display or battery setting no longer cancels the whole preset.
+If Windows permits no writes, application fails and preserves the previous plan.
+Every successful write is verified before and after activation; unexpected write
+errors or changes to those values still trigger rollback. If Windows rejects
+cloning or activating the original plan as unsupported, Prefect retries with a
+separate Balanced-derived plan when available, retaining your original restore
+target. It never edits existing plans or globally changes setting definitions.
+Helper failures appear directly in the startup/Settings status with the Windows
+error, rather than referring to a separate helper dialog. Read-back confirms
 Windows policy values, not physical hardware behavior. Hardware, firmware,
 Modern Standby, vendor GPU/device controls, organisation policies, screen savers,
 and applications requesting wakefulness can limit the result. The presets do
@@ -668,7 +679,8 @@ not configure every vendor-specific option, globally enable hibernation, change
 critical battery protection, or replace a manual shutdown/power-button action.
 Performance mode increases power consumption and heat.
 
-Self-tests simulate startup, both presets, AC/DC values, rollback, cancellation,
+Self-tests simulate startup, both presets, AC/DC values, partial support, restricted
+ranges, locked settings, Balanced fallback, helper error transport, rollback, cancellation,
 plan changes and saved preferences, render normal/narrow settings previews, and
 read the native Windows power backend without changing the machine's settings.
 Interactive UAC, actual power-source transitions, physical core parking and

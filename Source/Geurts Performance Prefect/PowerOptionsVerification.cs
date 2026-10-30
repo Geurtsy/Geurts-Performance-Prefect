@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -49,7 +52,7 @@ public static class PowerOptionsVerification
             new PowerOptionsEngine(backend).Restore(request.Candidate, original);
             check(backend.Current == original, preset + " restores the original plan");
         }
-        foreach (var failure in new[] { "write", "readback", "activation", "postactivation", "race", "required" })
+        foreach (var failure in new[] { "write", "readback", "activation", "postactivation", "race", "allmissing", "alldenied" })
         {
             var backend = new Fixture { Failure = failure }; var original = backend.Current;
             var request = new PowerRequest(original, original, Guid.NewGuid(), PowerPreset.PerformancePluggedBatterySaving, 50);
@@ -62,11 +65,66 @@ public static class PowerOptionsVerification
             var request = new PowerRequest(original, original, Guid.NewGuid(), PowerPreset.PerformanceOnly, 50);
             var engine = new PowerOptionsEngine(backend); engine.Apply(request);
             check(engine.Verify(request.Candidate, request.Preset, 50).Contains("Wireless adapter") && backend.Current == request.Candidate,
-                "Unsupported optional hardware settings are reported and required settings remain verified");
+                "Unsupported hardware settings are reported and supported settings remain verified");
             check(Rejects(() => engine.Apply(request)) && backend.Exists(request.Candidate), "An existing candidate plan cannot be overwritten or removed");
             backend.Current = Guid.NewGuid();
             check(Rejects(() => engine.Restore(request.Candidate, original)) && backend.Current != original,
                 "Restore preserves a power plan selected by another application");
+        }
+
+        foreach (var failure in new[] { "required", "range", "partialdenied", "unsupportedwrite", "unsupportedread", "batteryabsent" })
+        {
+            var backend = new Fixture { Failure = failure }; var original = backend.Current;
+            var request = new PowerRequest(original, original, Guid.NewGuid(), PowerPreset.PerformanceOnly, 50);
+            var engine = new PowerOptionsEngine(backend); engine.Apply(request);
+            check(backend.Current == request.Candidate && engine.Verify(request.Candidate, request.Preset, 50).Contains("Limited on this PC") &&
+                backend.Values.Where(p => p.Key.Item1 == original).All(p => p.Value == 7),
+                "Compatibility " + failure + " applies supported settings, reports limitations and preserves the original");
+            engine.Restore(request.Candidate, original);
+            check(backend.Current == original, "Compatibility " + failure + " still restores the original plan");
+        }
+        foreach (var failure in new[] { "clonefallback", "activatefallback", "fallbackfails" })
+        {
+            var backend = new Fixture { Failure = failure }; var original = backend.Current;
+            var request = new PowerRequest(original, original, Guid.NewGuid(), PowerPreset.PerformanceOnly, 50);
+            var engine = new PowerOptionsEngine(backend);
+            if (failure == "fallbackfails")
+                check(Rejects(() => engine.Apply(request)) && backend.Current == original && !backend.Exists(request.Candidate),
+                    "Failed Balanced fallback cleans up and preserves the original plan");
+            else
+            {
+                engine.Apply(request);
+                check(backend.LastBasis == backend.FallbackBasis && backend.Current == request.Candidate,
+                    failure + " retries with a Balanced basis after removing the rejected candidate");
+                engine.Restore(request.Candidate, original);
+                check(backend.Current == original, failure + " keeps the original restore identity");
+            }
+        }
+        {
+            var channel = "Prefect-Power-" + Guid.NewGuid().ToString("N");
+            using var pipe = new NamedPipeServerStream(channel, PipeDirection.In, 1, PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var received = PowerOptionsHelper.ReadAsync(pipe, timeout.Token);
+            var diagnostic = "Minimum unparked cores (plugged in): Windows error 87 — allowed range 0–0";
+            PowerOptionsHelper.Send(channel, diagnostic);
+            check(received.GetAwaiter().GetResult().Error == diagnostic && !PowerOptionsHelper.IsChannel("bad-channel"),
+                "Same-user helper IPC preserves the exact Windows diagnostic without shared files");
+        }
+        {
+            var channel = "Prefect-Power-" + Guid.NewGuid().ToString("N");
+            using var pipe = new NamedPipeServerStream(channel, PipeDirection.In, 1, PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var received = PowerOptionsHelper.ReadAsync(pipe, timeout.Token);
+            var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false, CreateNoWindow = true };
+            foreach (var argument in new[] { "--power-options", "invalid", "invalid", "invalid", "999", "50", channel }) start.ArgumentList.Add(argument);
+            using var helper = Process.Start(start)!;
+            var result = received.GetAwaiter().GetResult();
+            var exited = helper.WaitForExit(10000);
+            if (!exited) helper.Kill();
+            check(exited && helper.ExitCode == 1 && result.Error == "Invalid power options arguments.",
+                "Real helper returns its exact failure to the parent without elevation, dialogs or power mutations");
         }
 
         var root = Path.Combine(folder, "power-options-fixture-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
@@ -143,11 +201,22 @@ public static class PowerOptionsVerification
         // Native backend coverage is read-only: no activation, writes, duplication, elevation, or real preferences.
         var native = new WindowsPowerOptionsBackend(); var nativeActive = native.Active();
         check(native.Exists(nativeActive) && !native.Exists(Guid.NewGuid()), "Native power backend correctly reads existing and absent plan identities");
-        var supported = policy.Select(s => new { s.Name, s.Id, AC = native.Read(nativeActive, s, false), DC = native.Read(nativeActive, s, true) }).ToArray();
+        uint? ReadNative(PowerSetting setting, bool battery)
+        { try { return native.Read(nativeActive, setting, battery); } catch (Exception error) when (PowerOptionsEngine.IsUnsupported(error)) { return null; } }
+        var supported = policy.Select(s => new { s.Name, s.Id, AC = ReadNative(s, false), DC = ReadNative(s, true),
+            PerformanceRestriction = native.UnsupportedValue(s, s.Performance), SavingRestriction = native.UnsupportedValue(s, s.Saving) }).ToArray();
         File.WriteAllText(Path.Combine(folder, "power-options-native-readonly.json"), System.Text.Json.JsonSerializer.Serialize(
             new { ActiveScheme = nativeActive, Settings = supported, MutationPerformed = false }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-        check(native.Active() == nativeActive && supported.Where(s => policy.Single(p => p.Id == s.Id).Required).All(s => s.AC.HasValue && s.DC.HasValue),
-            "Native AC/DC required settings can be read without changing the machine's plan");
+        check(native.Active() == nativeActive && supported.Any(s => s.AC.HasValue || s.DC.HasValue),
+            "Native AC/DC capabilities and value restrictions can be read without changing the machine's plan");
+        {
+            var backend = new Fixture(); var original = backend.Current;
+            backend.Restrictions = supported.Where(s => s.PerformanceRestriction != null).ToDictionary(s => s.Id, s => s.PerformanceRestriction!);
+            var request = new PowerRequest(original, original, Guid.NewGuid(), PowerPreset.PerformanceOnly, 50);
+            var engine = new PowerOptionsEngine(backend); engine.Apply(request);
+            check(backend.Current == request.Candidate && (backend.Restrictions.Count == 0 || engine.Verify(request.Candidate, request.Preset, 50).Contains("Limited on this PC")),
+                "Simulated application accepts this PC's actual read-only Windows range restrictions");
+        }
 
         var shutdown = Application.Current.ShutdownMode; Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var overlay = new OverlayWindow(store, preferences, verification: true, powerOptions: controller);
@@ -196,31 +265,49 @@ public static class PowerOptionsVerification
         readonly HashSet<Guid> plans = new();
         public string Failure = "";
         public int Activations;
+        public Dictionary<Guid, string> Restrictions = new();
+        readonly Guid balanced = Guid.NewGuid();
+        public Guid LastBasis;
+        public Guid? FallbackBasis => balanced;
         public Fixture()
         {
             plans.Add(Current);
+            plans.Add(balanced);
             foreach (var setting in PowerPolicy.Settings(50)) foreach (var battery in new[] { false, true }) Values[(Current, setting.Id, battery)] = 7;
+            foreach (var setting in PowerPolicy.Settings(50)) foreach (var battery in new[] { false, true }) Values[(balanced, setting.Id, battery)] = 7;
         }
         public Guid Active() => Current;
         public bool Exists(Guid scheme) => plans.Contains(scheme);
         public void Duplicate(Guid basis, Guid candidate)
         {
+            LastBasis = basis;
+            if ((Failure == "clonefallback" && basis != balanced) || Failure == "fallbackfails") throw new Win32Exception(50);
             if (!Exists(basis) || Exists(candidate)) throw new InvalidOperationException("Fixture invalid clone");
             plans.Add(candidate);
             foreach (var entry in Values.Where(p => p.Key.Item1 == basis).ToArray()) Values[(candidate, entry.Key.Item2, entry.Key.Item3)] = entry.Value;
         }
         public void Name(Guid scheme, string name) { }
-        public uint? Read(Guid scheme, PowerSetting setting, bool battery) =>
-            Failure == "required" && setting.Required || Failure == "optional" && setting.Name.Contains("Wireless adapter") ? null : Values[(scheme, setting.Id, battery)];
+        public uint? Read(Guid scheme, PowerSetting setting, bool battery)
+        {
+            if (Failure == "unsupportedread" && setting.Core) throw new Win32Exception(50);
+            return Failure == "allmissing" || Failure == "batteryabsent" && battery ||
+                Failure == "required" && setting.Core || Failure == "optional" && setting.Name.Contains("Wireless adapter") ? null : Values[(scheme, setting.Id, battery)];
+        }
+        public string? UnsupportedValue(PowerSetting setting, uint value) => Restrictions.GetValueOrDefault(setting.Id) ??
+            (Failure == "range" && setting.Name == "Minimum unparked cores" && value > 0 ? "requested 100, Windows allows 0–0" : null);
         public void Write(Guid scheme, PowerSetting setting, bool battery, uint value)
         {
             if (Failure == "write") throw new UnauthorizedAccessException("Fixture denied write");
+            if (Failure == "alldenied" || Failure == "partialdenied" && setting.Core) throw new Win32Exception(5);
+            if (Failure == "unsupportedwrite" && setting.Core) throw new Win32Exception(87);
+            if (UnsupportedValue(setting, value) != null) throw new InvalidOperationException("An unsupported value must never be written");
             if (Failure == "readback") return;
             Values[(scheme, setting.Id, battery)] = value;
             if (Failure == "race") { Current = Guid.NewGuid(); Failure = ""; }
         }
         public void Activate(Guid scheme)
         {
+            if (Failure == "activatefallback" && LastBasis != balanced) throw new Win32Exception(87);
             if (Failure == "activation") { Failure = ""; throw new InvalidOperationException("Fixture denied activation"); }
             Current = scheme; Activations++;
             if (Failure == "postactivation")

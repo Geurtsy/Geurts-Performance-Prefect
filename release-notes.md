@@ -1,3 +1,9 @@
+# Geurts Performance Prefect 1.44.3
+
+- Power presets now adapt to each PC instead of cancelling the entire preset when a CPU, parking, sleep, display or battery setting is missing or locked. Checks Windows' advertised numeric ranges before writing, including the zero core-parking maximum found on HeatExhaust. Unsupported AC/battery values are skipped and reported with the confirmed-value count; existing plans and global setting definitions are preserved.
+- If Windows rejects cloning or activating the original plan as unsupported, retries with a separate Balanced-derived plan when available. Restore retains the original target. Every successful write is checked before and after activation; unexpected errors, failed read-back and activation failures still roll back. Application fails if Windows allows no settings to be written. Firmware, vendor and organisation restrictions can still limit or prevent application.
+- Power helper errors now reach the main startup/Settings status directly over a same-user channel, including Windows error details, without requiring a separate helper error dialog. Added isolated regression coverage for partial support, restricted ranges, locked settings, absent battery settings, fallback and recovery, plus real helper diagnostic transport and read-only native capability checks. No installed app or real power-plan setting was changed during validation. Installation remains manual.
+
 # Geurts Performance Prefect 1.44.2
 
 - Automatic exit now also waits for in-progress power-plan, security, firewall, visual-effects and BitLocker request updates to finish safely before saving preferences and closing. Active cancellable work still stops automatically; no manual Stop action or repeated Close click is required.

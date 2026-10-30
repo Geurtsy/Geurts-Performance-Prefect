@@ -121,7 +121,13 @@ or screen-off. Performance Mode Only uses these values for battery too.
 Restore previous power plan switches back and disables startup application.
 Turning just the startup toggle off leaves the current Windows plan active.
 Windows switches AC/battery values automatically even after Prefect exits.
-Unsupported settings are reported; hardware/vendor controls and Windows policy
+Unavailable or locked settings and values outside Windows' allowed range are
+skipped individually and listed in the status, including separate AC/battery
+limitations. Supported values are verified before and after activation. If no
+values can be written, the original plan is preserved. A Balanced-derived
+fallback is tried when Windows rejects the original plan as unsupported; Restore
+still returns to the original. Helper errors appear directly in the main status.
+Hardware/vendor controls and Windows policy
 can limit their effect. Critical battery protection is retained.
 
 START WITH WINDOWS

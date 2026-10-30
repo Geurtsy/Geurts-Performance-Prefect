@@ -645,7 +645,7 @@ public sealed class SettingsWindow : Window
         stack.Children.Add(Note("Off by default. Saves for the next app launch, including Start with Windows. Changing the preset or slider saves for the next application; use Apply preset now to apply it now. Turning startup off leaves the current Windows plan active."));
         stack.Children.Add(ApplyPowerOptionsButton); stack.Children.Add(RestorePowerOptionsButton);
         stack.Children.Add(PowerOptionsStatus);
-        stack.Children.Add(Note("Uses a separate Windows power plan and leaves your previous plan available to restore. Windows switches between its AC and battery values automatically, even when Prefect is closed. Restore also turns startup application off. Administrator approval may be required. Unsupported options are listed after application; hardware, firmware, vendor controls and Windows policies can limit the effect. Critical battery protection is retained."));
+        stack.Children.Add(Note("Uses a separate Windows power plan and leaves your previous plan available to restore. Windows switches between its AC and battery values automatically, even when Prefect is closed. Restore also turns startup application off. Administrator approval may be required. Applies supported settings and lists unavailable, locked or out-of-range options separately for plugged in and battery. A Balanced-derived fallback is tried if Windows rejects the original plan as unsupported. Hardware, firmware, vendor controls and Windows policies can limit the effect. Critical battery protection is retained."));
         UpdatePowerOptions();
         ApplyPowerOptionsToggle.Checked += (_, _) => SavePowerOptions();
         ApplyPowerOptionsToggle.Unchecked += (_, _) => SavePowerOptions();

@@ -269,21 +269,29 @@ public partial class App : Application
         }
         if (e.Args.Length > 0 && e.Args[0] is "--power-options" or "--restore-power-options")
         {
+            var argumentCount = e.Args[0] == "--power-options" ? 6 : 3;
+            var channel = e.Args.Length == argumentCount + 1 && PowerOptionsHelper.IsChannel(e.Args[^1]) ? e.Args[^1] : null;
             try
             {
                 var engine = new PowerOptionsEngine(new WindowsPowerOptionsBackend());
-                if (e.Args[0] == "--restore-power-options" && e.Args.Length == 3 &&
+                if (e.Args[0] == "--restore-power-options" && (e.Args.Length == 3 || channel != null) &&
                     Guid.TryParse(e.Args[1], out var managed) && Guid.TryParse(e.Args[2], out var previous))
                     engine.Restore(managed, previous);
-                else if (e.Args[0] == "--power-options" && e.Args.Length == 6 &&
+                else if (e.Args[0] == "--power-options" && (e.Args.Length == 6 || channel != null) &&
                     Guid.TryParse(e.Args[1], out var expected) && Guid.TryParse(e.Args[2], out var basis) &&
                     Guid.TryParse(e.Args[3], out var candidate) && int.TryParse(e.Args[4], out var preset) &&
                     Enum.IsDefined((PowerPreset)preset) && int.TryParse(e.Args[5], out var limit) && limit >= 50 && limit <= 100)
                     engine.Apply(new(expected, basis, candidate, (PowerPreset)preset, limit));
                 else throw new ArgumentException("Invalid power options arguments.");
+                if (channel != null) PowerOptionsHelper.Send(channel, null);
                 Shutdown(0);
             }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "Geurts Performance Prefect · Power options"); Shutdown(1); }
+            catch (Exception ex)
+            {
+                if (channel != null) { try { PowerOptionsHelper.Send(channel, ex.Message); } catch { } }
+                else MessageBox.Show(ex.Message, "Geurts Performance Prefect · Power options");
+                Shutdown(1);
+            }
             return;
         }
         if (e.Args.Length == 2 && e.Args[0] == "--apply-update")
@@ -319,6 +327,23 @@ public partial class App : Application
         {
             try { using var previous = System.Diagnostics.Process.GetProcessById(previousProcess); previous.WaitForExit(10000); }
             catch (ArgumentException) { }
+        }
+        if (e.Args.Length == 2 && e.Args[0] == "--power-options-test")
+        {
+            var report = System.IO.Path.GetFullPath(e.Args[1]);
+            try
+            {
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(report)!);
+                File.WriteAllText(report, "");
+                PowerOptionsVerification.Run(System.IO.Path.GetDirectoryName(report)!, (passed, name) =>
+                {
+                    if (!passed) throw new InvalidOperationException("FAILED: " + name);
+                    File.AppendAllText(report, "PASS: " + name + Environment.NewLine);
+                });
+                Shutdown(0);
+            }
+            catch (Exception ex) { File.AppendAllText(report, ex.ToString()); Shutdown(1); }
+            return;
         }
         if (e.Args.Length >= 2 && e.Args[0] == "--self-test")
         {

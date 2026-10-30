@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace GeurtsPerformancePrefect;
 
 public enum PowerPreset { PerformanceOnly, PerformancePluggedBatterySaving }
-public sealed record PowerSetting(string Name, Guid Group, Guid Id, uint Performance, uint Saving, bool Required = false);
+public sealed record PowerSetting(string Name, Guid Group, Guid Id, uint Performance, uint Saving, bool Core = false);
 public sealed record PowerRequest(Guid Expected, Guid Basis, Guid Candidate, PowerPreset Preset, int CpuLimit);
 
 public interface IPowerOptionsBackend
@@ -22,6 +22,8 @@ public interface IPowerOptionsBackend
     void Write(Guid scheme, PowerSetting setting, bool battery, uint value);
     void Activate(Guid scheme);
     void Delete(Guid scheme);
+    string? UnsupportedValue(PowerSetting setting, uint value) => null;
+    Guid? FallbackBasis => null;
 }
 
 public static class PowerPolicy
@@ -34,8 +36,8 @@ public static class PowerPolicy
         const string cpu = "54533251-82be-4824-96c1-47b60b740d00", sleep = "238c9fa8-0aad-41ed-83f4-97be242c8f20",
             video = "7516b95f-f776-4464-8c53-06167f40cc99", disk = "0012ee47-9041-4b5d-9b77-535fba8b1442",
             usb = "2a737441-1930-4402-8d77-b2bebba308a3", buttons = "4f971e89-eebd-4455-a8de-9e59040e7347";
-        PowerSetting S(string name, string group, string id, uint performance, uint saving, bool required = false) =>
-            new(name, new(group), new(id), performance, saving, required);
+        PowerSetting S(string name, string group, string id, uint performance, uint saving, bool core = false) =>
+            new(name, new(group), new(id), performance, saving, core);
         return new[]
         {
             S("Minimum processor state", cpu, "893dee8e-2bef-41e0-89c6-b55d0929964c", 100, 0, true),
@@ -96,24 +98,43 @@ public static class PowerPolicy
 // A fresh plan is configured and read back before activation. Existing plans are never edited.
 public sealed class PowerOptionsEngine(IPowerOptionsBackend backend)
 {
+    internal static bool IsUnsupported(Exception error) => error is Win32Exception win &&
+        win.NativeErrorCode is 2 or 3 or 50 or 87 or 120 or 1168;
+    static string Label(PowerSetting setting, bool battery) => setting.Name + (battery ? " (battery)" : " (plugged in)");
     public string Verify(Guid scheme, PowerPreset preset, int cpuLimit)
     {
         var missing = new List<string>();
+        var confirmed = 0;
         foreach (var setting in PowerPolicy.Settings(cpuLimit))
         foreach (var battery in new[] { false, true })
         {
-            var value = backend.Read(scheme, setting, battery);
-            if (value == null)
+            try
             {
-                if (setting.Required) throw new InvalidOperationException("Required power setting unavailable: " + setting.Name);
-                missing.Add(setting.Name); continue;
+                var desired = PowerPolicy.Value(setting, preset, battery);
+                var reason = backend.UnsupportedValue(setting, desired);
+                if (reason != null) { missing.Add(Label(setting, battery) + ": " + reason); continue; }
+                var value = backend.Read(scheme, setting, battery);
+                if (value != desired) { missing.Add(Label(setting, battery) + (value == null ? ": unavailable" : ": Windows retained " + value)); continue; }
+                confirmed++;
             }
-            if (value != PowerPolicy.Value(setting, preset, battery))
-                throw new InvalidOperationException("Windows did not confirm " + setting.Name + (battery ? " on battery." : " while plugged in."));
+            catch (Exception error) when (IsUnsupported(error) || error is Win32Exception { NativeErrorCode: 5 }) { missing.Add(Label(setting, battery) + ": " + error.Message); }
         }
-        return missing.Count == 0 ? "All preset settings confirmed." : "Unavailable on this system: " + string.Join(", ", missing.Distinct()) + ".";
+        if (confirmed == 0) throw new InvalidOperationException("No preset settings could be confirmed on this PC.");
+        return missing.Count == 0 ? "All preset settings confirmed." : confirmed + " AC/battery values confirmed. Limited on this PC: " + string.Join("; ", missing) + ".";
     }
     public void Apply(PowerRequest request)
+    {
+        try { ApplyCandidate(request, request.Basis); }
+        catch (Exception error) when (IsUnsupported(error) && backend.Active() == request.Expected &&
+            !backend.Exists(request.Candidate) && backend.FallbackBasis is Guid fallback && fallback != request.Basis)
+        {
+            // Modern Standby and vendor plans can restrict the plan personality. Keep the
+            // original restore identity even when building the candidate from Balanced.
+            try { ApplyCandidate(request, backend.FallbackBasis!.Value); }
+            catch (Exception retry) { throw new InvalidOperationException("The original plan and Balanced fallback could not be used. " + error.Message + " Fallback: " + retry.Message, retry); }
+        }
+    }
+    void ApplyCandidate(PowerRequest request, Guid basis)
     {
         if (!Enum.IsDefined(request.Preset)) throw new ArgumentException("Invalid power preset.");
         var settings = PowerPolicy.Settings(request.CpuLimit);
@@ -121,24 +142,43 @@ public sealed class PowerOptionsEngine(IPowerOptionsBackend backend)
             throw new ArgumentException("The new power plan must have a unique identity.");
         if (backend.Active() != request.Expected) throw new InvalidOperationException("The active power plan changed. Try again.");
         var created = false;
+        var written = new List<(PowerSetting Setting, bool Battery)>();
+        string? lastRejection = null;
+        void ConfirmWritten()
+        {
+            foreach (var entry in written)
+                if (backend.Read(request.Candidate, entry.Setting, entry.Battery) != PowerPolicy.Value(entry.Setting, request.Preset, entry.Battery))
+                    throw new InvalidOperationException("Windows did not confirm " + Label(entry.Setting, entry.Battery) + ".");
+        }
         try
         {
-            backend.Duplicate(request.Basis, request.Candidate); created = true;
+            backend.Duplicate(basis, request.Candidate); created = true;
             backend.Name(request.Candidate, "Geurts Prefect · " + PowerPolicy.Name(request.Preset));
             foreach (var setting in settings)
             foreach (var battery in new[] { false, true })
             {
-                if (backend.Read(request.Candidate, setting, battery) == null)
+                var desired = PowerPolicy.Value(setting, request.Preset, battery);
+                try
                 {
-                    if (setting.Required) throw new InvalidOperationException("Required power setting unavailable: " + setting.Name);
-                    continue;
+                    if (backend.UnsupportedValue(setting, desired) != null || backend.Read(request.Candidate, setting, battery) == null) continue;
+                    backend.Write(request.Candidate, setting, battery, desired);
+                    written.Add((setting, battery));
                 }
-                backend.Write(request.Candidate, setting, battery, PowerPolicy.Value(setting, request.Preset, battery));
+                catch (Exception error) when (IsUnsupported(error) || error is Win32Exception { NativeErrorCode: 5 })
+                {
+                    // A setting can be visible but locked or unwritable on this hardware.
+                    // Confirm all successful writes separately; never claim full coverage.
+                    lastRejection = Label(setting, battery) + ": " + error.Message;
+                }
+                catch (Exception error) { throw new InvalidOperationException("Could not configure " + Label(setting, battery) + ": " + error.Message, error); }
             }
-            Verify(request.Candidate, request.Preset, request.CpuLimit);
+            if (written.Count == 0) throw new InvalidOperationException("Windows allowed no preset settings to be written. Check administrator access and organisation or vendor power policies." +
+                (lastRejection == null ? "" : " Last rejection: " + lastRejection));
+            ConfirmWritten();
             if (backend.Active() != request.Expected) throw new InvalidOperationException("Another application changed the active power plan. Try again.");
             backend.Activate(request.Candidate);
             if (backend.Active() != request.Candidate) throw new InvalidOperationException("Windows did not activate the preset.");
+            ConfirmWritten();
             Verify(request.Candidate, request.Preset, request.CpuLimit);
         }
         catch (Exception error)
@@ -250,15 +290,7 @@ public sealed class PowerOptionsController
         catch (Exception ex) { Status = "Restore failed: " + ex.Message; }
         finally { Busy = false; Changed?.Invoke(); }
     }
-    static Task RunHelper(params string[] args) => Task.Run(() =>
-    {
-        var info = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden };
-        if (!HardwareSampler.IsAdministrator) info.Verb = "runas";
-        foreach (var argument in args) info.ArgumentList.Add(argument);
-        using var helper = Process.Start(info) ?? throw new InvalidOperationException("Could not start the power options helper.");
-        helper.WaitForExit();
-        if (helper.ExitCode != 0) throw new InvalidOperationException("Windows rejected the preset or a required setting. See the helper's error message.");
-    });
+    static Task RunHelper(params string[] args) => PowerOptionsHelper.RunAsync(args);
 }
 
 public sealed class WindowsPowerOptionsBackend : IPowerOptionsBackend
@@ -277,7 +309,14 @@ public sealed class WindowsPowerOptionsBackend : IPowerOptionsBackend
         if (code != 234) Check(code);
         return true;
     }
-    public void Duplicate(Guid basis, Guid candidate) => WindowsParkingBackend.Run("/duplicatescheme", basis.ToString("D"), candidate.ToString("D"));
+    public Guid? FallbackBasis => Exists(Balanced) ? Balanced : null;
+    static readonly Guid Balanced = new("381b4222-f694-41f0-9685-ff5bb260df2e");
+    public void Duplicate(Guid basis, Guid candidate)
+    {
+        var pointer = Marshal.AllocHGlobal(Marshal.SizeOf<Guid>());
+        try { Marshal.StructureToPtr(candidate, pointer, false); Check(PowerDuplicateScheme(IntPtr.Zero, ref basis, ref pointer)); }
+        finally { Marshal.FreeHGlobal(pointer); }
+    }
     public void Name(Guid scheme, string name) => WindowsParkingBackend.Run("/changename", scheme.ToString("D"), name);
     public uint? Read(Guid scheme, PowerSetting setting, bool battery)
     {
@@ -294,10 +333,24 @@ public sealed class WindowsPowerOptionsBackend : IPowerOptionsBackend
         Check(battery ? PowerWriteDCValueIndex(IntPtr.Zero, ref scheme, ref group, ref id, value) :
             PowerWriteACValueIndex(IntPtr.Zero, ref scheme, ref group, ref id, value));
     }
+    public string? UnsupportedValue(PowerSetting setting, uint value)
+    {
+        var group = setting.Group; var id = setting.Id;
+        var minCode = PowerReadValueMin(IntPtr.Zero, ref group, ref id, out var min);
+        var maxCode = PowerReadValueMax(IntPtr.Zero, ref group, ref id, out var max);
+        // Enumerated settings often have no numeric range. Their writes/read-back
+        // still decide support; a real zero maximum must not be treated as missing.
+        if (minCode == 0 && maxCode == 0 && (value < min || value > max))
+            return "requested " + value + ", Windows allows " + min + "–" + max;
+        return null;
+    }
     public void Activate(Guid scheme) => Check(PowerSetActiveScheme(IntPtr.Zero, ref scheme));
     public void Delete(Guid scheme) => Check(PowerDeleteScheme(IntPtr.Zero, ref scheme));
-    static void Check(uint code) { if (code != 0) throw new Win32Exception((int)code); }
+    static void Check(uint code) { if (code != 0) throw new Win32Exception((int)code, new Win32Exception((int)code).Message + " (Windows error " + code + ")"); }
     [DllImport("powrprof.dll")] static extern uint PowerGetActiveScheme(IntPtr root, out IntPtr scheme);
+    [DllImport("powrprof.dll")] static extern uint PowerDuplicateScheme(IntPtr root, ref Guid basis, ref IntPtr candidate);
+    [DllImport("powrprof.dll")] static extern uint PowerReadValueMin(IntPtr root, ref Guid group, ref Guid setting, out uint value);
+    [DllImport("powrprof.dll")] static extern uint PowerReadValueMax(IntPtr root, ref Guid group, ref Guid setting, out uint value);
     [DllImport("powrprof.dll")] static extern uint PowerReadFriendlyName(IntPtr root, ref Guid scheme, IntPtr group, IntPtr setting, IntPtr buffer, ref uint size);
     [DllImport("powrprof.dll")] static extern uint PowerReadACValueIndex(IntPtr root, ref Guid scheme, ref Guid group, ref Guid setting, out uint value);
     [DllImport("powrprof.dll")] static extern uint PowerReadDCValueIndex(IntPtr root, ref Guid scheme, ref Guid group, ref Guid setting, out uint value);
