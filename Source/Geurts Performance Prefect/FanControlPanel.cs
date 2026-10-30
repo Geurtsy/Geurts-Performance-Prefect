@@ -14,6 +14,8 @@ public sealed class FanControlPanel : StackPanel
     string controlSignature = "", sourceSignature = "";
     string desiredSource = "";
     bool updatingSources;
+    bool updatingFullOn;
+    internal CheckBox FullOnToggle { get; } = new() { Content = "Full-On Mode — all controllable fans at maximum" };
     internal ComboBox Selector { get; } = Choice();
     internal ComboBox Mode { get; } = new() { ItemsSource = new[] { "Hardware automatic", "Manual speed", "Temperature curve" }, SelectedIndex = 0 };
     internal ComboBox Source { get; } = Choice();
@@ -30,7 +32,9 @@ public sealed class FanControlPanel : StackPanel
     public FanControlPanel(FanControlService service)
     {
         this.service = service;
-        Children.Add(Note("Fan changes apply only when you click Apply. Overrides last for this app session, including while Settings is closed. Normal exit and restart return session-controlled fans to hardware automatic; overrides are never applied on startup."));
+        Children.Add(FullOnToggle);
+        Children.Add(Note("Full-On Mode immediately requests the device maximum on every supported fan channel, including channels detected later. It ignores temperature curves and individual speed settings. Turn it off or use Restore all to return fans to hardware automatic."));
+        Children.Add(Note("Full-On Mode and individual overrides last for this app session, including while Settings is closed or the overlay is minimised. Normal exit and restart return session-controlled fans to hardware automatic; overrides are never applied on startup. Individual changes require Apply."));
         Children.Add(Heading("Live fan speeds")); Children.Add(Telemetry);
         Children.Add(Selector); Children.Add(current);
         Children.Add(Mode);
@@ -57,7 +61,18 @@ public sealed class FanControlPanel : StackPanel
         };
         ApplyButton.Click += (_, _) => Apply();
         RestoreButton.Click += (_, _) => { service.RestoreAll(); Status.Text = "Hardware restore queued for the next hardware sample."; };
+        FullOnToggle.IsChecked = service.FullOnRequested;
+        FullOnToggle.Checked += (_, _) => ChangeFullOn(true);
+        FullOnToggle.Unchecked += (_, _) => ChangeFullOn(false);
         UpdateMode();
+    }
+    void ChangeFullOn(bool enabled)
+    {
+        if (updatingFullOn) return;
+        service.SetFullOn(enabled);
+        Status.Text = enabled ? "Full-On Mode queued for all fans on the next hardware sample."
+            : "Full-On Mode off; hardware automatic restore queued for all session-controlled fans.";
+        UpdateCurrent();
     }
     static ComboBox Choice() => new() { DisplayMemberPath = "Name", SelectedValuePath = "Id" };
     static Slider Speed(double value) => new() { Minimum = 30, Maximum = 100, Value = value, TickFrequency = 1, SmallChange = 1, LargeChange = 5, IsSnapToTickEnabled = true };
@@ -80,7 +95,7 @@ public sealed class FanControlPanel : StackPanel
     {
         var selected = controls.FirstOrDefault(c => c.Id == Selector.SelectedValue as string);
         if (selected == null) { ApplyButton.IsEnabled = false; return; }
-        Mode.SelectedIndex = (int)selected.Policy.Mode;
+        Mode.SelectedIndex = selected.Policy.Mode == FanMode.FullOn ? 0 : (int)selected.Policy.Mode;
         Manual.Value = selected.Policy.Percent; At40.Value = selected.Policy.At40;
         At55.Value = selected.Policy.At55; At70.Value = selected.Policy.At70;
         desiredSource = selected.Policy.TemperatureId;
@@ -108,6 +123,9 @@ public sealed class FanControlPanel : StackPanel
     }
     internal void Update(Snapshot snapshot)
     {
+        updatingFullOn = true;
+        try { FullOnToggle.IsChecked = service.FullOnRequested; }
+        finally { updatingFullOn = false; }
         controls = snapshot.FanControls; sensors = snapshot.Sensors;
         var signature = string.Join("|", controls.Select(c => c.Id + c.Name));
         if (signature != controlSignature)
@@ -141,7 +159,8 @@ public sealed class FanControlPanel : StackPanel
     void UpdateCurrent()
     {
         var selected = controls.FirstOrDefault(c => c.Id == Selector.SelectedValue as string);
-        ApplyButton.IsEnabled = selected is { Available: true } && float.IsFinite(selected.Minimum) &&
+        Mode.IsEnabled = manual.IsEnabled = curve.IsEnabled = !service.FullOnRequested;
+        ApplyButton.IsEnabled = !service.FullOnRequested && selected is { Available: true } && float.IsFinite(selected.Minimum) &&
             float.IsFinite(selected.Maximum) && selected.Minimum <= selected.Maximum && selected.Maximum <= 100;
         current.Text = selected == null ? "Select a supported control." :
             $"Reported: {Percent(selected.ReportedPercent)}   Requested by Prefect: {Percent(selected.RequestedPercent)}\n" +

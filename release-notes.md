@@ -1,3 +1,10 @@
+# Geurts Performance Prefect 1.44.0
+
+- Added Full-On Mode at the top of Settings → Fan control. One switch requests the device maximum on every supported writable fan channel, independent of temperature, selected graphics card or individual fan curves. Newly detected or reconnected controls join automatically while the mode is active.
+- Full-On Mode continues while Settings is closed or the overlay is minimised. Turning it off, Restore all, and normal application exit return session-controlled fans to hardware automatic. It remains session-only and starts off on each launch. Individual controls are disabled while Full-On Mode is enabled.
+- Reports waiting, partial coverage, unsupported ranges, write failures and restoration failures. Failed supported writes retry on later samples without preventing other fans from running at maximum. Hardware and firmware determine which fans are writable; requested output does not verify physical RPM. Existing crash, sleep, driver and competing-controller limitations still apply.
+- Added isolated service and UI tests covering all-channel maximum output, device limits, curves, missing temperatures, discovery/reconnection, failure recovery, restore, shutdown, Settings reopening and normal/narrow previews. Physical fan speeds are not changed during automated validation. Local installation remains manual.
+
 # Geurts Performance Prefect 1.43.0
 
 - Embedded the open-source Fastfetch 2.70.0 Windows hardware tool, pinned by archive SHA256. Added a background inventory with Windows WMI fallback for computer model, CPU, graphics, memory modules, motherboard, firmware, displays and drives. View and refresh it under Sensor sources; each item shows its source and unavailable categories have diagnostics. Inventory does not require a new driver or internet access at runtime.

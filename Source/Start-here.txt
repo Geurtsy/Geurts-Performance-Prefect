@@ -218,6 +218,15 @@ Existing preferences are preserved in:
   %LOCALAPPDATA%\HardwareOverlay\settings.json
 This legacy folder is retained for compatibility with the previous release.
 
+FAN FULL-ON MODE
+Settings > Fan control > Full-On Mode requests maximum output on every supported
+writable fan channel, including channels detected later, regardless of temperature.
+It stays active while Settings is closed or the overlay is minimised. Turn it off
+or choose Restore all to return session-controlled fans to hardware automatic.
+Normal exit also restores hardware control. Full-On Mode starts off each launch.
+Some hardware exposes RPM readings without writable controls; review the status
+for unsupported channels or failures. Automated tests do not change physical fans.
+
 TEMPERATURE ACCESS
 CPU/motherboard temperatures may need Settings > Restart as administrator and
 the PawnIO driver. On first launch, the bundled official PawnIO installer runs when the driver is missing; approve the Windows administrator prompt.

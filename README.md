@@ -57,8 +57,16 @@ screen and restores full screen from the tray, with native minimize and close
 controls. Minimizing Settings leaves the HUD visible and updating.
 Use Minimise on the HUD to minimize the whole app. Sections scroll independently.
 
-**Settings → Fan control** shows live fan speeds and supported writable fan
-channels from LibreHardwareMonitor. Select a channel, choose **Hardware automatic**,
+**Settings → Fan control → Full-On Mode** requests maximum output on every
+supported writable fan channel, including channels detected later. It overrides
+individual speeds and temperature curves, works without temperature readings,
+and keeps requesting the device maximum while the app runs, including with Settings
+closed or the overlay minimised. Switch it off or choose **Restore all** to return
+session-controlled fans to hardware automatic. Full-On Mode starts off each launch;
+unsupported or failed channels are reported rather than claimed as controlled.
+
+**Settings → Fan control** also shows live fan speeds and supported writable fan
+channels from LibreHardwareMonitor. With Full-On Mode off, select a channel, choose **Hardware automatic**,
 **Manual speed** or **Temperature curve**, then click **Apply to selected fan**.
 Curves use an explicitly selected temperature sensor, with editable speeds at
 40, 55 and 70°C, interpolating to maximum at 85°C. Requests are limited to 30–100%
