@@ -1,7 +1,12 @@
+# Geurts Performance Prefect 1.44.2
+
+- Automatic exit now also waits for in-progress power-plan, security, firewall, visual-effects and BitLocker request updates to finish safely before saving preferences and closing. Active cancellable work still stops automatically; no manual Stop action or repeated Close click is required.
+- Includes the one-click Close behavior from 1.44.1: a brief informational warning, automatic shutdown of app-owned compression, cleanup, diagnostics and the private analyser, preference saving and restoration of session-controlled fans. Completed changes remain; interrupted checks or repairs may be incomplete. Installation remains manual.
+
 # Geurts Performance Prefect 1.44.1
 
 - Closing the Settings window with X, or choosing Exit application / tray Exit, now shows a brief informational warning, stops active app-owned work automatically, and exits after cleanup. No confirmation, manual Stop action, or second exit click is required. Done still closes only Settings; minimising still keeps monitoring active.
-- Exit cancels manual and automatic compression after the current file, stops cleanup and diagnostic commands, closes the private embedded analyser even when a native dialog is open, waits for owned workers, in-progress settings changes and temporary analyser files, saves preferences, and returns session-controlled fans to hardware automatic. Completed file changes remain. Interrupted checks, repairs or optimization may be incomplete; Windows-managed services such as BitLocker decryption can continue independently.
+- Exit cancels manual and automatic compression after the current file, stops cleanup and diagnostic commands, closes the private embedded analyser even when a native dialog is open, waits for owned workers and temporary analyser files, saves preferences, and returns session-controlled fans to hardware automatic. Completed file changes remain. Interrupted checks, repairs or optimization may be incomplete; Windows-managed services such as BitLocker decryption can continue independently.
 - Added isolated exit coverage for one-click Settings exit, duplicate clicks, restart rejection during shutdown, analyser process and temporary-file cleanup, preview cancellation, informational warning layout, and repair/servicing transport cancellation using harmless command fixtures. No installed app, real repair, physical fan setting, or system tuning is changed by these tests. Installation remains manual.
 
 # Geurts Performance Prefect 1.44.0
